@@ -222,7 +222,8 @@ export default async function HomePage() {
 						{STEPS.map((step) => (
 							<HairlineRow
 								key={step.n}
-								className="flex-col items-start gap-1 sm:flex-row sm:gap-8">
+								align="start"
+								className="flex-col gap-1 sm:flex-row sm:gap-8">
 								<span className="font-display text-cocoa-soft w-12 shrink-0 text-lg">{step.n}</span>
 								<div className="flex flex-1 flex-col gap-1">
 									<h3 className="text-lg">{step.title}</h3>
