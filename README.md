@@ -22,12 +22,13 @@ enough to work on the design. Ordering and the admin need a real database.
 | --- | --- |
 | `npm run dev` | Development server on http://localhost:3000 |
 | `npm run build` | Production build |
+| `npm run check` | Verifies your Supabase setup end to end, without printing any keys |
 | `npm test` | Runs the test suite, including real SQL against an in-process Postgres |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier over the whole repo |
 | `npm run icons` | Regenerates every icon from `assets/logo-source.png` |
-| `npx tsx scripts/preview-emails.mts` | Renders all five emails to `.email-preview/` |
+| `npm run emails:preview` | Renders all five emails to `.email-preview/` |
 
 ---
 
@@ -42,12 +43,25 @@ home bakery.
 1. Create a project at [supabase.com](https://supabase.com). Choose the region
    closest to your customers — **Sydney** for New Zealand.
 2. Save the database password somewhere safe; you cannot see it again.
-3. Go to **Project Settings → API** and copy:
-   - the **Project URL**
-   - the **anon / public** key
-   - the **service_role** key (this one is secret — it bypasses every security
-     rule, so it never goes anywhere near a browser)
+3. Go to **Project Settings → API Keys**. You need three values:
+
+   | In the dashboard | Goes into |
+   | --- | --- |
+   | Project URL | `NEXT_PUBLIC_SUPABASE_URL` |
+   | **Publishable key** (`sb_publishable_…`) | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+   | **Secret key** (`sb_secret_…`) | `SUPABASE_SERVICE_ROLE_KEY` |
+
+   Supabase renamed these; older documentation calls them the anon/public key
+   and the service_role key. The variable names keep the old wording because
+   that is what the client libraries expect.
+
+   The publishable key is meant to be in the browser — row level security is
+   what protects the data, not the key. The secret key bypasses all of that, so
+   it stays on the server and never goes in a `NEXT_PUBLIC_` variable.
+
 4. Copy `.env.example` to `.env.local` and fill those in.
+5. Run `npm run check`. It works through every step below and tells you what is
+   still missing. It never prints a key.
 
 ### 2. Create the tables
 
@@ -192,7 +206,8 @@ new ones, and the admin says so before you save.
 
 ## Verifying it works
 
-Once Supabase is connected:
+Start with `npm run check`, which covers the whole setup: keys, tables, seed
+data, the owner account, the security boundary, storage and email. Then:
 
 ```bash
 npm test          # migrations, RLS policies, pricing, availability — 98 tests

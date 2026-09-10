@@ -14,7 +14,9 @@
 		"format:check": "prettier --check .",
 		"icons": "node scripts/build-icons.mjs",
 		"email": "email dev --dir emails",
-		"db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > lib/supabase/database.types.ts"
+		"db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > lib/supabase/database.types.ts",
+		"check": "node scripts/check-setup.mjs",
+		"emails:preview": "tsx scripts/preview-emails.mts"
 	},
 	"dependencies": {
 		"@date-fns/tz": "^1.5.0",
