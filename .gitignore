@@ -13,3 +13,4 @@ yarn-error.log*
 next-env.d.ts
 *.tsbuildinfo
 .supabase
+.email-preview
