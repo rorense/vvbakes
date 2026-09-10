@@ -13,4 +13,9 @@ yarn-error.log*
 next-env.d.ts
 *.tsbuildinfo
 .supabase
+
+# Supabase CLI scratch state: which project is linked, cached version numbers.
+# Local to one machine, and it names the project and organisation, so it has no
+# business in a public repository.
+supabase/.temp/
 .email-preview
