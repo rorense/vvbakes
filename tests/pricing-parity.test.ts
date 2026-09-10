@@ -1,0 +1,133 @@
+/**
+ * lib/pricing.ts exists so the order form can show a running total. The database
+ * is what actually charges. If they disagree, a customer sees one price and pays
+ * another, which is the worst class of bug this project can have.
+ *
+ * This runs both implementations over a spread of tier shapes and every quantity
+ * up to 40 and asserts they agree on the cent and on the wording.
+ */
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { priceForQty } from "../lib/pricing";
+import type { PriceTier } from "../lib/types";
+import { createTestDb, type TestDb } from "./pg";
+
+let db: TestDb;
+let productId: string;
+
+const CASES: Array<{
+	name: string;
+	unitPriceCents: number;
+	unitLabel: string;
+	tiers: PriceTier[];
+}> = [
+	{ name: "no tiers", unitPriceCents: 500, unitLabel: "slice", tiers: [] },
+	{
+		name: "one tier at the same unit rate (cupcakes)",
+		unitPriceCents: 300,
+		unitLabel: "each",
+		tiers: [{ qty: 4, priceCents: 1200 }],
+	},
+	{
+		name: "one tier that genuinely discounts",
+		unitPriceCents: 300,
+		unitLabel: "each",
+		tiers: [{ qty: 6, priceCents: 1500 }],
+	},
+	{
+		name: "two tiers where the smaller one is the better rate",
+		unitPriceCents: 300,
+		unitLabel: "each",
+		tiers: [
+			{ qty: 4, priceCents: 1200 },
+			{ qty: 3, priceCents: 800 },
+		],
+	},
+	{
+		name: "three overlapping tiers",
+		unitPriceCents: 450,
+		unitLabel: "each",
+		tiers: [
+			{ qty: 2, priceCents: 850 },
+			{ qty: 5, priceCents: 2000 },
+			{ qty: 12, priceCents: 4500 },
+		],
+	},
+	{
+		name: "awkward prices that do not divide evenly",
+		unitPriceCents: 333,
+		unitLabel: "each",
+		tiers: [
+			{ qty: 3, priceCents: 999 },
+			{ qty: 7, priceCents: 2222 },
+		],
+	},
+	{
+		name: "a free item",
+		unitPriceCents: 0,
+		unitLabel: "each",
+		tiers: [],
+	},
+];
+
+beforeAll(async () => {
+	db = await createTestDb({ seed: false });
+	await db.exec(`
+		insert into site_settings (id) values (1);
+		insert into categories (name, slug) values ('Test', 'test');
+	`);
+	const result = await db.query<{ id: string }>(
+		`insert into products (name, slug, unit_price_cents, unit_label)
+		 values ('Parity', 'parity', 100, 'each') returning id`,
+	);
+	productId = result.rows[0]!.id;
+}, 180_000);
+
+afterAll(async () => {
+	await db?.close();
+});
+
+describe("lib/pricing.ts agrees with price_for_qty", () => {
+	for (const testCase of CASES) {
+		it(testCase.name, async () => {
+			await db.query("update products set unit_price_cents = $1, unit_label = $2 where id = $3", [
+				testCase.unitPriceCents,
+				testCase.unitLabel,
+				productId,
+			]);
+			await db.query("delete from product_price_tiers where product_id = $1", [productId]);
+			for (const tier of testCase.tiers) {
+				await db.query(
+					"insert into product_price_tiers (product_id, qty, price_cents) values ($1, $2, $3)",
+					[productId, tier.qty, tier.priceCents],
+				);
+			}
+
+			const mismatches: string[] = [];
+
+			for (let qty = 1; qty <= 40; qty += 1) {
+				const sql = await db.query<{ total_cents: number; note: string }>(
+					"select total_cents, note from price_for_qty($1, $2)",
+					[productId, qty],
+				);
+				const fromDb = sql.rows[0]!;
+				const fromTs = priceForQty(
+					testCase.unitPriceCents,
+					testCase.tiers,
+					qty,
+					testCase.unitLabel,
+				);
+
+				if (fromDb.total_cents !== fromTs.totalCents) {
+					mismatches.push(
+						`qty ${qty}: database charges ${fromDb.total_cents}, form showed ${fromTs.totalCents}`,
+					);
+				}
+				if (fromDb.note !== fromTs.note) {
+					mismatches.push(`qty ${qty}: note "${fromDb.note}" vs "${fromTs.note}"`);
+				}
+			}
+
+			expect(mismatches).toEqual([]);
+		});
+	}
+});

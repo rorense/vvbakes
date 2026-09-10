@@ -169,7 +169,7 @@
    Editorial components.
 
    These are the few pieces of the look that Tailwind utilities express badly:
-   the scalloped photo mask, the rotated paper sticker, the hairline list that
+   the arched photo frame, the rotated paper sticker, the hairline list that
    echoes the original menu card, and the marquee band.
 --------------------------------------------------------------------------- */
 @layer components {
@@ -204,16 +204,20 @@
 		}
 	}
 
-	/* Scalloped photo frame — the edge treatment on a paper doily. */
-	.scallop {
-		--scallop-size: 26px;
-		-webkit-mask-image:
-			radial-gradient(var(--scallop-size) at var(--scallop-size) var(--scallop-size), #000 99%, #0000 101%),
-			linear-gradient(#000 0 0);
-		mask-image:
-			radial-gradient(var(--scallop-size) at var(--scallop-size) var(--scallop-size), #000 99%, #0000 101%),
-			linear-gradient(#000 0 0);
-		border-radius: var(--radius-xl);
+	/*
+	 * An arch frame: a full half-round at the top, a small radius at the foot.
+	 * A window rather than a card — the shape bakery and restaurant menus have
+	 * used for a century, and it reads as deliberate where a plain rounded
+	 * rectangle reads as a component library.
+	 */
+	.arch {
+		border-radius: 999px 999px var(--radius-md) var(--radius-md);
+		overflow: hidden;
+	}
+
+	/* Softer variant for cards in a grid, where a full arch would be too much. */
+	.arch-soft {
+		border-radius: var(--radius-xl) var(--radius-xl) var(--radius-md) var(--radius-md);
 		overflow: hidden;
 	}
 

@@ -30,6 +30,7 @@
 		"zod": "^4.6.2"
 	},
 	"devDependencies": {
+		"@electric-sql/pglite": "^0.5.8",
 		"@eslint/eslintrc": "^3.3.7",
 		"@react-email/components": "^1.0.12",
 		"@react-email/render": "^2.1.0",
