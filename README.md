@@ -23,6 +23,7 @@ enough to work on the design. Ordering and the admin need a real database.
 | `npm run dev` | Development server on http://localhost:3000 |
 | `npm run build` | Production build |
 | `npm run check` | Verifies your Supabase setup end to end, without printing any keys |
+| `npm run make-admin -- <email>` | Gives an existing Supabase user access to the admin |
 | `npm test` | Runs the test suite, including real SQL against an in-process Postgres |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
@@ -82,15 +83,19 @@ No bank details are in that file. You enter those in the admin later.
 ### 3. Create your login
 
 1. **Authentication → Users → Add user**. Use a real email and a strong
-   password. Tick "auto confirm user" so you can sign in immediately.
-2. Copy the new user's ID.
-3. In the **SQL Editor**, run:
+   password, and tick **Auto Confirm User** so you can sign in immediately.
+   Create it here rather than anywhere else, so the password is only ever
+   between you and Supabase.
+2. Then, from the project:
 
-   ```sql
-   insert into admins (user_id) values ('paste-the-user-id-here');
+   ```bash
+   npm run make-admin -- you@example.com
    ```
 
-4. **Authentication → Sign In / Providers**, and turn **"Allow new users to
+   That finds the user and adds the `admins` row the site checks for. Use
+   `--remove` on the same command to take access away again.
+
+3. **Authentication → Sign In / Providers**, and turn **"Allow new users to
    sign up"** off. Only the account you just made should be able to get in.
 
 Being able to sign in is not the same as being the owner: the site checks for a
