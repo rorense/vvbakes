@@ -45,8 +45,8 @@ export default async function OrderPage() {
 			<Section tone="paper">
 				<Container width="narrow">
 					<div className="flex flex-col items-start gap-4">
-						<SectionLabel as="h1">Orders</SectionLabel>
-						<p className="font-display text-3xl">We&rsquo;ve paused new orders</p>
+						<SectionLabel>Orders</SectionLabel>
+						<h1 className="font-display text-3xl">We&rsquo;ve paused new orders</h1>
 						<p className="text-cocoa-soft">
 							{settings.ordersClosedMessage ??
 								"We're taking a short break. Follow along on Instagram and we'll post when we're back."}
@@ -68,8 +68,8 @@ export default async function OrderPage() {
 			size="tight">
 			<Container width="narrow">
 				<div className="mb-10 flex flex-col gap-3">
-					<SectionLabel as="h1">Your order</SectionLabel>
-					<p className="font-display text-4xl">Let&rsquo;s get this booked in</p>
+					<SectionLabel>Your order</SectionLabel>
+					<h1 className="font-display text-4xl">Let&rsquo;s get this booked in</h1>
 					<p className="text-cocoa-soft">
 						Nothing is charged here. We&rsquo;ll check the date, confirm by email, and send you bank
 						details and a reference.

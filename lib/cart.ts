@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { CART_STORAGE_KEY } from "./constants";
 import type { Cart, CartLine } from "./types";
 
@@ -110,9 +110,55 @@ export function cartCount(cart: Cart): number {
 }
 
 /**
- * Subscribes to the cart. Starts empty and fills in after mount so the server
- * and client render the same markup — a cart read during render would produce a
- * hydration mismatch on every page that shows a count.
+ * The snapshot React reads. Cached against the raw stored string so repeated
+ * reads return the identical object — useSyncExternalStore compares by
+ * reference and would loop forever on a fresh object each time.
+ */
+let cachedRaw: string | null = null;
+let cachedCart: Cart = EMPTY;
+
+function getSnapshot(): Cart {
+	let raw: string | null = null;
+	try {
+		raw = window.localStorage.getItem(CART_STORAGE_KEY);
+	} catch {
+		raw = null;
+	}
+	if (raw !== cachedRaw) {
+		cachedRaw = raw;
+		cachedCart = parse(raw);
+	}
+	return cachedCart;
+}
+
+/** The server has no localStorage, so it renders an empty cart. */
+function getServerSnapshot(): Cart {
+	return EMPTY;
+}
+
+function subscribe(onChange: () => void): () => void {
+	window.addEventListener(CART_EVENT, onChange);
+	// `storage` fires in other tabs, so a cart edited in one tab updates here too.
+	window.addEventListener("storage", onChange);
+	return () => {
+		window.removeEventListener(CART_EVENT, onChange);
+		window.removeEventListener("storage", onChange);
+	};
+}
+
+const alwaysReady = () => true;
+const neverReady = () => false;
+
+/**
+ * Subscribes to the cart.
+ *
+ * useSyncExternalStore rather than an effect: localStorage is exactly the kind
+ * of external store it exists for, and giving the server an explicitly empty
+ * snapshot means hydration cannot mismatch.
+ *
+ * `ready` is false during the server render and true from the first client
+ * render, which is what stops "your order is empty" flashing before the cart
+ * has been read.
  */
 export function useCart(): {
 	cart: Cart;
@@ -122,34 +168,23 @@ export function useCart(): {
 	remove: (productId: string) => void;
 	clear: () => void;
 } {
-	const [cart, setCart] = useState<Cart>(EMPTY);
-	const [ready, setReady] = useState(false);
-
-	useEffect(() => {
-		setCart(readCart());
-		setReady(true);
-
-		const sync = () => setCart(readCart());
-		window.addEventListener(CART_EVENT, sync);
-		window.addEventListener("storage", sync);
-		return () => {
-			window.removeEventListener(CART_EVENT, sync);
-			window.removeEventListener("storage", sync);
-		};
-	}, []);
+	const cart = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+	const ready = useSyncExternalStore(subscribe, alwaysReady, neverReady);
 
 	return {
 		cart,
 		ready,
-		setQty: useCallback(
-			(productId: string, qty: number) => setCart(setCartQty(productId, qty)),
-			[],
-		),
-		add: useCallback((productId: string, qty: number) => setCart(addToCart(productId, qty)), []),
-		remove: useCallback((productId: string) => setCart(removeFromCart(productId)), []),
+		setQty: useCallback((productId: string, qty: number) => {
+			setCartQty(productId, qty);
+		}, []),
+		add: useCallback((productId: string, qty: number) => {
+			addToCart(productId, qty);
+		}, []),
+		remove: useCallback((productId: string) => {
+			removeFromCart(productId);
+		}, []),
 		clear: useCallback(() => {
 			clearCart();
-			setCart(EMPTY);
 		}, []),
 	};
 }

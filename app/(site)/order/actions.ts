@@ -44,8 +44,11 @@ export async function placeOrder(
 		return fail("Something went wrong sending your order. Please try again.");
 	}
 
+	// Zero means the form never finished mounting, which is a browser without
+	// JavaScript rather than a bot. That fails open: the honeypot still applies,
+	// and turning away a real customer is worse than letting one bot through.
 	const startedAt = Number(formData.get("startedAt"));
-	if (Number.isFinite(startedAt) && Date.now() - startedAt < MIN_FORM_FILL_MS) {
+	if (startedAt > 0 && Date.now() - startedAt < MIN_FORM_FILL_MS) {
 		return fail("That was quick — please take another look and submit again.");
 	}
 

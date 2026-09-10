@@ -75,8 +75,8 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
 			<Container width="narrow">
 				<div className="flex flex-col gap-8">
 					<div className="flex flex-col gap-3">
-						<SectionLabel as="h1">Order {order.reference}</SectionLabel>
-						<p className="font-display text-4xl">{copy.heading}</p>
+						<SectionLabel>Order {order.reference}</SectionLabel>
+						<h1 className="font-display text-4xl">{copy.heading}</h1>
 						<p className="text-cocoa-soft">{copy.body}</p>
 					</div>
 

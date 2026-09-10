@@ -185,8 +185,8 @@ export default async function HomePage() {
 					<Container width="wide">
 						<div className="mb-10 flex flex-wrap items-end justify-between gap-4">
 							<div className="flex flex-col gap-2">
-								<SectionLabel as="h2">This week</SectionLabel>
-								<p className="font-display text-3xl">A few favourites</p>
+								<SectionLabel>This week</SectionLabel>
+								<h2 className="font-display text-3xl">A few favourites</h2>
 							</div>
 							<Link
 								href="/shop"
@@ -212,8 +212,8 @@ export default async function HomePage() {
 			<Section tone="blush">
 				<Container width="narrow">
 					<div className="mb-8 flex flex-col gap-2">
-						<SectionLabel as="h2">How it works</SectionLabel>
-						<p className="font-display text-3xl">Ordering takes a minute</p>
+						<SectionLabel>How it works</SectionLabel>
+						<h2 className="font-display text-3xl">Ordering takes a minute</h2>
 					</div>
 
 					<HairlineList

@@ -12,7 +12,6 @@ import type { PickableDate, Product, SiteSettings } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Textarea } from "@/components/ui/Form";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
-import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Stepper } from "@/components/ui/Stepper";
 import { ProductImage } from "@/components/site/ProductCard";
 
@@ -38,12 +37,32 @@ export function OrderForm({
 }) {
 	const router = useRouter();
 	const { cart, ready, setQty, remove } = useCart();
-	const [state, action, pending] = useActionState(placeOrder, INITIAL);
+	const [state, formAction, pending] = useActionState(placeOrder, INITIAL);
 
-	const [pickupDate, setPickupDate] = useState<IsoDate | "">(() => dates[0]?.date ?? "");
+	// The chosen date is stored, but the value actually used is always checked
+	// against the dates on offer — derived rather than synced, so it can never
+	// point at a date that has gone.
+	const [chosenDateValue, setChosenDateValue] = useState<IsoDate | "">("");
 	const [fulfilment, setFulfilment] = useState<"pickup" | "delivery">("pickup");
-	const startedAt = useRef(Date.now());
+
+	// When the form was opened, used to reject submissions no human could have
+	// completed that fast. Held in a ref written from an effect: the clock is an
+	// external system, so reading it during render is not allowed, and a hidden
+	// input is no good either — React re-applies its value on every re-render,
+	// which happens on every quantity change.
+	const openedAt = useRef(0);
 	const errorRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		openedAt.current = Date.now();
+	}, []);
+
+	// Stamps the timestamp on the way out. Reading a ref in an event handler is
+	// exactly where refs are meant to be read.
+	const action = (formData: FormData) => {
+		formData.set("startedAt", String(openedAt.current));
+		return formAction(formData);
+	};
 
 	const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
@@ -67,13 +86,8 @@ export function OrderForm({
 	const deliveryFee = fulfilment === "delivery" ? settings.deliveryFeeCents : 0;
 	const total = subtotal + deliveryFee;
 
-	const chosenDate = dates.find((date) => date.date === pickupDate) ?? null;
-
-	// Keep a valid date selected if the list changes underneath us.
-	useEffect(() => {
-		if (pickupDate && dates.some((date) => date.date === pickupDate)) return;
-		setPickupDate(dates[0]?.date ?? "");
-	}, [dates, pickupDate]);
+	const chosenDate = dates.find((date) => date.date === chosenDateValue) ?? dates[0] ?? null;
+	const pickupDate = chosenDate?.date ?? "";
 
 	// On success, empty the cart and hand over to the status page.
 	useEffect(() => {
@@ -107,11 +121,6 @@ export function OrderForm({
 				type="hidden"
 				name="items"
 				value={JSON.stringify(lines.map((line) => ({ productId: line.product.id, qty: line.qty })))}
-			/>
-			<input
-				type="hidden"
-				name="startedAt"
-				value={startedAt.current}
 			/>
 			<input
 				type="hidden"
@@ -214,7 +223,7 @@ export function OrderForm({
 				<PickupDatePicker
 					dates={dates}
 					value={pickupDate}
-					onChange={setPickupDate}
+					onChange={setChosenDateValue}
 					leadTimeDays={settings.leadTimeDays}
 				/>
 				{fieldErrors.pickupDate ? (

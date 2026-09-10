@@ -32,8 +32,8 @@ export default async function ShopPage() {
 			<Section tone="paper">
 				<Container width="narrow">
 					<div className="flex flex-col items-start gap-4">
-						<SectionLabel as="h1">Shop</SectionLabel>
-						<p className="font-display text-3xl">Nothing on the shelf just yet</p>
+						<SectionLabel>Shop</SectionLabel>
+						<h1 className="font-display text-3xl">Nothing on the shelf just yet</h1>
 						<p className="text-cocoa-soft">
 							We&rsquo;re between bakes. Follow along on Instagram and we&rsquo;ll post as soon as
 							the next batch is up.
@@ -51,10 +51,10 @@ export default async function ShopPage() {
 				size="tight">
 				<Container width="wide">
 					<div className="flex flex-col gap-4">
-						<SectionLabel as="h1">Shop</SectionLabel>
-						<p className="font-display max-w-2xl text-4xl">
+						<SectionLabel>Shop</SectionLabel>
+						<h1 className="font-display max-w-2xl text-4xl">
 							Everything we&rsquo;re baking right now
-						</p>
+						</h1>
 						<p className="text-cocoa-soft max-w-xl">
 							Each order is made fresh for the date you pick.
 							{settings.leadTimeDays > 0

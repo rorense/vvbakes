@@ -55,7 +55,7 @@ export function ProductImage({
 	return (
 		<div
 			className={cn(
-				"grid h-full w-full place-content-center overflow-hidden",
+				"flex h-full w-full items-center justify-center overflow-hidden",
 				ACCENT_TILE[fallbackAccent(product, behind)],
 				className,
 			)}
@@ -65,7 +65,7 @@ export function ProductImage({
 				alt=""
 				width={800}
 				height={800}
-				className="w-1/2 max-w-40 opacity-60 mix-blend-multiply"
+				className="w-1/2 max-w-48 opacity-60 mix-blend-multiply"
 			/>
 		</div>
 	);

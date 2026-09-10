@@ -1,10 +1,13 @@
 import { cn } from "@/lib/cn";
 
 /**
- * A scrolling band of short phrases. The content is duplicated so the loop is
- * seamless; the copy is hidden from assistive technology so nothing is read out
- * twice. The animation itself is gated behind prefers-reduced-motion in
- * globals.css, where it degrades to a static row.
+ * A scrolling band of short phrases — the bakery-window strip of what's in today.
+ *
+ * Entirely decorative, and hidden from assistive technology: the same product
+ * names are real links a few hundred pixels further down, and hearing them read
+ * out twice in a row helps nobody. The content is duplicated so the loop is
+ * seamless. The animation is gated behind prefers-reduced-motion in globals.css,
+ * where it degrades to a static row.
  */
 export function Marquee({
 	items,
@@ -17,10 +20,10 @@ export function Marquee({
 }) {
 	if (items.length === 0) return null;
 
-	const run = (hidden: boolean) => (
+	const run = (key: string) => (
 		<div
-			className="flex shrink-0 items-center"
-			aria-hidden={hidden || undefined}>
+			key={key}
+			className="flex shrink-0 items-center">
 			{items.map((item, index) => (
 				<span
 					key={`${item}-${index}`}
@@ -39,10 +42,12 @@ export function Marquee({
 	);
 
 	return (
-		<div className={cn("overflow-hidden py-4", className)}>
+		<div
+			className={cn("overflow-hidden py-4", className)}
+			aria-hidden="true">
 			<div className="marquee-track">
-				{run(false)}
-				{run(true)}
+				{run("a")}
+				{run("b")}
 			</div>
 		</div>
 	);

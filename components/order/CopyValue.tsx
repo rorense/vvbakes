@@ -11,41 +11,46 @@ import { useEffect, useState } from "react";
  * always selectable text as well.
  */
 export function CopyValue({ value, label }: { value: string; label?: string }) {
-	const [copied, setCopied] = useState(false);
-	const [canCopy, setCanCopy] = useState(false);
+	// "idle" until someone presses it; "unsupported" if the browser refuses,
+	// which is common in a non-secure context. Gating the button's existence on
+	// a capability check would mean rendering it after mount, and a control that
+	// appears a moment late is worse than one that says it could not help.
+	const [copied, setCopied] = useState<"idle" | "copied" | "unsupported">("idle");
 
 	useEffect(() => {
-		setCanCopy(typeof navigator !== "undefined" && Boolean(navigator.clipboard));
-	}, []);
-
-	useEffect(() => {
-		if (!copied) return;
-		const timer = setTimeout(() => setCopied(false), 2000);
+		if (copied === "idle") return;
+		const timer = setTimeout(() => setCopied("idle"), 2500);
 		return () => clearTimeout(timer);
 	}, [copied]);
 
 	return (
 		<span className="inline-flex items-center gap-2">
 			<span className="text-sm font-medium select-all">{value}</span>
-			{canCopy ? (
-				<button
-					type="button"
-					className="border-line hover:border-cocoa hover:bg-paper-deep rounded-pill text-2xs border px-2.5 py-1 transition-colors"
-					onClick={async () => {
-						try {
-							await navigator.clipboard.writeText(value);
-							setCopied(true);
-						} catch {
-							// Refused or unavailable; the text is selectable anyway.
-						}
-					}}>
-					{copied ? "Copied" : `Copy${label ? ` ${label}` : ""}`}
-				</button>
-			) : null}
+			<button
+				type="button"
+				className="border-line hover:border-cocoa hover:bg-paper-deep rounded-pill text-2xs border px-2.5 py-1 transition-colors"
+				onClick={async () => {
+					try {
+						await navigator.clipboard.writeText(value);
+						setCopied("copied");
+					} catch {
+						setCopied("unsupported");
+					}
+				}}>
+				{copied === "copied"
+					? "Copied"
+					: copied === "unsupported"
+						? "Select it instead"
+						: `Copy${label ? ` ${label}` : ""}`}
+			</button>
 			<span
 				aria-live="polite"
 				className="sr-only">
-				{copied ? `${label ?? "Value"} copied` : ""}
+				{copied === "copied"
+					? `${label ?? "Value"} copied`
+					: copied === "unsupported"
+						? "Copying isn't available here. Select the text to copy it."
+						: ""}
 			</span>
 		</span>
 	);
