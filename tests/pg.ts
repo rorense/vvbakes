@@ -16,7 +16,6 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
-import { pgcrypto } from "@electric-sql/pglite/contrib/pgcrypto";
 
 const MIGRATIONS_DIR = join(process.cwd(), "supabase", "migrations");
 const SEED_FILE = join(process.cwd(), "supabase", "seed.sql");
@@ -28,9 +27,13 @@ const SEED_FILE = join(process.cwd(), "supabase", "seed.sql");
  */
 const SKIP_MIGRATIONS = [/_storage\.sql$/];
 
+/**
+ * Deliberately no extensions. A new Supabase project has only core PostgreSQL,
+ * so the migrations must not reach for pgcrypto or anything else — enabling it
+ * here would hide exactly the kind of failure that only shows up on a real
+ * project.
+ */
 const SUPABASE_SHIM = `
-create extension if not exists pgcrypto;
-
 create schema if not exists auth;
 
 create table if not exists auth.users (
@@ -72,9 +75,7 @@ export type TestDb = PGlite & {
 };
 
 export async function createTestDb(options: { seed?: boolean } = {}): Promise<TestDb> {
-	const db = (await PGlite.create({
-		extensions: { pgcrypto },
-	})) as unknown as TestDb;
+	const db = (await PGlite.create()) as unknown as TestDb;
 
 	await db.exec(SUPABASE_SHIM);
 

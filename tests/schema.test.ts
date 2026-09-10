@@ -230,7 +230,7 @@ describe("place_order", () => {
 
 		expect(order.total_cents).toBe(2000);
 		expect(order.reference).toMatch(/^VV\d+$/);
-		expect(order.token).toHaveLength(32);
+		expect(order.token).toMatch(/^[0-9a-f]{32}$/);
 
 		const items = await db.query<{
 			product_name: string;

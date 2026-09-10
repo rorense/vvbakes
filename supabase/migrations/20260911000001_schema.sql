@@ -138,7 +138,14 @@ create table orders (
 	-- What the customer types into their bank transfer.
 	reference text not null unique,
 	-- Unguessable key for the public status page. 32 hex characters.
-	token text not null unique default encode(gen_random_bytes(16), 'hex'),
+	--
+	-- Built from gen_random_uuid() rather than gen_random_bytes() because the
+	-- former is core PostgreSQL while the latter needs the pgcrypto extension,
+	-- which a new Supabase project does not have enabled. Both draw on the same
+	-- cryptographic random source; a version-4 UUID carries 122 bits of entropy
+	-- rather than 128, which changes nothing for a link that has to survive
+	-- being guessed rather than brute-forced offline.
+	token text not null unique default replace(gen_random_uuid()::text, '-', ''),
 	status order_status not null default 'new',
 	fulfilment fulfilment_type not null default 'pickup',
 	pickup_date date not null,
