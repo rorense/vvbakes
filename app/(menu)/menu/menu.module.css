@@ -1,32 +1,16 @@
-:root {
-	--brown: #3b2418;
-	--pink: #ffe4ec;
-	--line: rgba(59, 36, 24, 0.14);
-	--font: "Roboto", sans-serif;
-}
-
-*,
-*::before,
-*::after {
-	box-sizing: border-box;
-	margin: 0;
-	padding: 0;
-}
-
-html,
-body {
-	height: 100%;
-}
-
-body {
-	font-family: var(--font);
-	color: var(--brown);
-	background: var(--pink);
-	line-height: 1.35;
-	overflow: hidden;
-}
+/*
+ * A faithful port of the original standalone menu card (index.html + styles.css).
+ * This page is handed out at physical markets, so it deliberately keeps the old
+ * Roboto typography and the fixed single-screen layout rather than adopting the
+ * new site's editorial styling. Do not "improve" it without checking with the
+ * owner first — printed copies exist that match it.
+ */
 
 .page {
+	--brown: #3b2418;
+	--pink: #ffe4ec;
+	--line: rgb(59 36 24 / 0.14);
+
 	max-width: 28rem;
 	height: 100svh;
 	margin: 0 auto;
@@ -35,47 +19,62 @@ body {
 	flex-direction: column;
 	justify-content: space-between;
 	gap: 0.5rem;
+	overflow: hidden;
+	background: var(--pink);
+	color: var(--brown);
+	line-height: 1.35;
 }
 
 .logo {
-	display: block;
-	width: min(11rem, 42vw);
+	/*
+	 * The original card used a logo PNG with ~170px of transparent margin baked in,
+	 * so at min(11rem, 42vw) the visible badge filled 78% of that box. public/logo.png
+	 * is trimmed, so these numbers are the original ones scaled by 0.782 to land on
+	 * exactly the same rendered badge size.
+	 */
+	width: min(8.6rem, 32.8vw);
 	height: auto;
 	margin: 0 auto 0.35rem;
 }
 
 .brand {
+	/* The site base layer puts a serif on every heading; this card is Roboto. */
+	font-family: inherit;
+	text-wrap: initial;
 	font-size: clamp(1.75rem, 6vw, 2.25rem);
 	font-weight: 700;
 	letter-spacing: -0.02em;
 	text-align: center;
 	text-transform: lowercase;
-	color: var(--brown);
+	line-height: 1.35;
 }
 
 .tagline {
 	font-size: 0.8rem;
 	font-weight: 300;
 	text-align: center;
-	color: var(--brown);
 	margin-top: 0.15rem;
 }
 
-.section-title {
+.sectionTitle {
+	font-family: inherit;
+	text-wrap: initial;
 	font-size: 0.65rem;
 	font-weight: 500;
 	letter-spacing: 0.16em;
 	text-transform: uppercase;
-	color: var(--brown);
 	margin-bottom: 0.35rem;
+	line-height: 1.35;
 }
 
-.menu-list {
+.menuList {
 	list-style: none;
+	margin: 0;
+	padding: 0;
 	border-top: 1px solid var(--line);
 }
 
-.menu-item {
+.menuItem {
 	display: grid;
 	grid-template-columns: 1fr auto;
 	gap: 0.1rem 0.75rem;
@@ -84,23 +83,25 @@ body {
 	border-bottom: 1px solid var(--line);
 }
 
-.menu-item h3 {
+.menuItem h3 {
 	font-size: 0.95rem;
 	font-weight: 500;
-	color: var(--brown);
+	font-family: inherit;
+	letter-spacing: normal;
+	text-wrap: initial;
+	margin: 0;
 }
 
-.menu-item .prices {
+.prices {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;
 	gap: 0.1rem;
 }
 
-.menu-item .price {
+.price {
 	font-size: 0.85rem;
 	font-weight: 400;
-	color: var(--brown);
 	text-align: right;
 	white-space: nowrap;
 }
@@ -109,30 +110,31 @@ body {
 	padding-top: 0.35rem;
 }
 
-.pay-grid {
+.payGrid {
 	display: grid;
 	gap: 0.35rem;
+	margin: 0;
 }
 
-.pay-row {
+.payRow {
 	display: flex;
 	justify-content: space-between;
 	gap: 0.75rem;
 	align-items: baseline;
 	font-size: 0.85rem;
-	color: var(--brown);
 }
 
-.pay-row dt {
+.payRow dt {
 	font-weight: 500;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	font-size: 0.65rem;
 }
 
-.pay-row dd {
+.payRow dd {
 	font-weight: 400;
 	text-align: right;
+	margin: 0;
 }
 
 .footer {
@@ -143,20 +145,17 @@ body {
 
 .thanks {
 	font-size: 0.8rem;
-	font-weight: 400;
 	font-style: italic;
-	color: var(--brown);
 	margin-bottom: 0.25rem;
 }
 
 .ig {
 	font-size: 0.75rem;
 	font-weight: 300;
-	color: var(--brown);
 }
 
 .ig a {
-	color: var(--brown);
+	color: inherit;
 	font-weight: 500;
 	text-decoration: underline;
 	text-underline-offset: 2px;
@@ -169,18 +168,18 @@ body {
 	}
 
 	.logo {
-		width: min(8rem, 34vw);
+		width: min(6.25rem, 26.6vw);
 	}
 
 	.brand {
 		font-size: 1.5rem;
 	}
 
-	.menu-item {
+	.menuItem {
 		padding: 0.28rem 0;
 	}
 
-	.menu-item h3 {
+	.menuItem h3 {
 		font-size: 0.85rem;
 	}
 }

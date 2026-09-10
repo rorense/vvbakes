@@ -1,0 +1,271 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+
+   Colours are sampled from the vvbakes logo so the site and the badge agree:
+   the pink ring (#F7CCD5), the pale-yellow disc (#FFFDC6), the brown wordmark
+   (#442910), and the cake layers (mint, cream, peach). The old site used a
+   slightly different pink and brown; those are retired in favour of these.
+
+   There are no shadows anywhere in this design. Depth comes from paper tones
+   and hairlines, which is what makes it read as a printed card rather than a
+   stack of floating web cards.
+--------------------------------------------------------------------------- */
+@theme {
+	/* Drop Tailwind's default palette entirely — every colour is a brand colour. */
+	--color-*: initial;
+
+	--color-transparent: transparent;
+	--color-current: currentColor;
+	--color-white: #ffffff;
+	--color-black: #000000;
+
+	--color-paper: #fff8ea;
+	--color-paper-deep: #fef2c5;
+	--color-butter: #fffdc6;
+	--color-blush: #fbe4e9;
+	--color-rose: #f7ccd5;
+	--color-rose-deep: #e8a9b8;
+	--color-mint: #c5e4be;
+	--color-peach: #fdca96;
+	--color-cocoa: #442910;
+	--color-cocoa-soft: #6e4b32;
+	--color-line: rgb(68 41 16 / 0.16);
+	--color-line-strong: rgb(68 41 16 / 0.32);
+	--color-danger: #9b3a2e;
+	--color-danger-tint: #f6e0dc;
+	--color-success: #2f6b4f;
+
+	/* Fonts are injected as CSS variables by next/font in app/layout.tsx. */
+	--font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+	--font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+
+	--text-2xs: 0.6875rem;
+	--text-2xs--line-height: 1.4;
+	--text-xs: 0.75rem;
+	--text-xs--line-height: 1.45;
+	--text-sm: 0.875rem;
+	--text-sm--line-height: 1.5;
+	--text-base: 1rem;
+	--text-base--line-height: 1.6;
+	--text-lg: 1.125rem;
+	--text-lg--line-height: 1.55;
+	--text-xl: 1.375rem;
+	--text-xl--line-height: 1.4;
+	--text-2xl: 1.75rem;
+	--text-2xl--line-height: 1.25;
+	--text-3xl: clamp(2rem, 1.6rem + 1.8vw, 2.75rem);
+	--text-3xl--line-height: 1.15;
+	--text-4xl: clamp(2.5rem, 1.9rem + 2.8vw, 3.75rem);
+	--text-4xl--line-height: 1.08;
+	--text-5xl: clamp(3rem, 2rem + 4.6vw, 5.5rem);
+	--text-5xl--line-height: 1;
+
+	--tracking-tightest: -0.035em;
+	--tracking-tighter: -0.02em;
+	--tracking-wide: 0.08em;
+	--tracking-widest: 0.16em;
+
+	--radius-sm: 0.375rem;
+	--radius-md: 0.75rem;
+	--radius-lg: 1.5rem;
+	--radius-xl: 2.5rem;
+	--radius-pill: 999px;
+
+	--breakpoint-xs: 26rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+--------------------------------------------------------------------------- */
+@layer base {
+	*,
+	*::before,
+	*::after {
+		box-sizing: border-box;
+	}
+
+	html {
+		-webkit-text-size-adjust: 100%;
+		scroll-behavior: smooth;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		html {
+			scroll-behavior: auto;
+		}
+	}
+
+	body {
+		margin: 0;
+		background: var(--color-paper);
+		color: var(--color-cocoa);
+		font-family: var(--font-sans);
+		font-size: var(--text-base);
+		line-height: 1.6;
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizeLegibility;
+	}
+
+	h1,
+	h2,
+	h3,
+	h4 {
+		font-family: var(--font-display);
+		font-weight: 600;
+		letter-spacing: var(--tracking-tighter);
+		text-wrap: balance;
+		margin: 0;
+	}
+
+	p {
+		margin: 0;
+		text-wrap: pretty;
+	}
+
+	/* One visible focus treatment for the whole site, including the admin. */
+	:focus-visible {
+		outline: 2px solid var(--color-cocoa);
+		outline-offset: 2px;
+		border-radius: 2px;
+	}
+
+	::selection {
+		background: var(--color-rose);
+		color: var(--color-cocoa);
+	}
+
+	img,
+	svg,
+	video {
+		display: block;
+		max-width: 100%;
+	}
+
+	button {
+		font: inherit;
+		color: inherit;
+	}
+
+	input,
+	textarea,
+	select {
+		font: inherit;
+		color: inherit;
+	}
+
+	/* iOS zooms the page when a focused field is under 16px. */
+	@media (max-width: 48rem) {
+		input,
+		textarea,
+		select {
+			font-size: max(1rem, var(--text-base));
+		}
+	}
+}
+
+/* ---------------------------------------------------------------------------
+   Editorial components.
+
+   These are the few pieces of the look that Tailwind utilities express badly:
+   the scalloped photo mask, the rotated paper sticker, the hairline list that
+   echoes the original menu card, and the marquee band.
+--------------------------------------------------------------------------- */
+@layer components {
+	.hairline-list {
+		border-top: 1px solid var(--color-line);
+	}
+
+	.hairline-list > * {
+		border-bottom: 1px solid var(--color-line);
+	}
+
+	/* A circular paper sticker, tilted, of the kind stuck on a bakery box. */
+	.sticker {
+		display: grid;
+		place-content: center;
+		aspect-ratio: 1;
+		border-radius: var(--radius-pill);
+		text-align: center;
+		rotate: -8deg;
+		transition: rotate 200ms ease;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.sticker {
+			transition: none;
+		}
+	}
+
+	@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+		.sticker:hover {
+			rotate: -3deg;
+		}
+	}
+
+	/* Scalloped photo frame — the edge treatment on a paper doily. */
+	.scallop {
+		--scallop-size: 26px;
+		-webkit-mask-image:
+			radial-gradient(var(--scallop-size) at var(--scallop-size) var(--scallop-size), #000 99%, #0000 101%),
+			linear-gradient(#000 0 0);
+		mask-image:
+			radial-gradient(var(--scallop-size) at var(--scallop-size) var(--scallop-size), #000 99%, #0000 101%),
+			linear-gradient(#000 0 0);
+		border-radius: var(--radius-xl);
+		overflow: hidden;
+	}
+
+	/* Torn/receipt bottom edge for the order status card. */
+	.torn-edge {
+		--tooth: 14px;
+		-webkit-mask-image: radial-gradient(var(--tooth) at 50% 0, #0000 99%, #000 101%);
+		mask-image: radial-gradient(var(--tooth) at 50% 0, #0000 99%, #000 101%);
+		-webkit-mask-size: calc(var(--tooth) * 2) 100%;
+		mask-size: calc(var(--tooth) * 2) 100%;
+		-webkit-mask-position: 0 calc(100% + var(--tooth));
+		mask-position: 0 calc(100% + var(--tooth));
+		-webkit-mask-repeat: repeat-x;
+		mask-repeat: repeat-x;
+	}
+
+	.dot-field {
+		background-image: url("/patterns/dots.svg");
+		background-size: 24px 24px;
+		opacity: 0.06;
+	}
+
+	.marquee-track {
+		display: flex;
+		width: max-content;
+		will-change: transform;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.marquee-track {
+			animation: marquee 46s linear infinite;
+		}
+	}
+
+	@keyframes marquee {
+		from {
+			transform: translateX(0);
+		}
+		to {
+			transform: translateX(-50%);
+		}
+	}
+
+	/* Hide scrollbars on the horizontal date/category rails without losing scroll. */
+	.rail {
+		overflow-x: auto;
+		scrollbar-width: none;
+		-webkit-overflow-scrolling: touch;
+		scroll-snap-type: x proximity;
+	}
+
+	.rail::-webkit-scrollbar {
+		display: none;
+	}
+}
