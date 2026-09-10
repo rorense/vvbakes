@@ -136,11 +136,16 @@ are.
 
 1. Import the repository at [vercel.com](https://vercel.com).
 2. Add every variable from `.env.local` under **Settings → Environment
-   Variables**, plus:
-   - `CRON_SECRET` — any long random string.
-   - `NEXT_PUBLIC_SITE_URL` — only once you have a custom domain. Vercel
-     supplies its own URL until then.
+   Variables**, plus `CRON_SECRET` — any long random string.
+
+   `NEXT_PUBLIC_SUPABASE_URL` has to be there **before the first build**, not
+   just at runtime: the build reads it to prerender the shop and to whitelist
+   the image host, and a build without it silently ships the demo catalogue.
+
 3. Deploy.
+4. Once it is live, set `NEXT_PUBLIC_SITE_URL` to the real address and
+   redeploy. Until you do, the sitemap and the links in emails point at
+   whatever Vercel called the deployment.
 
 `vercel.json` already schedules a daily request to `/api/cron/keepalive`. A free
 Supabase project pauses after seven days without activity, which would take the
@@ -149,6 +154,22 @@ shop offline without warning; one read a day prevents that.
 ---
 
 ## How it fits together
+
+### Caching
+
+The home page, the shop and each product page are prerendered and revalidated
+every five minutes. They deliberately read the database through a cookie-free
+client (`lib/supabase/public.ts`): a page that so much as touches `cookies()`
+is dynamic whatever `revalidate` says, which would turn every visit into a
+database round trip. Every table these pages read has a `using (true)` select
+policy, so an anonymous reader sees exactly what the owner would anyway.
+
+Edits in the admin do not wait five minutes. Every admin action calls
+`revalidatePath` for the pages it affects, so a price change or a sold-out
+toggle is live on the next request.
+
+`/order` is excluded on purpose. It has to show which dates still have room,
+and a five-minute-old answer there means overselling.
 
 ### Ordering
 

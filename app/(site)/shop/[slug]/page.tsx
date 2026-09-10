@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { siteUrl } from "@/lib/constants";
 import { productImageUrl } from "@/lib/images";
 import { formatPrice, priceRule } from "@/lib/pricing";
-import { getCategories, getProductBySlug, getProducts, getSettings } from "@/lib/queries";
+import { getCategories, getProductBySlug, getProductSlugs, getSettings } from "@/lib/queries";
 import { Container, Section } from "@/components/ui/Container";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { ArchFrame } from "@/components/ui/ArchFrame";
@@ -15,8 +15,8 @@ import { AddToOrder } from "@/components/order/AddToOrder";
 export const revalidate = 300;
 
 export async function generateStaticParams() {
-	const products = await getProducts();
-	return products.map((product) => ({ slug: product.slug }));
+	const slugs = await getProductSlugs();
+	return slugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({

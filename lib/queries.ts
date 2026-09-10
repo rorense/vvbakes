@@ -11,7 +11,7 @@ import {
 import { countsFromRows } from "./availability";
 import type { IsoDate } from "./dates";
 import { toCategory, toOverride, toProduct, toRule, toSettings } from "./mappers";
-import { createClient } from "./supabase/server";
+import { createPublicClient } from "./supabase/public";
 import { hasSupabaseConfig } from "./supabase/env";
 import type {
 	AvailabilityOverride,
@@ -23,10 +23,20 @@ import type {
 } from "./types";
 
 /**
- * Read helpers for the public site. Every one of these runs with the anonymous
- * key under row level security, so they can only ever see what a visitor may see.
+ * Read helpers for the public site.
  *
- * When Supabase is not configured they fall back to lib/demo-data.ts so a fresh
+ * These deliberately use the cookie-free client. Every table they touch has a
+ * `using (true)` select policy, so an anonymous reader and the signed-in owner
+ * see exactly the same rows — attaching the request's session bought nothing.
+ * What it cost was the cache: a page that so much as touches `cookies()` is
+ * dynamic, whatever `revalidate` says, which turned every visit to the home
+ * page and the shop into a database round trip. It also made them impossible to
+ * prerender, since `generateStaticParams` and `sitemap()` run without a request.
+ *
+ * Anything that genuinely depends on who is asking lives in lib/admin-queries.ts
+ * and uses the session-scoped client there.
+ *
+ * When Supabase is not configured these fall back to lib/demo-data.ts so a fresh
  * clone runs. That path is announced loudly: a warning in the server log and a
  * banner on the page.
  */
@@ -49,7 +59,7 @@ export function isDemoMode(): boolean {
 export const getSettings = cache(async (): Promise<SiteSettings> => {
 	if (isDemoMode()) return DEMO_SETTINGS;
 
-	const supabase = await createClient();
+	const supabase = createPublicClient();
 	const { data, error } = await supabase.from("site_settings").select("*").eq("id", 1).single();
 
 	if (error || !data) {
@@ -64,7 +74,7 @@ export const getSettings = cache(async (): Promise<SiteSettings> => {
 export const getCategories = cache(async (): Promise<Category[]> => {
 	if (isDemoMode()) return DEMO_CATEGORIES;
 
-	const supabase = await createClient();
+	const supabase = createPublicClient();
 	const { data, error } = await supabase
 		.from("categories")
 		.select("*")
@@ -82,7 +92,7 @@ const PRODUCT_SELECT = "*, product_price_tiers (qty, price_cents)";
 export const getProducts = cache(async (): Promise<Product[]> => {
 	if (isDemoMode()) return DEMO_PRODUCTS;
 
-	const supabase = await createClient();
+	const supabase = createPublicClient();
 	const { data, error } = await supabase
 		.from("products")
 		.select(PRODUCT_SELECT)
@@ -95,10 +105,31 @@ export const getProducts = cache(async (): Promise<Product[]> => {
 	return (data ?? []).map(toProduct);
 });
 
+/**
+ * Product slugs for `generateStaticParams`.
+ *
+ * Deliberately separate from `getProducts`: this runs at build time, where
+ * there is no request and therefore no cookies, so it uses the cookie-free
+ * client. Using the request-scoped one here fails the build outright.
+ */
+export async function getProductSlugs(): Promise<string[]> {
+	if (isDemoMode()) return DEMO_PRODUCTS.map((product) => product.slug);
+
+	const { data, error } = await createPublicClient().from("products").select("slug");
+
+	if (error) {
+		// A build should not fail because the database was briefly unreachable.
+		// Pages fall back to rendering on first request instead.
+		console.warn("[vvbakes] could not list product slugs for prerendering", error.message);
+		return [];
+	}
+	return (data ?? []).map((row) => row.slug);
+}
+
 export const getProductBySlug = cache(async (slug: string): Promise<Product | null> => {
 	if (isDemoMode()) return DEMO_PRODUCTS.find((product) => product.slug === slug) ?? null;
 
-	const supabase = await createClient();
+	const supabase = createPublicClient();
 	const { data, error } = await supabase
 		.from("products")
 		.select(PRODUCT_SELECT)
@@ -147,7 +178,7 @@ export const getFeaturedProducts = cache(async (): Promise<Product[]> => {
 export const getAvailabilityRules = cache(async (): Promise<AvailabilityRule[]> => {
 	if (isDemoMode()) return DEMO_RULES;
 
-	const supabase = await createClient();
+	const supabase = createPublicClient();
 	const { data, error } = await supabase
 		.from("availability_rules")
 		.select("*")
@@ -166,7 +197,7 @@ export const getAvailabilityOverrides = cache(
 			return DEMO_OVERRIDES.filter((o) => o.date >= from && o.date <= to);
 		}
 
-		const supabase = await createClient();
+		const supabase = createPublicClient();
 		const { data, error } = await supabase
 			.from("availability_overrides")
 			.select("*")
@@ -186,7 +217,7 @@ export const getOrderCounts = cache(
 	async (from: IsoDate, to: IsoDate): Promise<Record<IsoDate, number>> => {
 		if (isDemoMode()) return {};
 
-		const supabase = await createClient();
+		const supabase = createPublicClient();
 		const { data, error } = await supabase.rpc("order_counts_between", {
 			p_from: from,
 			p_to: to,
