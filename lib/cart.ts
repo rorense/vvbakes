@@ -44,7 +44,7 @@ function parse(raw: string | null): Cart {
 	}
 }
 
-export function readCart(): Cart {
+function readCart(): Cart {
 	if (typeof window === "undefined") return EMPTY;
 	try {
 		return parse(window.localStorage.getItem(CART_STORAGE_KEY));
@@ -53,7 +53,7 @@ export function readCart(): Cart {
 	}
 }
 
-export function writeCart(cart: Cart): void {
+function writeCart(cart: Cart): void {
 	if (typeof window === "undefined") return;
 	try {
 		if (cart.lines.length === 0) {
@@ -72,7 +72,7 @@ export function clearCart(): void {
 }
 
 /** Adds to an existing line rather than duplicating it. */
-export function addToCart(productId: string, qty: number): Cart {
+function addToCart(productId: string, qty: number): Cart {
 	const cart = readCart();
 	const existing = cart.lines.find((line) => line.productId === productId);
 	const next: Cart = existing
@@ -88,7 +88,7 @@ export function addToCart(productId: string, qty: number): Cart {
 	return next;
 }
 
-export function setCartQty(productId: string, qty: number): Cart {
+function setCartQty(productId: string, qty: number): Cart {
 	const cart = readCart();
 	const next: Cart = {
 		v: 1,
@@ -101,12 +101,8 @@ export function setCartQty(productId: string, qty: number): Cart {
 	return next;
 }
 
-export function removeFromCart(productId: string): Cart {
+function removeFromCart(productId: string): Cart {
 	return setCartQty(productId, 0);
-}
-
-export function cartCount(cart: Cart): number {
-	return cart.lines.reduce((total, line) => total + line.qty, 0);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { adminSettings } from "@/lib/admin-queries";
+import { adminPrivateSettings, adminSettings } from "@/lib/admin-queries";
 import { isEmailConfigured } from "@/lib/email";
 import { AdminHeader } from "@/components/admin/AdminShell";
 import { SettingsForm } from "@/components/admin/SettingsForm";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Settings" };
 
 export default async function AdminSettingsPage() {
-	const { settings, privateSettings } = await adminSettings();
+	const [settings, privateSettings] = await Promise.all([adminSettings(), adminPrivateSettings()]);
 
 	return (
 		<>

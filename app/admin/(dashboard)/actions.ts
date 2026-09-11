@@ -152,44 +152,12 @@ export async function toggleProductFlag(
 }
 
 /**
- * Moves a product one place up or down by swapping sort orders with its
- * neighbour. Drag and drop would be nicer on a desktop and worse on a phone,
- * which is where this is actually used.
+ * Moves a product one place up or down. Drag and drop would be nicer on a
+ * desktop and worse on a phone, which is where this is actually used.
  */
 export async function moveProduct(id: string, direction: "up" | "down"): Promise<void> {
 	await requireAdmin();
-	const supabase = await createClient();
-
-	const { data: all } = await supabase
-		.from("products")
-		.select("id, sort_order")
-		.order("sort_order", { ascending: true });
-
-	if (!all) return;
-
-	const index = all.findIndex((product) => product.id === id);
-	const targetIndex = direction === "up" ? index - 1 : index + 1;
-	if (index === -1 || targetIndex < 0 || targetIndex >= all.length) return;
-
-	const current = all[index]!;
-	const target = all[targetIndex]!;
-
-	// Sort orders can be duplicated or all zero after a bulk import, in which
-	// case swapping the stored values would do nothing. Renumbering from the
-	// reordered list is always correct.
-	const reordered = [...all];
-	reordered[index] = target;
-	reordered[targetIndex] = current;
-
-	await Promise.all(
-		reordered.map((product, position) =>
-			supabase
-				.from("products")
-				.update({ sort_order: position + 1 })
-				.eq("id", product.id),
-		),
-	);
-
+	await move("products", "reorder_products", id, direction);
 	revalidateCatalogue();
 	revalidatePath("/admin/products");
 }
@@ -264,32 +232,7 @@ export async function deleteCategory(id: string): Promise<void> {
 
 export async function moveCategory(id: string, direction: "up" | "down"): Promise<void> {
 	await requireAdmin();
-	const supabase = await createClient();
-
-	const { data: all } = await supabase
-		.from("categories")
-		.select("id, sort_order")
-		.order("sort_order", { ascending: true });
-
-	if (!all) return;
-
-	const index = all.findIndex((category) => category.id === id);
-	const targetIndex = direction === "up" ? index - 1 : index + 1;
-	if (index === -1 || targetIndex < 0 || targetIndex >= all.length) return;
-
-	const reordered = [...all];
-	reordered[index] = all[targetIndex]!;
-	reordered[targetIndex] = all[index]!;
-
-	await Promise.all(
-		reordered.map((category, position) =>
-			supabase
-				.from("categories")
-				.update({ sort_order: position + 1 })
-				.eq("id", category.id),
-		),
-	);
-
+	await move("categories", "reorder_categories", id, direction);
 	revalidateCatalogue();
 	revalidatePath("/admin/categories");
 }
@@ -492,6 +435,43 @@ export async function setOrdersOpen(open: boolean): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Swaps a row with its neighbour and renumbers the list.
+ *
+ * Products and categories order themselves identically, so this is written once
+ * and told which table it is working on. The renumber goes through an RPC
+ * because it has to be one statement: sort orders can be duplicated or all zero
+ * after a bulk import, so the whole list is renumbered rather than two values
+ * swapped, and doing that as one UPDATE per row is both a round trip per row and
+ * a chance to leave the list half-renumbered.
+ */
+async function move(
+	table: "products" | "categories",
+	rpc: "reorder_products" | "reorder_categories",
+	id: string,
+	direction: "up" | "down",
+): Promise<void> {
+	const supabase = await createClient();
+
+	const { data: all } = await supabase
+		.from(table)
+		.select("id")
+		.order("sort_order", { ascending: true });
+
+	if (!all) return;
+
+	const index = all.findIndex((row) => row.id === id);
+	const targetIndex = direction === "up" ? index - 1 : index + 1;
+	if (index === -1 || targetIndex < 0 || targetIndex >= all.length) return;
+
+	const reordered = [...all];
+	reordered[index] = all[targetIndex]!;
+	reordered[targetIndex] = all[index]!;
+
+	const { error } = await supabase.rpc(rpc, { p_ids: reordered.map((row) => row.id) });
+	if (error) console.error(`[vvbakes] could not reorder ${table}`, error);
+}
 
 /** Turns a Postgres error into something the owner can act on. */
 function describe(message: string, what: string): string {

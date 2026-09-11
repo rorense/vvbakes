@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
+import { cache } from "react";
 import { toOrder, toPrivateSettings } from "./mappers";
 import { createAdminClient } from "./supabase/admin";
 import { hasSupabaseConfig } from "./supabase/env";
@@ -38,23 +39,14 @@ export async function getOrderByToken(token: string): Promise<Order | null> {
 	return toOrder(data);
 }
 
-/** One order by id. Admin pages only, callers must have checked the session. */
-export async function getOrderById(id: string): Promise<Order | null> {
-	if (!hasSupabaseConfig()) return null;
-
-	const supabase = createAdminClient();
-	const { data, error } = await supabase
-		.from("orders")
-		.select(ORDER_SELECT)
-		.eq("id", id)
-		.maybeSingle();
-
-	if (error || !data) return null;
-	return toOrder(data);
-}
-
-/** The private half of settings. Never pass this to a client component whole. */
-export async function getPrivateSettings(): Promise<PrivateSettings> {
+/**
+ * The private half of settings. Never pass this to a client component whole.
+ *
+ * Cached per request to match its sibling `getSettings`: several actions read
+ * both side by side, and nothing writes these settings and then reads them back
+ * in the same request.
+ */
+export const getPrivateSettings = cache(async (): Promise<PrivateSettings> => {
 	const empty: PrivateSettings = {
 		bankAccountName: null,
 		bankAccountNumber: null,
@@ -73,7 +65,7 @@ export async function getPrivateSettings(): Promise<PrivateSettings> {
 
 	if (error || !data) return empty;
 	return toPrivateSettings(data);
-}
+});
 
 /**
  * A salted, truncated hash of the caller's address.

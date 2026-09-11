@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { countsFromRows } from "./availability";
 import type { IsoDate } from "./dates";
 import {
@@ -33,11 +34,20 @@ import type {
  * work: if the signed-in user is not in `admins`, every one of these comes back
  * empty rather than leaking. Callers should still have run `requireAdmin()` so
  * the page redirects instead of rendering blank.
+ *
+ * Almost everything here is wrapped in React's `cache`, so a page that reads the
+ * same thing twice, typically once in `generateMetadata` and once in the page
+ * itself, costs one round trip rather than two.
+ *
+ * `adminOrder` is deliberately *not* cached, and must not be. A server action
+ * re-renders the page inside the same request, so a read taken before the write
+ * would be served again afterwards and the owner would watch a confirmed order
+ * still say "new". See the comment on it below.
  */
 
 const PRODUCT_SELECT = "*, product_price_tiers (qty, price_cents)";
 
-export async function adminProducts(): Promise<Product[]> {
+export const adminProducts = cache(async (): Promise<Product[]> => {
 	const supabase = await createClient();
 	const { data } = await supabase
 		.from("products")
@@ -45,9 +55,9 @@ export async function adminProducts(): Promise<Product[]> {
 		.order("sort_order", { ascending: true })
 		.order("name", { ascending: true });
 	return (data ?? []).map(toProduct);
-}
+});
 
-export async function adminProduct(id: string): Promise<Product | null> {
+export const adminProduct = cache(async (id: string): Promise<Product | null> => {
 	const supabase = await createClient();
 	const { data } = await supabase
 		.from("products")
@@ -55,19 +65,19 @@ export async function adminProduct(id: string): Promise<Product | null> {
 		.eq("id", id)
 		.maybeSingle();
 	return data ? toProduct(data) : null;
-}
+});
 
-export async function adminCategories(): Promise<Category[]> {
+export const adminCategories = cache(async (): Promise<Category[]> => {
 	const supabase = await createClient();
 	const { data } = await supabase
 		.from("categories")
 		.select("*")
 		.order("sort_order", { ascending: true });
 	return (data ?? []).map(toCategory);
-}
+});
 
 /** How many products sit in each category, so deletes can be blocked. */
-export async function categoryProductCounts(): Promise<Record<string, number>> {
+export const categoryProductCounts = cache(async (): Promise<Record<string, number>> => {
 	const supabase = await createClient();
 	const { data } = await supabase.from("products").select("category_id");
 	const counts: Record<string, number> = {};
@@ -75,60 +85,68 @@ export async function categoryProductCounts(): Promise<Record<string, number>> {
 		if (row.category_id) counts[row.category_id] = (counts[row.category_id] ?? 0) + 1;
 	}
 	return counts;
-}
+});
 
-export async function adminSettings(): Promise<{
-	settings: SiteSettings;
-	privateSettings: PrivateSettings;
-}> {
+/**
+ * The public half of settings. Separate from the private half because three of
+ * the five admin pages want only this, and reading bank details to render a
+ * timezone footnote is a query for nothing.
+ */
+export const adminSettings = cache(async (): Promise<SiteSettings> => {
 	const supabase = await createClient();
-	const [publicRow, privateRow] = await Promise.all([
-		supabase.from("site_settings").select("*").eq("id", 1).maybeSingle(),
-		supabase.from("site_settings_private").select("*").eq("id", 1).maybeSingle(),
-	]);
+	const { data } = await supabase.from("site_settings").select("*").eq("id", 1).maybeSingle();
 
-	if (!publicRow.data) throw new Error("Site settings row is missing. Run supabase/seed.sql.");
+	if (!data) throw new Error("Site settings row is missing. Run supabase/seed.sql.");
+	return toSettings(data);
+});
 
-	return {
-		settings: toSettings(publicRow.data),
-		privateSettings: privateRow.data
-			? toPrivateSettings(privateRow.data)
-			: {
-					bankAccountName: null,
-					bankAccountNumber: null,
-					pickupAddress: null,
-					notificationEmail: null,
-				},
-	};
-}
+/** Bank details and the street address. Only the dashboard and settings need these. */
+export const adminPrivateSettings = cache(async (): Promise<PrivateSettings> => {
+	const supabase = await createClient();
+	const { data } = await supabase
+		.from("site_settings_private")
+		.select("*")
+		.eq("id", 1)
+		.maybeSingle();
 
-export async function adminRules(): Promise<AvailabilityRule[]> {
+	return data
+		? toPrivateSettings(data)
+		: {
+				bankAccountName: null,
+				bankAccountNumber: null,
+				pickupAddress: null,
+				notificationEmail: null,
+			};
+});
+
+export const adminRules = cache(async (): Promise<AvailabilityRule[]> => {
 	const supabase = await createClient();
 	const { data } = await supabase
 		.from("availability_rules")
 		.select("*")
 		.order("weekday", { ascending: true });
 	return (data ?? []).map(toRule);
-}
+});
 
-export async function adminOverrides(from: IsoDate, to: IsoDate): Promise<AvailabilityOverride[]> {
-	const supabase = await createClient();
-	const { data } = await supabase
-		.from("availability_overrides")
-		.select("*")
-		.gte("date", from)
-		.lte("date", to);
-	return (data ?? []).map(toOverride);
-}
+export const adminOverrides = cache(
+	async (from: IsoDate, to: IsoDate): Promise<AvailabilityOverride[]> => {
+		const supabase = await createClient();
+		const { data } = await supabase
+			.from("availability_overrides")
+			.select("*")
+			.gte("date", from)
+			.lte("date", to);
+		return (data ?? []).map(toOverride);
+	},
+);
 
-export async function adminOrderCounts(
-	from: IsoDate,
-	to: IsoDate,
-): Promise<Record<IsoDate, number>> {
-	const supabase = await createClient();
-	const { data } = await supabase.rpc("order_counts_between", { p_from: from, p_to: to });
-	return countsFromRows(data ?? []);
-}
+export const adminOrderCounts = cache(
+	async (from: IsoDate, to: IsoDate): Promise<Record<IsoDate, number>> => {
+		const supabase = await createClient();
+		const { data } = await supabase.rpc("order_counts_between", { p_from: from, p_to: to });
+		return countsFromRows(data ?? []);
+	},
+);
 
 export interface OrderFilters {
 	status?: OrderStatus | "all" | "open";
@@ -137,6 +155,10 @@ export interface OrderFilters {
 	limit?: number;
 }
 
+/**
+ * Not cached: the filters arrive as a fresh object literal every render, which
+ * `cache` compares by identity, so it would never hit anyway.
+ */
 export async function adminOrders(filters: OrderFilters = {}): Promise<OrderSummary[]> {
 	const supabase = await createClient();
 
@@ -178,6 +200,14 @@ export async function adminOrders(filters: OrderFilters = {}): Promise<OrderSumm
 	});
 }
 
+/**
+ * One order, with its items.
+ *
+ * **Deliberately not wrapped in `cache`.** Server actions read an order, write
+ * to it, and then Next re-renders the page inside the same request. A cached
+ * read taken before the write would be handed straight back to that re-render,
+ * so confirming an order would leave the page insisting it was still new.
+ */
 export async function adminOrder(id: string): Promise<Order | null> {
 	const supabase = await createClient();
 	const { data } = await supabase
@@ -188,7 +218,17 @@ export async function adminOrder(id: string): Promise<Order | null> {
 	return data ? toOrder(data) : null;
 }
 
-export async function adminOrderEvents(orderId: string): Promise<OrderEvent[]> {
+/**
+ * Just an order's reference, for a page title. Cached, and far cheaper than
+ * pulling the order and its items in to read one column off it.
+ */
+export const adminOrderReference = cache(async (id: string): Promise<string | null> => {
+	const supabase = await createClient();
+	const { data } = await supabase.from("orders").select("reference").eq("id", id).maybeSingle();
+	return data?.reference ?? null;
+});
+
+export const adminOrderEvents = cache(async (orderId: string): Promise<OrderEvent[]> => {
 	const supabase = await createClient();
 	const { data } = await supabase
 		.from("order_events")
@@ -197,10 +237,10 @@ export async function adminOrderEvents(orderId: string): Promise<OrderEvent[]> {
 		.order("created_at", { ascending: false })
 		.limit(50);
 	return (data ?? []).map(toOrderEvent);
-}
+});
 
 /** Counts for the dashboard tiles. */
-export async function adminDashboard(today: IsoDate, weekAhead: IsoDate) {
+export const adminDashboard = cache(async (today: IsoDate, weekAhead: IsoDate) => {
 	const supabase = await createClient();
 
 	const [newOrders, upcoming, needingAttention] = await Promise.all([
@@ -231,4 +271,4 @@ export async function adminDashboard(today: IsoDate, weekAhead: IsoDate) {
 			return { ...summary, itemCount: order_items?.length ?? 0 };
 		}),
 	};
-}
+});

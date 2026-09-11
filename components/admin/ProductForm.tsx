@@ -5,7 +5,7 @@ import { useActionState, useState } from "react";
 import { saveProduct } from "@/app/admin/(dashboard)/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, succeeded } from "@/lib/action-state";
 import { formatPrice, priceForQty } from "@/lib/pricing";
-import { slugify } from "@/lib/validation";
+import { useSlugField } from "@/lib/use-slug-field";
 import { ALLERGEN_LABELS, ALLERGENS, type Category, type Product } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import {
@@ -46,12 +46,7 @@ export function ProductForm({
 	const errors = fieldErrorsFrom(state);
 	const error = errorFrom(state);
 
-	const [name, setName] = useState(product?.name ?? "");
-	const [slug, setSlug] = useState(product?.slug ?? "");
-	// A slug is only auto-filled while it has never been edited by hand, and only
-	// for a new product. Changing the slug of a live product would break every
-	// link to it that is already out in the world.
-	const [slugTouched, setSlugTouched] = useState(Boolean(product));
+	const nameAndSlug = useSlugField(product);
 
 	const [unitPrice, setUnitPrice] = useState(
 		product ? (product.unitPriceCents / 100).toString() : "",
@@ -60,8 +55,6 @@ export function ProductForm({
 	const [qtyStep, setQtyStep] = useState(String(product?.qtyStep ?? 1));
 	const [tiers, setTiers] = useState<TierDraft[]>(() => initialTiers(product));
 	const [imagePath, setImagePath] = useState(product?.imagePath ?? "");
-
-	const slugValue = slugTouched ? slug : slugify(name);
 
 	const tiersJson = JSON.stringify(
 		tiers
@@ -107,8 +100,8 @@ export function ProductForm({
 							<Input
 								{...props}
 								name="name"
-								value={name}
-								onChange={(event) => setName(event.target.value)}
+								value={nameAndSlug.name}
+								onChange={(event) => nameAndSlug.setName(event.target.value)}
 								invalid={Boolean(errors.name)}
 							/>
 						)}
@@ -116,18 +109,15 @@ export function ProductForm({
 
 					<Field
 						label="Web address"
-						hint={`vvbakes.co.nz/shop/${slugValue || "…"}`}
+						hint={`vvbakes.co.nz/shop/${nameAndSlug.slug || "…"}`}
 						required
 						error={errors.slug}>
 						{(props) => (
 							<Input
 								{...props}
 								name="slug"
-								value={slugValue}
-								onChange={(event) => {
-									setSlugTouched(true);
-									setSlug(slugify(event.target.value));
-								}}
+								value={nameAndSlug.slug}
+								onChange={(event) => nameAndSlug.setSlug(event.target.value)}
 								invalid={Boolean(errors.slug)}
 							/>
 						)}
@@ -256,7 +246,7 @@ export function ProductForm({
 
 			<AdminCard title="Photo">
 				<ImageUploader
-					slug={slugValue || "product"}
+					slug={nameAndSlug.slug || "product"}
 					value={imagePath}
 					onChange={setImagePath}
 				/>

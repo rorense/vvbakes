@@ -136,6 +136,11 @@ grant execute on function order_counts_between(date, date) to anon, authenticate
 -- ---------------------------------------------------------------------------
 -- Place an order.
 --
+-- SUPERSEDED. This version requires at least one line item. A later migration,
+-- 20260911000005_custom_orders.sql, replaces it with one that also accepts a
+-- custom cake request and no items. Read that file for the current behaviour;
+-- this one is kept only so the migration history still replays from scratch.
+--
 -- Every failure mode raises a named exception; the server action maps those to
 -- customer-facing copy. Callable only with the service role, from the server.
 --

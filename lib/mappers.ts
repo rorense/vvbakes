@@ -55,7 +55,7 @@ export function toCategory(row: CategoryRow): Category {
 	};
 }
 
-export function toPriceTier(row: Pick<TierRow, "qty" | "price_cents">): PriceTier {
+function toPriceTier(row: Pick<TierRow, "qty" | "price_cents">): PriceTier {
 	return { qty: row.qty, priceCents: row.price_cents };
 }
 
@@ -134,7 +134,7 @@ export function toOverride(row: OverrideRow): AvailabilityOverride {
 	};
 }
 
-export function toOrderItem(row: OrderItemRow): OrderItem {
+function toOrderItem(row: OrderItemRow): OrderItem {
 	return {
 		id: row.id,
 		productId: row.product_id,

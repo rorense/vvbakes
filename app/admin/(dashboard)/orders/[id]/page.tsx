@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { adminOrder, adminOrderEvents, adminSettings } from "@/lib/admin-queries";
+import {
+	adminOrder,
+	adminOrderEvents,
+	adminOrderReference,
+	adminSettings,
+} from "@/lib/admin-queries";
 import { cn } from "@/lib/cn";
 import { formatDateLong } from "@/lib/dates";
 import { allowedTransitions, STATUS_TONES } from "@/lib/order-status";
@@ -15,13 +20,12 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
 	const { id } = await params;
-	const order = await adminOrder(id);
-	return { title: order ? order.reference : "Order" };
+	return { title: (await adminOrderReference(id)) ?? "Order" };
 }
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
 	const { id } = await params;
-	const [order, events, { settings }] = await Promise.all([
+	const [order, events, settings] = await Promise.all([
 		adminOrder(id),
 		adminOrderEvents(id),
 		adminSettings(),

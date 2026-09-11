@@ -9,12 +9,12 @@ import { clientIp, getPrivateSettings, hashIp } from "@/lib/orders";
 import { getSettings } from "@/lib/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
-import { actionError, actionOk, type ActionResult } from "@/lib/types";
+import type { FormState } from "@/lib/action-state";
+import { actionError, actionOk } from "@/lib/types";
 import { fieldErrorsOf, orderInputSchema } from "@/lib/validation";
 
-export interface PlaceOrderState {
-	result: ActionResult<{ token: string; reference: string }> | null;
-}
+/** A placed order hands back the token the customer's status page lives at. */
+type PlaceOrderState = FormState<{ token: string; reference: string }>;
 
 /**
  * Takes an order.

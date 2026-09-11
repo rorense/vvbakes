@@ -9,6 +9,7 @@
  * genuinely need to know what day it is *there*.
  */
 import { TZDate } from "@date-fns/tz";
+import { WEEKDAY_NAMES, type Weekday } from "./types";
 
 /** A calendar date with no time and no zone. Always "YYYY-MM-DD". */
 export type IsoDate = string;
@@ -27,13 +28,13 @@ function assertIso(value: string): asserts value is IsoDate {
 }
 
 /** Midnight UTC on that calendar date, a stable anchor for arithmetic. */
-export function toUtcDate(date: IsoDate): Date {
+function toUtcDate(date: IsoDate): Date {
 	assertIso(date);
 	const [y, m, d] = date.split("-").map(Number) as [number, number, number];
 	return new Date(Date.UTC(y, m - 1, d));
 }
 
-export function fromUtcDate(value: Date): IsoDate {
+function fromUtcDate(value: Date): IsoDate {
 	return value.toISOString().slice(0, 10);
 }
 
@@ -43,19 +44,24 @@ export function addDays(date: IsoDate, days: number): IsoDate {
 	return fromUtcDate(anchor);
 }
 
-export function daysBetween(from: IsoDate, to: IsoDate): number {
-	return Math.round((toUtcDate(to).getTime() - toUtcDate(from).getTime()) / 86_400_000);
-}
-
 export function compareDates(a: IsoDate, b: IsoDate): number {
 	// Zero-padded ISO dates sort correctly as plain strings.
 	return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /** 0 = Sunday, matching Postgres `extract(dow)` and JavaScript `getDay()`. */
-export function weekdayOf(date: IsoDate): 0 | 1 | 2 | 3 | 4 | 5 | 6 {
-	return toUtcDate(date).getUTCDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export function weekdayOf(date: IsoDate): Weekday {
+	return toUtcDate(date).getUTCDay() as Weekday;
 }
+
+/**
+ * The order a Monday-first calendar grid lays its columns out in.
+ *
+ * Both calendars import this rather than typing out their own header row. Two
+ * hand-written weekday lists that have to agree with `weekdayOf()` is two too
+ * many: get one wrong and every column is labelled with the day beside it.
+ */
+export const MONDAY_FIRST: readonly Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 
 /** Every date from `from` to `to`, both ends included. */
 export function eachDay(from: IsoDate, to: IsoDate): IsoDate[] {
@@ -96,16 +102,14 @@ export function compareTimes(a: string, b: string): number {
 	return left < right ? -1 : left > right ? 1 : 0;
 }
 
-const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-const WEEKDAY_LONG = [
-	"Sunday",
-	"Monday",
-	"Tuesday",
-	"Wednesday",
-	"Thursday",
-	"Friday",
-	"Saturday",
-] as const;
+/**
+ * Sunday-first, matching `getUTCDay()`. The long names come from the single
+ * table in lib/types.ts and the short ones are cut from those, so there is no
+ * second list of weekday names anywhere to fall out of step.
+ */
+const WEEKDAY_LONG = ([0, 1, 2, 3, 4, 5, 6] as const).map((day) => WEEKDAY_NAMES[day]);
+const WEEKDAY_SHORT = WEEKDAY_LONG.map((name) => name.slice(0, 3));
+
 const MONTH_SHORT = [
 	"Jan",
 	"Feb",

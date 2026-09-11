@@ -41,7 +41,7 @@ const optionalText = (max: number) =>
 
 // --- ordering ---------------------------------------------------------------
 
-export const orderItemSchema = z.object({
+const orderItemSchema = z.object({
 	productId: z.string().uuid(),
 	qty: z.number().int().min(1).max(200),
 });
@@ -69,11 +69,9 @@ export const orderInputSchema = z
 		{ message: "Please add a delivery address", path: ["deliveryAddress"] },
 	);
 
-export type OrderInput = z.infer<typeof orderInputSchema>;
-
 // --- admin: products --------------------------------------------------------
 
-export const priceTierSchema = z.object({
+const priceTierSchema = z.object({
 	qty: z.coerce.number().int().min(2, "A bundle needs at least 2").max(1000),
 	priceCents: dollars,
 });
@@ -121,8 +119,6 @@ export const productSchema = z
 		path: ["tiers"],
 	});
 
-export type ProductInput = z.infer<typeof productSchema>;
-
 // --- admin: categories ------------------------------------------------------
 
 export const categorySchema = z.object({
@@ -133,15 +129,7 @@ export const categorySchema = z.object({
 	sortOrder: z.coerce.number().int().min(0).max(9999),
 });
 
-export type CategoryInput = z.infer<typeof categorySchema>;
-
 // --- admin: availability ----------------------------------------------------
-
-export const weekdayRuleSchema = z.object({
-	weekday: z.coerce.number().int().min(0).max(6),
-	isOpen: z.boolean(),
-	capacity: z.coerce.number().int().min(0).max(999),
-});
 
 export const overrideSchema = z.object({
 	date: isoDate,
@@ -232,8 +220,6 @@ export const settingsSchema = z.object({
 			"That email address doesn't look right",
 		),
 });
-
-export type SettingsInput = z.infer<typeof settingsSchema>;
 
 // --- helpers ----------------------------------------------------------------
 

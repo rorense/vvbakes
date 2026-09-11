@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { adminOrder } from "@/lib/admin-queries";
+import { toOrder } from "@/lib/mappers";
 import { requireAdmin } from "@/lib/auth";
 import { sendOrderEmail } from "@/lib/email";
 import { getPrivateSettings } from "@/lib/orders";
@@ -55,14 +56,18 @@ export async function setOrderStatus(_previous: State, formData: FormData): Prom
 	const supabase = await createClient();
 	const column = TIMESTAMP_COLUMN[status];
 
-	const { error } = await supabase
+	// The updated row comes back from the write itself. Reading it again for the
+	// email would be a second round trip for something we have just been handed.
+	const { data: updatedRow, error } = await supabase
 		.from("orders")
 		.update({
 			status,
 			...(column ? { [column]: new Date().toISOString() } : {}),
 			...(status === "cancelled" && reason ? { cancellation_reason: reason } : {}),
 		})
-		.eq("id", id);
+		.eq("id", id)
+		.select("*, order_items (*)")
+		.maybeSingle();
 
 	if (error) {
 		console.error("[vvbakes] could not change order status", error);
@@ -77,12 +82,10 @@ export async function setOrderStatus(_previous: State, formData: FormData): Prom
 
 	// Email after the change, and never let it undo the change.
 	const template = EMAIL_FOR_STATUS[status as keyof typeof EMAIL_FOR_STATUS];
-	if (template) {
-		const updated = await adminOrder(id);
-		if (updated) {
-			const [settings, privateSettings] = await Promise.all([getSettings(), getPrivateSettings()]);
-			await sendOrderEmail({ template, order: updated, settings, privateSettings });
-		}
+	if (template && updatedRow) {
+		const updated = toOrder(updatedRow);
+		const [settings, privateSettings] = await Promise.all([getSettings(), getPrivateSettings()]);
+		await sendOrderEmail({ template, order: updated, settings, privateSettings });
 	}
 
 	revalidatePath("/admin/orders");

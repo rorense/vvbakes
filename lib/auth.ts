@@ -18,7 +18,7 @@ export interface AdminUser {
  * as being the owner, sign-ups are disabled, but that is a setting, and a
  * setting is not an access control.
  */
-export const getAdminUser = cache(async (): Promise<AdminUser | null> => {
+const getAdminUser = cache(async (): Promise<AdminUser | null> => {
 	if (!hasSupabaseConfig()) return null;
 
 	const supabase = await createClient();

@@ -25,6 +25,7 @@ enough to work on the design. Ordering and the admin need a real database.
 | `npm run check` | Verifies your Supabase setup end to end, without printing any keys |
 | `npm run make-admin -- <email>` | Gives an existing Supabase user access to the admin |
 | `npm test` | Runs the test suite, including real SQL against an in-process Postgres |
+| `npm run test:race` | Proves two customers can't take the same last slot (writes real orders) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier over the whole repo |
@@ -275,7 +276,7 @@ orders for it. The second should be refused with "That date just filled up".
 For the concurrent case:
 
 ```bash
-node scripts/race-test.mjs 2026-09-19
+npm run test:race -- 2026-09-19
 ```
 
 That fires two orders at the same instant and expects exactly one to succeed.

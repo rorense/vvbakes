@@ -140,6 +140,58 @@ export function AdminCard({
 	);
 }
 
+/**
+ * The up/down pair that moves a row in a hand-ordered list.
+ *
+ * Presentational on purpose: the row owns the transition, because it also dims
+ * itself while the move is in flight.
+ */
+export function ReorderButtons({
+	label,
+	layout = "column",
+	disabled,
+	isFirst,
+	isLast,
+	onMove,
+}: {
+	/** Named in the accessible label, e.g. "Move Cupcakes up". */
+	label: string;
+	/** The product list has room to stack them; the category row does not. */
+	layout?: "column" | "row";
+	disabled?: boolean;
+	isFirst: boolean;
+	isLast: boolean;
+	onMove: (direction: "up" | "down") => void;
+}) {
+	const button =
+		"border-line hover:border-cocoa tap-safe grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30";
+
+	return (
+		<div
+			className={cn(
+				"flex shrink-0",
+				layout === "column" ? "flex-col items-end gap-1" : "items-center gap-1.5",
+			)}>
+			<button
+				type="button"
+				disabled={disabled || isFirst}
+				onClick={() => onMove("up")}
+				className={button}
+				aria-label={`Move ${label} up`}>
+				<span aria-hidden="true">↑</span>
+			</button>
+			<button
+				type="button"
+				disabled={disabled || isLast}
+				onClick={() => onMove("down")}
+				className={button}
+				aria-label={`Move ${label} down`}>
+				<span aria-hidden="true">↓</span>
+			</button>
+		</div>
+	);
+}
+
 export function EmptyState({ children }: { children: React.ReactNode }) {
 	return (
 		<p className="border-line text-cocoa-soft rounded-lg border border-dashed px-4 py-8 text-center text-sm">

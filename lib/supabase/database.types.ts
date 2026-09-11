@@ -279,6 +279,14 @@ export type Database = {
 				Args: { p_from: string; p_to: string };
 				Returns: Array<{ pickup_date: string; order_count: number }>;
 			};
+			reorder_products: {
+				Args: { p_ids: string[] };
+				Returns: undefined;
+			};
+			reorder_categories: {
+				Args: { p_ids: string[] };
+				Returns: undefined;
+			};
 			place_order: {
 				Args: {
 					p_items: Json;

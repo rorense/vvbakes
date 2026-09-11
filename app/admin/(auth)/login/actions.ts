@@ -3,11 +3,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
-import { actionError, type ActionResult } from "@/lib/types";
-
-export interface LoginState {
-	result: ActionResult | null;
-}
+import type { FormState } from "@/lib/action-state";
+import { actionError } from "@/lib/types";
 
 /**
  * Signs the owner in.
@@ -17,7 +14,7 @@ export interface LoginState {
  * sign-ups are switched off there. Adding self-service flows would mean adding
  * ways in.
  */
-export async function signIn(_previous: LoginState, formData: FormData): Promise<LoginState> {
+export async function signIn(_previous: FormState, formData: FormData): Promise<FormState> {
 	if (!hasSupabaseConfig()) {
 		return {
 			result: actionError("Supabase isn't configured yet. Check the environment variables."),

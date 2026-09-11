@@ -1,11 +1,10 @@
 /**
  * Generates every derived image asset from the source logo:
- *   public/logo.png / logo.webp   – trimmed, 800px, for use in pages
+ *   public/logo.png               – trimmed, 800px, for use in pages
  *   app/icon.png                  – 512px favicon (Next serves + resizes)
  *   app/apple-icon.png            – 180px, cream background (iOS ignores alpha)
  *   public/icon-192.png / -512.png – PWA manifest icons
  *   app/opengraph-image.png       – 1200x630 social card
- *   emails/logo.png               – 240px for email templates
  *
  * Run with: npm run icons
  */
@@ -33,22 +32,12 @@ async function main() {
 	const { width, height } = await sharp(trimmed).metadata();
 	console.log(`source trimmed to ${width}x${height}`);
 
-	// Page logo, transparent, 800px wide.
+	// Page logo, transparent, 800px wide. No WebP twin: every use goes through
+	// next/image, which already serves WebP (see `formats` in next.config.ts).
 	await sharp(trimmed)
 		.resize({ width: 800, withoutEnlargement: true })
 		.png({ compressionLevel: 9, palette: true })
 		.toFile(await out(join(root, "public", "logo.png")));
-	await sharp(trimmed)
-		.resize({ width: 800, withoutEnlargement: true })
-		.webp({ quality: 88 })
-		.toFile(await out(join(root, "public", "logo.webp")));
-
-	// Email logo, small, flattened onto paper because email clients vary on alpha.
-	await sharp(trimmed)
-		.resize({ width: 240 })
-		.flatten({ background: PAPER })
-		.png()
-		.toFile(await out(join(root, "emails", "logo.png")));
 
 	// Favicon. Next.js resizes app/icon.png for every size it needs.
 	await sharp(trimmed)

@@ -211,14 +211,6 @@ export interface Cart {
 	lines: CartLine[];
 }
 
-/** A cart line resolved against the catalogue, with its price worked out. */
-export interface PricedLine {
-	product: Product;
-	qty: number;
-	totalCents: number;
-	note: string;
-}
-
 export interface OrderItem {
 	id: string;
 	productId: string | null;

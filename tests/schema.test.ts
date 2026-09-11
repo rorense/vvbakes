@@ -751,3 +751,82 @@ describe("row level security", () => {
 		});
 	});
 });
+
+/**
+ * Reordering renumbers the whole list rather than swapping two values, because
+ * sort orders can arrive duplicated or all zero. These run last: they rewrite
+ * every sort order in the table.
+ */
+describe("reordering", () => {
+	let ownerId: string;
+
+	beforeAll(async () => {
+		ownerId = await createOwner(db, "reorder-owner@example.com");
+	});
+
+	/** Passed as a delimited string so there is no ambiguity about array binding. */
+	const asUuidArray = "string_to_array($1, ',')::uuid[]";
+
+	it("renumbers products from one, in the order given", async () => {
+		const before = await db.query<{ id: string }>(
+			"select id from products order by sort_order, name",
+		);
+		const reversed = before.rows.map((row) => row.id).reverse();
+
+		await db.query(`select reorder_products(${asUuidArray})`, [reversed.join(",")]);
+
+		const after = await db.query<{ id: string; sort_order: number }>(
+			"select id, sort_order from products order by sort_order",
+		);
+		expect(after.rows.map((row) => row.id)).toEqual(reversed);
+		expect(after.rows.map((row) => row.sort_order)).toEqual(reversed.map((_, index) => index + 1));
+	});
+
+	it("renumbers categories even when every sort order is identical", async () => {
+		await db.query("update categories set sort_order = 0");
+		const rows = await db.query<{ id: string }>("select id from categories order by name");
+		const ids = rows.rows.map((row) => row.id);
+
+		await db.query(`select reorder_categories(${asUuidArray})`, [ids.join(",")]);
+
+		const after = await db.query<{ id: string; sort_order: number }>(
+			"select id, sort_order from categories order by sort_order",
+		);
+		expect(after.rows.map((row) => row.id)).toEqual(ids);
+		expect(after.rows.map((row) => row.sort_order)).toEqual(ids.map((_, index) => index + 1));
+	});
+
+	it("is not callable by anonymous visitors", async () => {
+		const message = await db.as("anon", null, () =>
+			errorOf(() => db.query("select reorder_products('{}'::uuid[])")),
+		);
+		expect(message).toMatch(/permission denied/i);
+	});
+
+	it("moves nothing for a signed-in non-owner", async () => {
+		const stranger = await db.query<{ id: string }>(
+			"insert into auth.users (email) values ('reorder-stranger@example.com') returning id",
+		);
+		const rows = await db.query<{ id: string }>("select id from products order by sort_order");
+		const reversed = rows.rows.map((row) => row.id).reverse();
+
+		await db.as("authenticated", stranger.rows[0]!.id, async () => {
+			await db.query(`select reorder_products(${asUuidArray})`, [reversed.join(",")]);
+		});
+
+		const after = await db.query<{ id: string }>("select id from products order by sort_order");
+		expect(after.rows.map((row) => row.id)).toEqual(rows.rows.map((row) => row.id));
+	});
+
+	it("lets the owner reorder", async () => {
+		const rows = await db.query<{ id: string }>("select id from products order by sort_order");
+		const reversed = rows.rows.map((row) => row.id).reverse();
+
+		await db.as("authenticated", ownerId, async () => {
+			await db.query(`select reorder_products(${asUuidArray})`, [reversed.join(",")]);
+		});
+
+		const after = await db.query<{ id: string }>("select id from products order by sort_order");
+		expect(after.rows.map((row) => row.id)).toEqual(reversed);
+	});
+});

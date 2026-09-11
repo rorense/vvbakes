@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
-import { placeOrder, type PlaceOrderState } from "@/app/(site)/order/actions";
+import { placeOrder } from "@/app/(site)/order/actions";
+import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
 import { clearCart, useCart } from "@/lib/cart";
 import { cn } from "@/lib/cn";
 import { formatDateShort, groupByWeek, type IsoDate } from "@/lib/dates";
@@ -14,8 +15,6 @@ import { Field, FormError, Input, Textarea } from "@/components/ui/Form";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { Stepper } from "@/components/ui/Stepper";
 import { ProductImage } from "@/components/site/ProductCard";
-
-const INITIAL: PlaceOrderState = { result: null };
 
 /**
  * The order form, laid out as a printed order slip: numbered sections down one
@@ -40,7 +39,7 @@ export function OrderForm({
 }) {
 	const router = useRouter();
 	const { cart, ready, setQty, remove } = useCart();
-	const [state, formAction, pending] = useActionState(placeOrder, INITIAL);
+	const [state, formAction, pending] = useActionState(placeOrder, EMPTY_FORM_STATE);
 
 	// The chosen date is stored, but the value actually used is always checked
 	// against the dates on offer, derived rather than synced, so it can never
@@ -100,15 +99,16 @@ export function OrderForm({
 		}
 	}, [state.result, router]);
 
+	const error = errorFrom(state);
+	const fieldErrors = fieldErrorsFrom(state);
+
 	// Move focus to the error so it is announced and not scrolled past.
 	useEffect(() => {
-		if (state.result && !state.result.ok) {
+		if (error) {
 			errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
 			errorRef.current?.focus();
 		}
-	}, [state.result]);
-
-	const fieldErrors = state.result && !state.result.ok ? (state.result.fieldErrors ?? {}) : {};
+	}, [error]);
 
 	// An empty basket used to end the journey here. It now means a custom cake:
 	// the thing she mostly makes, and the thing nobody can put in a basket.
@@ -394,7 +394,7 @@ export function OrderForm({
 				ref={errorRef}
 				tabIndex={-1}
 				className="scroll-mt-24 outline-none">
-				{state.result && !state.result.ok ? <FormError>{state.result.error}</FormError> : null}
+				{error ? <FormError>{error}</FormError> : null}
 			</div>
 
 			{/* Desktop summary. On a phone the sticky bar below does this job. */}

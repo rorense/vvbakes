@@ -13,7 +13,7 @@ export default async function AvailabilityPage({
 	searchParams: Promise<{ month?: string }>;
 }) {
 	const { month: requested } = await searchParams;
-	const { settings } = await adminSettings();
+	const settings = await adminSettings();
 
 	const today = todayIn(settings.timezone);
 	const month = isIsoDate(requested ?? "") ? startOfMonth(requested!) : startOfMonth(today);

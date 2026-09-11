@@ -92,7 +92,7 @@ export const getCategories = cache(async (): Promise<Category[]> => {
 
 const PRODUCT_SELECT = "*, product_price_tiers (qty, price_cents)";
 
-export const getProducts = cache(async (): Promise<Product[]> => {
+const getProducts = cache(async (): Promise<Product[]> => {
 	if (isDemoMode()) return DEMO_PRODUCTS;
 
 	const supabase = createPublicClient();
@@ -178,7 +178,7 @@ export const getFeaturedProducts = cache(async (): Promise<Product[]> => {
 	return (featured.length > 0 ? featured : products.filter((p) => p.isAvailable)).slice(0, 3);
 });
 
-export const getAvailabilityRules = cache(async (): Promise<AvailabilityRule[]> => {
+const getAvailabilityRules = cache(async (): Promise<AvailabilityRule[]> => {
 	if (isDemoMode()) return DEMO_RULES;
 
 	const supabase = createPublicClient();
@@ -194,7 +194,7 @@ export const getAvailabilityRules = cache(async (): Promise<AvailabilityRule[]> 
 	return (data ?? []).map(toRule);
 });
 
-export const getAvailabilityOverrides = cache(
+const getAvailabilityOverrides = cache(
 	async (from: IsoDate, to: IsoDate): Promise<AvailabilityOverride[]> => {
 		if (isDemoMode()) {
 			return DEMO_OVERRIDES.filter((o) => o.date >= from && o.date <= to);
@@ -216,7 +216,7 @@ export const getAvailabilityOverrides = cache(
 );
 
 /** Active order counts per pickup date. Aggregate only, see the RPC's comment. */
-export const getOrderCounts = cache(
+const getOrderCounts = cache(
 	async (from: IsoDate, to: IsoDate): Promise<Record<IsoDate, number>> => {
 		if (isDemoMode()) return {};
 

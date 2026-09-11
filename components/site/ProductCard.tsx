@@ -71,8 +71,8 @@ export function ProductImage({
 	);
 }
 
-export function AvailabilityBadge({ product }: { product: Product }) {
-	if (product.isAvailable) return null;
+/** Only rendered for a product that is off; the caller does that check. */
+function AvailabilityBadge({ product }: { product: Product }) {
 	return <Badge tone="cocoa">{product.availabilityNote ?? "Sold out"}</Badge>;
 }
 

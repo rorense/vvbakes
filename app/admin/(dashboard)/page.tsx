@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { setOrdersOpen } from "./actions";
-import { adminDashboard, adminSettings } from "@/lib/admin-queries";
+import { adminDashboard, adminPrivateSettings, adminSettings } from "@/lib/admin-queries";
 import { addDays, formatDateShort, todayIn } from "@/lib/dates";
 import { isEmailConfigured } from "@/lib/email";
 import { formatMoney } from "@/lib/pricing";
@@ -14,7 +14,9 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Today" };
 
 export default async function AdminHomePage() {
-	const { settings, privateSettings } = await adminSettings();
+	const [settings, privateSettings] = await Promise.all([adminSettings(), adminPrivateSettings()]);
+	// The dashboard's date range is in the bakery's timezone, so this one read
+	// genuinely has to land before the counts can be asked for.
 	const today = todayIn(settings.timezone);
 	const { newCount, overdueCount, upcoming } = await adminDashboard(today, addDays(today, 7));
 

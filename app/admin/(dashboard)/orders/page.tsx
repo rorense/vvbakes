@@ -28,18 +28,22 @@ export default async function AdminOrdersPage({
 	searchParams: Promise<{ status?: string; date?: string; q?: string }>;
 }) {
 	const { status, date, q } = await searchParams;
-	const { settings } = await adminSettings();
 
 	const activeStatus =
 		status === "all" || status === "open" || STATUSES.includes(status as OrderStatus)
 			? status
 			: "open";
 
-	const orders = await adminOrders({
-		status: activeStatus as OrderStatus | "all" | "open",
-		date: isIsoDate(date ?? "") ? date : undefined,
-		search: q?.trim() || undefined,
-	});
+	// The filters come from the URL, not from settings, so neither read has to
+	// wait for the other.
+	const [settings, orders] = await Promise.all([
+		adminSettings(),
+		adminOrders({
+			status: activeStatus as OrderStatus | "all" | "open",
+			date: isIsoDate(date ?? "") ? date : undefined,
+			search: q?.trim() || undefined,
+		}),
+	]);
 
 	return (
 		<>

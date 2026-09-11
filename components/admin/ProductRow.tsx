@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import type { Product } from "@/lib/types";
+import { ReorderButtons } from "./AdminShell";
 
 /**
  * One row of the product list, with the controls the owner actually reaches for:
@@ -52,24 +53,13 @@ export function ProductRow({
 					</p>
 				</div>
 
-				<div className="flex shrink-0 flex-col items-end gap-1">
-					<button
-						type="button"
-						disabled={pending || isFirst}
-						onClick={() => startTransition(() => onMove(product.id, "up"))}
-						className="border-line hover:border-cocoa tap-safe grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
-						aria-label={`Move ${product.name} up`}>
-						<span aria-hidden="true">↑</span>
-					</button>
-					<button
-						type="button"
-						disabled={pending || isLast}
-						onClick={() => startTransition(() => onMove(product.id, "down"))}
-						className="border-line hover:border-cocoa tap-safe grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
-						aria-label={`Move ${product.name} down`}>
-						<span aria-hidden="true">↓</span>
-					</button>
-				</div>
+				<ReorderButtons
+					label={product.name}
+					disabled={pending}
+					isFirst={isFirst}
+					isLast={isLast}
+					onMove={(direction) => startTransition(() => onMove(product.id, direction))}
+				/>
 			</div>
 
 			<div className="flex flex-wrap items-center gap-2">

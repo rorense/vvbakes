@@ -10,14 +10,14 @@ import {
 } from "@/app/admin/(dashboard)/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
 import { cn } from "@/lib/cn";
-import { addMonths, formatDateLong, formatMonth } from "@/lib/dates";
+import { addMonths, formatDateLong, formatMonth, MONDAY_FIRST } from "@/lib/dates";
 import type { AvailabilityRule, CalendarDay, DayState, Weekday } from "@/lib/types";
 import { WEEKDAY_NAMES } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Switch } from "@/components/ui/Form";
 import { AdminCard } from "./AdminShell";
 
-const DAY_HEADS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_HEADS = MONDAY_FIRST.map((weekday) => WEEKDAY_NAMES[weekday].slice(0, 3));
 
 const STATE_STYLES: Record<DayState, string> = {
 	open: "bg-mint/60 text-cocoa",

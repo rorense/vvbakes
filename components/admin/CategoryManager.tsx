@@ -4,11 +4,11 @@ import { useActionState, useCallback, useEffect, useState, useTransition } from 
 import { saveCategory } from "@/app/admin/(dashboard)/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
 import { cn } from "@/lib/cn";
-import { slugify } from "@/lib/validation";
+import { useSlugField } from "@/lib/use-slug-field";
 import { ACCENTS, type Accent, type Category } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Select } from "@/components/ui/Form";
-import { AdminCard, EmptyState } from "./AdminShell";
+import { AdminCard, EmptyState, ReorderButtons } from "./AdminShell";
 
 const SWATCH: Record<Accent, string> = {
 	rose: "bg-rose",
@@ -129,22 +129,14 @@ function CategoryRow({
 			</div>
 
 			<div className="flex shrink-0 items-center gap-1.5">
-				<button
-					type="button"
-					disabled={pending || isFirst}
-					onClick={() => startTransition(() => onMove(category.id, "up"))}
-					className="border-line hover:border-cocoa tap-safe grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
-					aria-label={`Move ${category.name} up`}>
-					<span aria-hidden="true">↑</span>
-				</button>
-				<button
-					type="button"
-					disabled={pending || isLast}
-					onClick={() => startTransition(() => onMove(category.id, "down"))}
-					className="border-line hover:border-cocoa tap-safe grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
-					aria-label={`Move ${category.name} down`}>
-					<span aria-hidden="true">↓</span>
-				</button>
+				<ReorderButtons
+					label={category.name}
+					layout="row"
+					disabled={pending}
+					isFirst={isFirst}
+					isLast={isLast}
+					onMove={(direction) => startTransition(() => onMove(category.id, direction))}
+				/>
 				<button
 					type="button"
 					onClick={onEdit}
@@ -190,10 +182,7 @@ function CategoryForm({ category, onDone }: { category: Category | null; onDone:
 	const errors = fieldErrorsFrom(state);
 	const error = errorFrom(state);
 
-	const [name, setName] = useState(category?.name ?? "");
-	const [slug, setSlug] = useState(category?.slug ?? "");
-	const [slugTouched, setSlugTouched] = useState(Boolean(category));
-	const slugValue = slugTouched ? slug : slugify(name);
+	const nameAndSlug = useSlugField(category);
 
 	// The action revalidates the page, so a successful save re-renders the list
 	// underneath us; closing the form is what makes that visible.
@@ -228,8 +217,8 @@ function CategoryForm({ category, onDone }: { category: Category | null; onDone:
 						<Input
 							{...props}
 							name="name"
-							value={name}
-							onChange={(event) => setName(event.target.value)}
+							value={nameAndSlug.name}
+							onChange={(event) => nameAndSlug.setName(event.target.value)}
 							invalid={Boolean(errors.name)}
 						/>
 					)}
@@ -237,18 +226,15 @@ function CategoryForm({ category, onDone }: { category: Category | null; onDone:
 
 				<Field
 					label="Web address"
-					hint={`/shop#${slugValue || "…"}`}
+					hint={`/shop#${nameAndSlug.slug || "…"}`}
 					required
 					error={errors.slug}>
 					{(props) => (
 						<Input
 							{...props}
 							name="slug"
-							value={slugValue}
-							onChange={(event) => {
-								setSlugTouched(true);
-								setSlug(slugify(event.target.value));
-							}}
+							value={nameAndSlug.slug}
+							onChange={(event) => nameAndSlug.setSlug(event.target.value)}
 							invalid={Boolean(errors.slug)}
 						/>
 					)}

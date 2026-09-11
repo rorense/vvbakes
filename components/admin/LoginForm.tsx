@@ -1,15 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
-import { signIn, type LoginState } from "@/app/admin/(auth)/login/actions";
+import { signIn } from "@/app/admin/(auth)/login/actions";
+import { EMPTY_FORM_STATE, errorFrom } from "@/lib/action-state";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input } from "@/components/ui/Form";
 
-const INITIAL: LoginState = { result: null };
-
 export function LoginForm({ next }: { next: string }) {
-	const [state, action, pending] = useActionState(signIn, INITIAL);
-	const error = state.result && !state.result.ok ? state.result.error : null;
+	const [state, action, pending] = useActionState(signIn, EMPTY_FORM_STATE);
+	const error = errorFrom(state);
 
 	return (
 		<form

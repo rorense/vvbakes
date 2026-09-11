@@ -29,7 +29,7 @@ const statusUrl = (ctx: EmailContext) => `${ctx.siteUrl}/order/${ctx.order.token
 // ---------------------------------------------------------------------------
 // To the owner, the moment an order lands.
 // ---------------------------------------------------------------------------
-export function NewOrderOwnerEmail(ctx: EmailContext) {
+function NewOrderOwnerEmail(ctx: EmailContext) {
 	const { order } = ctx;
 
 	return (
@@ -92,7 +92,7 @@ export function NewOrderOwnerEmail(ctx: EmailContext) {
 // agreed yet, and asking for money before confirming is how double bookings
 // turn into refunds.
 // ---------------------------------------------------------------------------
-export function OrderReceivedEmail(ctx: EmailContext) {
+function OrderReceivedEmail(ctx: EmailContext) {
 	const { order, settings } = ctx;
 
 	return (
@@ -144,7 +144,7 @@ export function OrderReceivedEmail(ctx: EmailContext) {
 // To the customer, once the owner confirms. This is the only email that carries
 // bank details and the full pickup address.
 // ---------------------------------------------------------------------------
-export function OrderConfirmedEmail(ctx: EmailContext) {
+function OrderConfirmedEmail(ctx: EmailContext) {
 	const { order, settings, privateSettings } = ctx;
 	const hasBank = Boolean(privateSettings.bankAccountNumber);
 
@@ -222,7 +222,7 @@ export function OrderConfirmedEmail(ctx: EmailContext) {
 // ---------------------------------------------------------------------------
 // To the customer, on the day.
 // ---------------------------------------------------------------------------
-export function OrderReadyEmail(ctx: EmailContext) {
+function OrderReadyEmail(ctx: EmailContext) {
 	const { order, settings, privateSettings } = ctx;
 
 	return (
@@ -254,7 +254,7 @@ export function OrderReadyEmail(ctx: EmailContext) {
 // ---------------------------------------------------------------------------
 // To the customer, when an order is cancelled.
 // ---------------------------------------------------------------------------
-export function OrderCancelledEmail(ctx: EmailContext) {
+function OrderCancelledEmail(ctx: EmailContext) {
 	const { order, settings } = ctx;
 
 	return (

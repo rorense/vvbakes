@@ -18,8 +18,6 @@
 
 	--color-transparent: transparent;
 	--color-current: currentColor;
-	--color-white: #ffffff;
-	--color-black: #000000;
 
 	--color-paper: #fff8ea;
 	--color-paper-deep: #fef2c5;
@@ -32,10 +30,8 @@
 	--color-cocoa: #442910;
 	--color-cocoa-soft: #6e4b32;
 	--color-line: rgb(68 41 16 / 0.16);
-	--color-line-strong: rgb(68 41 16 / 0.32);
 	--color-danger: #9b3a2e;
 	--color-danger-tint: #f6e0dc;
-	--color-success: #2f6b4f;
 
 	/* Fonts are injected as CSS variables by next/font in app/layout.tsx. */
 	--font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;

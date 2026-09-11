@@ -1,18 +1,14 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
-import { formatDateLong } from "@/lib/dates";
-import type { PublicCalendarMonth, PublicDayState } from "@/lib/types";
+import { formatDateLong, MONDAY_FIRST } from "@/lib/dates";
+import { WEEKDAY_NAMES, type PublicCalendarMonth, type PublicDayState } from "@/lib/types";
 
-const WEEKDAY_HEADS = ["M", "T", "W", "T", "F", "S", "S"];
-const WEEKDAY_NAMES = [
-	"Monday",
-	"Tuesday",
-	"Wednesday",
-	"Thursday",
-	"Friday",
-	"Saturday",
-	"Sunday",
-];
+/** Single initials for a narrow grid, and the full name for a screen reader. */
+const COLUMNS = MONDAY_FIRST.map((weekday) => ({
+	weekday,
+	initial: WEEKDAY_NAMES[weekday].slice(0, 1),
+	name: WEEKDAY_NAMES[weekday],
+}));
 
 /**
  * How each state reads to a customer, and how it is described to a screen
@@ -82,13 +78,13 @@ export function PublicCalendar({
 						<div
 							className="grid grid-cols-7 gap-1"
 							role="grid">
-							{WEEKDAY_HEADS.map((head, index) => (
+							{COLUMNS.map((column) => (
 								<div
-									key={`${head}-${index}`}
+									key={column.weekday}
 									role="columnheader"
-									aria-label={WEEKDAY_NAMES[index]}
+									aria-label={column.name}
 									className="text-cocoa-soft text-2xs pb-1 text-center font-medium">
-									<span aria-hidden="true">{head}</span>
+									<span aria-hidden="true">{column.initial}</span>
 								</div>
 							))}
 
