@@ -30,6 +30,30 @@ const dollars = z
 	.refine((value) => /^\d+(\.\d{1,2})?$/.test(value), "Use a price like 3 or 12.50")
 	.transform((value) => Math.round(Number(value) * 100));
 
+/**
+ * True when a string is an http(s) URL, and so safe to put in an href.
+ *
+ * A customer-supplied link is rendered in three places: the admin, the owner's
+ * email and the customer's own order page. `new URL()` happily parses
+ * `javascript:alert(1)`, so every one of those checks the scheme here rather
+ * than trusting that the form validated it on the way in.
+ */
+export function isHttpUrl(value: string | null): boolean {
+	if (!value) return false;
+	try {
+		const url = new URL(value);
+		return url.protocol === "http:" || url.protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+
+/** "pinterest.com/pin/1" becomes a real URL; an empty field becomes null. */
+function withScheme(value: string): string | null {
+	if (value === "") return null;
+	return /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`;
+}
+
 const optionalText = (max: number) =>
 	z
 		.string()
@@ -63,6 +87,17 @@ export const orderInputSchema = z
 		deliveryAddress: z.string().trim().max(300).optional(),
 		notes: z.string().trim().max(1000).optional(),
 		customRequest: z.string().trim().max(2000).optional(),
+		// Left short of the column's 500 so that prepending a scheme to a bare
+		// "pinterest.com/…" can never overflow it.
+		inspirationUrl: z
+			.string()
+			.trim()
+			.max(480, "That link is too long to be a link")
+			.transform(withScheme)
+			.refine(
+				(value) => value === null || isHttpUrl(value),
+				"That link should start with http:// or https://",
+			),
 	})
 	.refine(
 		(value) => value.fulfilment !== "delivery" || (value.deliveryAddress ?? "").trim().length > 0,

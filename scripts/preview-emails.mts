@@ -26,6 +26,8 @@ const order: Order = {
 	deliveryAddress: null,
 	notes: "One of the cupcakes needs to be nut free please, my niece is allergic.",
 	customRequest: "Could you write 'Happy 30th Sam' on one of them?",
+	inspirationImagePaths: [],
+	inspirationUrl: null,
 	subtotalCents: 2000,
 	deliveryFeeCents: 0,
 	quoteCents: 0,
@@ -109,6 +111,12 @@ const customOrder: Order = {
 	customRequest:
 		"30th birthday, about 12 people. Chocolate, not too sweet. Pale pink if you can, and 'Happy Birthday Sam' on top.",
 	notes: "One guest is allergic to walnuts.",
+	// The photo paths resolve against NEXT_PUBLIC_SUPABASE_URL, which is not set
+	// when this script runs from a bare checkout, so they render as the link
+	// alone. That is the case worth previewing anyway: an email client that
+	// blocks remote images sees exactly this.
+	inspirationImagePaths: ["2026-09-11/example-one.webp", "2026-09-11/example-two.webp"],
+	inspirationUrl: "https://www.pinterest.com/pin/1234567890/",
 };
 
 const outDir = process.argv[2] ?? ".email-preview";

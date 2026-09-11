@@ -27,6 +27,7 @@ export function OrderActions({
 	transitions,
 	internalNotes,
 	customRequest,
+	inspiration,
 	quoteCents,
 	totalCents,
 }: {
@@ -35,6 +36,12 @@ export function OrderActions({
 	transitions: OrderStatus[];
 	internalNotes: string | null;
 	customRequest: string | null;
+	/**
+	 * The customer's photos and link, rendered on the server and passed in so
+	 * that this bundle does not have to carry the URL checks with it. Null when
+	 * they sent nothing.
+	 */
+	inspiration: React.ReactNode;
 	quoteCents: number;
 	totalCents: number;
 }) {
@@ -48,10 +55,12 @@ export function OrderActions({
 
 	return (
 		<div className="flex flex-col gap-6">
-			{customRequest ? (
+			{/* A photo with no words is a brief too, so the card appears for that. */}
+			{customRequest || inspiration ? (
 				<QuoteCard
 					orderId={orderId}
 					customRequest={customRequest}
+					inspiration={inspiration}
 					quoteCents={quoteCents}
 					needsPrice={needsPrice}
 				/>
@@ -231,11 +240,13 @@ function InternalNotes({ orderId, value }: { orderId: string; value: string | nu
 function QuoteCard({
 	orderId,
 	customRequest,
+	inspiration,
 	quoteCents,
 	needsPrice,
 }: {
 	orderId: string;
-	customRequest: string;
+	customRequest: string | null;
+	inspiration: React.ReactNode;
 	quoteCents: number;
 	needsPrice: boolean;
 }) {
@@ -247,7 +258,13 @@ function QuoteCard({
 		<AdminCard
 			title="The cake they asked for"
 			className={needsPrice ? "border-cocoa" : undefined}>
-			<p className="mb-5 text-sm whitespace-pre-wrap">{customRequest}</p>
+			{customRequest ? (
+				<p className="mb-5 text-sm whitespace-pre-wrap">{customRequest}</p>
+			) : (
+				<p className="text-cocoa-soft mb-5 text-sm">No description, just what they sent below.</p>
+			)}
+
+			{inspiration ? <div className="mb-5">{inspiration}</div> : null}
 
 			<form
 				action={action}

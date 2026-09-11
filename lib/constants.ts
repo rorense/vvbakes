@@ -11,6 +11,27 @@ export const MIN_FORM_FILL_MS = 3000;
 /** Product image bucket. Public read, admin write. */
 export const PRODUCT_IMAGE_BUCKET = "product-images";
 
+/** Customer inspiration photos. Public read, written only by the server. */
+export const INSPIRATION_IMAGE_BUCKET = "order-inspiration";
+
+/**
+ * How many inspiration photos one order may carry.
+ *
+ * Three covers what people actually send — a cake they saw, a colour, a
+ * handwriting sample — and keeps the whole submission inside the body size
+ * limit set in next.config.ts.
+ */
+export const MAX_INSPIRATION_PHOTOS = 3;
+
+/**
+ * The ceiling on one inspiration photo once the browser has re-encoded it.
+ *
+ * The uploader targets 0.4 MB, so this is a backstop against a caller that
+ * skipped the compression step rather than a limit a real customer will meet.
+ * The bucket enforces its own limit again on the way in.
+ */
+export const MAX_INSPIRATION_PHOTO_BYTES = 1_500_000;
+
 /**
  * Canonical origin. Vercel sets VERCEL_PROJECT_PRODUCTION_URL on every deploy, so
  * this resolves correctly before a custom domain exists.

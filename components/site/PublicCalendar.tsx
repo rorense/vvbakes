@@ -1,56 +1,13 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
-import { formatDateLong, MONDAY_FIRST } from "@/lib/dates";
-import { WEEKDAY_NAMES, type PublicCalendarMonth, type PublicDayState } from "@/lib/types";
-
-/** Single initials for a narrow grid, and the full name for a screen reader. */
-const COLUMNS = MONDAY_FIRST.map((weekday) => ({
-	weekday,
-	initial: WEEKDAY_NAMES[weekday].slice(0, 1),
-	name: WEEKDAY_NAMES[weekday],
-}));
-
-/**
- * How each state reads to a customer, and how it is described to a screen
- * reader. The wording matters more than usual here: "closed" and "too soon" are
- * the same blank square to someone scanning, and they mean very different
- * things to someone deciding whether to bother asking.
- */
-const STATE: Record<PublicDayState, { className: string; label: string }> = {
-	available: {
-		className: "bg-mint/70 text-cocoa hover:bg-mint font-medium",
-		label: "available",
-	},
-	full: {
-		className: "bg-peach/60 text-cocoa-soft line-through decoration-1",
-		label: "fully booked",
-	},
-	"too-soon": {
-		className: "bg-paper-deep text-cocoa-soft/70",
-		label: "too soon to order",
-	},
-	closed: {
-		className: "text-cocoa-soft/35",
-		label: "not baking",
-	},
-	past: {
-		className: "text-cocoa-soft/25",
-		label: "in the past",
-	},
-	"not-yet-open": {
-		className: "text-cocoa-soft/35",
-		label: "not open for orders yet",
-	},
-};
-
-/** The states worth explaining under the grid. The rest are self-evident. */
-const LEGEND: PublicDayState[] = ["available", "full", "too-soon"];
-
-const LEGEND_COPY: Partial<Record<PublicDayState, string>> = {
-	available: "Open for orders",
-	full: "Fully booked",
-	"too-soon": "Not enough notice",
-};
+import { formatDateLong } from "@/lib/dates";
+import type { PublicCalendarMonth } from "@/lib/types";
+import {
+	CALENDAR_COLUMNS,
+	DAY_STATE,
+	LEGEND_COPY,
+	LEGEND_STATES,
+} from "@/components/ui/calendar-states";
 
 export function PublicCalendar({
 	months,
@@ -78,7 +35,7 @@ export function PublicCalendar({
 						<div
 							className="grid grid-cols-7 gap-1"
 							role="grid">
-							{COLUMNS.map((column) => (
+							{CALENDAR_COLUMNS.map((column) => (
 								<div
 									key={column.weekday}
 									role="columnheader"
@@ -89,7 +46,7 @@ export function PublicCalendar({
 							))}
 
 							{month.days.map((day) => {
-								const style = STATE[day.state];
+								const style = DAY_STATE[day.state];
 								const number = Number(day.date.slice(8));
 
 								// Padding days belong to a neighbouring month, which has its
@@ -149,12 +106,12 @@ export function PublicCalendar({
 
 			<div className="flex flex-col gap-3">
 				<ul className="flex flex-wrap gap-x-5 gap-y-2">
-					{LEGEND.map((state) => (
+					{LEGEND_STATES.map((state) => (
 						<li
 							key={state}
 							className="text-cocoa-soft flex items-center gap-2 text-xs">
 							<span
-								className={cn("size-3.5 shrink-0 rounded-sm", STATE[state].className)}
+								className={cn("size-3.5 shrink-0 rounded-sm", DAY_STATE[state].className)}
 								aria-hidden="true"
 							/>
 							{LEGEND_COPY[state]}

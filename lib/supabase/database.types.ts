@@ -118,6 +118,8 @@ type OrderRow = {
 	delivery_address: string | null;
 	notes: string | null;
 	custom_request: string | null;
+	inspiration_image_paths: string[] | null;
+	inspiration_url: string | null;
 	subtotal_cents: number;
 	delivery_fee_cents: number;
 	quote_cents: number;
@@ -299,6 +301,8 @@ export type Database = {
 					p_notes: string | null;
 					p_custom_request: string | null;
 					p_ip_hash: string | null;
+					p_inspiration_image_paths?: string[];
+					p_inspiration_url?: string | null;
 				};
 				Returns: Array<{
 					id: string;

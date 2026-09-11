@@ -61,6 +61,8 @@ type PlaceArgs = {
 	notes?: string | null;
 	custom?: string | null;
 	ipHash?: string | null;
+	photos?: string[];
+	inspirationUrl?: string | null;
 };
 
 async function placeOrder(args: PlaceArgs) {
@@ -69,7 +71,7 @@ async function placeOrder(args: PlaceArgs) {
 		token: string;
 		reference: string;
 		total_cents: number;
-	}>("select * from place_order($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)", [
+	}>("select * from place_order($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)", [
 		JSON.stringify(args.items),
 		args.pickupDate,
 		args.fulfilment ?? "pickup",
@@ -80,6 +82,8 @@ async function placeOrder(args: PlaceArgs) {
 		args.notes ?? null,
 		args.custom ?? null,
 		args.ipHash ?? null,
+		args.photos ?? [],
+		args.inspirationUrl ?? null,
 	]);
 	return result.rows[0]!;
 }
@@ -407,6 +411,91 @@ describe("place_order", () => {
 		expect(second).toContain("DATE_FULL");
 
 		await db.query("delete from availability_overrides where date = $1", [date]);
+	});
+
+	it("keeps the photos and the link the customer sent", async () => {
+		const order = await placeOrder({
+			items: [],
+			pickupDate: await dateIn(7),
+			custom: "Like this one, but lemon.",
+			photos: ["2026-09-11/abc.webp", "2026-09-11/def.webp"],
+			inspirationUrl: "https://www.pinterest.com/pin/12345/",
+		});
+
+		const row = await db.query<{
+			inspiration_image_paths: string[];
+			inspiration_url: string;
+		}>("select inspiration_image_paths, inspiration_url from orders where id = $1", [order.id]);
+
+		expect(row.rows[0]!.inspiration_image_paths).toEqual([
+			"2026-09-11/abc.webp",
+			"2026-09-11/def.webp",
+		]);
+		expect(row.rows[0]!.inspiration_url).toBe("https://www.pinterest.com/pin/12345/");
+	});
+
+	it("accepts a picture as the whole brief, with no words at all", async () => {
+		// Plenty of people have the cake saved on their phone and nothing to add
+		// about it. That is a complete request, not an empty order.
+		const order = await placeOrder({
+			items: [],
+			pickupDate: await dateIn(7),
+			photos: ["2026-09-11/only.webp"],
+		});
+		expect(order.reference).toMatch(/^VV\d+$/);
+	});
+
+	it("accepts a link as the whole brief too", async () => {
+		const order = await placeOrder({
+			items: [],
+			pickupDate: await dateIn(7),
+			inspirationUrl: "https://www.instagram.com/p/abc/",
+		});
+		expect(order.reference).toMatch(/^VV\d+$/);
+	});
+
+	it("drops blank paths and keeps at most three photos", async () => {
+		const order = await placeOrder({
+			items: [],
+			pickupDate: await dateIn(7),
+			custom: "A cake",
+			photos: ["a.webp", "   ", "b.webp", "c.webp", "d.webp"],
+		});
+
+		const row = await db.query<{ inspiration_image_paths: string[] }>(
+			"select inspiration_image_paths from orders where id = $1",
+			[order.id],
+		);
+		expect(row.rows[0]!.inspiration_image_paths).toEqual(["a.webp", "b.webp", "c.webp"]);
+	});
+
+	it("refuses a fourth photo written straight into the row", async () => {
+		const order = await placeOrder({
+			items: [],
+			pickupDate: await dateIn(7),
+			custom: "A cake",
+		});
+		const message = await errorOf(() =>
+			db.query("update orders set inspiration_image_paths = $1 where id = $2", [
+				["a.webp", "b.webp", "c.webp", "d.webp"],
+				order.id,
+			]),
+		);
+		expect(message).toMatch(/inspiration_image_paths/);
+	});
+
+	it("leaves an order with no pictures holding an empty array, never null", async () => {
+		const order = await placeOrder({
+			items: [],
+			pickupDate: await dateIn(7),
+			custom: "Just words.",
+		});
+		const row = await db.query<{ inspiration_image_paths: string[]; inspiration_url: null }>(
+			"select inspiration_image_paths, inspiration_url from orders where id = $1",
+			[order.id],
+		);
+		expect(row.rows[0]!.inspiration_image_paths).toEqual([]);
+		expect(row.rows[0]!.inspiration_url).toBeNull();
 	});
 
 	it("records whether an order was a custom request", async () => {

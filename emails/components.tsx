@@ -5,6 +5,7 @@ import {
 	Head,
 	Hr,
 	Html,
+	Img,
 	Link,
 	Preview,
 	Row,
@@ -12,8 +13,10 @@ import {
 	Text,
 } from "@react-email/components";
 import type { Order, OrderItem } from "@/lib/types";
+import { inspirationImageUrl } from "@/lib/images";
 import { formatMoney } from "@/lib/pricing";
 import { formatDateLong } from "@/lib/dates";
+import { isHttpUrl } from "@/lib/validation";
 
 /**
  * Shared chrome for every transactional email.
@@ -276,6 +279,61 @@ export function FulfilmentDetails({
 			{order.fulfilment === "pickup" && pickupInstructions ? (
 				<Paragraph>{pickupInstructions}</Paragraph>
 			) : null}
+		</>
+	);
+}
+
+/**
+ * The pictures that came with the request.
+ *
+ * Every photo is also a link to itself, because plenty of clients block remote
+ * images by default and a row of broken boxes with nothing to click would lose
+ * the brief entirely. The customer's link is scheme-checked first, exactly as
+ * it is on the pages: an email is the last place to put an unchecked href.
+ */
+export function InspirationBlock({
+	order,
+	heading,
+}: {
+	order: Pick<Order, "inspirationImagePaths" | "inspirationUrl">;
+	heading: string;
+}) {
+	const images = order.inspirationImagePaths
+		.map((path) => inspirationImageUrl(path))
+		.filter((url): url is string => url !== null);
+
+	const link =
+		order.inspirationUrl && isHttpUrl(order.inspirationUrl) ? order.inspirationUrl : null;
+
+	if (images.length === 0 && !link) return null;
+
+	return (
+		<>
+			<Label>{heading}</Label>
+			<Section style={{ margin: "0 0 20px" }}>
+				{images.map((src, index) => (
+					<Link
+						key={src}
+						href={src}
+						style={{ display: "inline-block", marginRight: "8px", marginBottom: "8px" }}>
+						<Img
+							src={src}
+							alt={`Inspiration photo ${index + 1}`}
+							width="150"
+							style={{ border: `1px solid ${LINE}`, borderRadius: "8px" }}
+						/>
+					</Link>
+				))}
+				{link ? (
+					<Text style={{ fontSize: "14px", margin: images.length > 0 ? "6px 0 0" : 0 }}>
+						<Link
+							href={link}
+							style={{ color: COCOA, wordBreak: "break-all" }}>
+							{link}
+						</Link>
+					</Text>
+				) : null}
+			</Section>
 		</>
 	);
 }

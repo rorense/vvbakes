@@ -15,6 +15,7 @@ import { ORDER_STATUS_LABELS } from "@/lib/types";
 import { AdminCard, AdminHeader } from "@/components/admin/AdminShell";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { OrderActions } from "@/components/admin/OrderActions";
+import { Inspiration } from "@/components/order/Inspiration";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 	if (!order) notFound();
 
 	const failedEmails = events.filter((event) => event.type === "email_failed");
+	const hasInspiration = order.inspirationImagePaths.length > 0 || Boolean(order.inspirationUrl);
 
 	return (
 		<>
@@ -71,6 +73,18 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 					transitions={allowedTransitions(order.status)}
 					internalNotes={order.internalNotes}
 					customRequest={order.customRequest}
+					// Rendered here rather than inside the client component so the
+					// admin bundle does not have to carry the URL checks. Null when
+					// they sent nothing, which is what decides whether the card shows.
+					inspiration={
+						hasInspiration ? (
+							<Inspiration
+								paths={order.inspirationImagePaths}
+								url={order.inspirationUrl}
+								tile="lg"
+							/>
+						) : null
+					}
 					quoteCents={order.quoteCents}
 					totalCents={order.totalCents}
 				/>

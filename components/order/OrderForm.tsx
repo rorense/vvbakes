@@ -7,14 +7,16 @@ import { placeOrder } from "@/app/(site)/order/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
 import { clearCart, useCart } from "@/lib/cart";
 import { cn } from "@/lib/cn";
-import { formatDateShort, groupByWeek, type IsoDate } from "@/lib/dates";
+import { formatDateShort, type IsoDate } from "@/lib/dates";
 import { formatMoney, isValidQty, minQty, priceProduct } from "@/lib/pricing";
-import type { PickableDate, Product, SiteSettings } from "@/lib/types";
+import type { PickableDate, Product, PublicCalendarMonth, SiteSettings } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Textarea } from "@/components/ui/Form";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { Stepper } from "@/components/ui/Stepper";
 import { ProductImage } from "@/components/site/ProductCard";
+import { InspirationPicker, type InspirationPhoto } from "./InspirationPicker";
+import { PickupCalendar } from "./PickupCalendar";
 
 /**
  * The order form, laid out as a printed order slip: numbered sections down one
@@ -28,11 +30,14 @@ import { ProductImage } from "@/components/site/ProductCard";
 export function OrderForm({
 	products,
 	dates,
+	months,
 	settings,
 	initialDate = null,
 }: {
 	products: Product[];
 	dates: PickableDate[];
+	/** The same month grids the home page draws, for choosing a date. */
+	months: PublicCalendarMonth[];
 	settings: SiteSettings;
 	/** Preselected from ?date=, when someone arrived via the public calendar. */
 	initialDate?: string | null;
@@ -47,6 +52,10 @@ export function OrderForm({
 	const [chosenDateValue, setChosenDateValue] = useState<IsoDate | "">(initialDate ?? "");
 	const [fulfilment, setFulfilment] = useState<"pickup" | "delivery">("pickup");
 
+	// Inspiration photos are held here as compressed files and only leave the
+	// browser attached to the submission itself. See InspirationPicker for why.
+	const [photos, setPhotos] = useState<InspirationPhoto[]>([]);
+
 	// When the form was opened, used to reject submissions no human could have
 	// completed that fast. Held in a ref written from an effect: the clock is an
 	// external system, so reading it during render is not allowed, and a hidden
@@ -59,10 +68,13 @@ export function OrderForm({
 		openedAt.current = Date.now();
 	}, []);
 
-	// Stamps the timestamp on the way out. Reading a ref in an event handler is
-	// exactly where refs are meant to be read.
+	// Stamps the timestamp on the way out, and attaches the photos. Reading a ref
+	// in an event handler is exactly where refs are meant to be read.
 	const action = (formData: FormData) => {
 		formData.set("startedAt", String(openedAt.current));
+		for (const photo of photos) {
+			formData.append("inspirationPhotos", photo.file, photo.file.name);
+		}
 		return formAction(formData);
 	};
 
@@ -241,7 +253,8 @@ export function OrderForm({
 			<Step
 				n="02"
 				title={fulfilment === "delivery" ? "Delivery date" : "Pickup date"}>
-				<PickupDatePicker
+				<PickupCalendar
+					months={months}
 					dates={dates}
 					value={pickupDate}
 					onChange={setChosenDateValue}
@@ -384,6 +397,31 @@ export function OrderForm({
 								name="customRequest"
 								rows={5}
 								placeholder="e.g. 30th birthday, about 12 people, chocolate, nothing too sweet. Happy Birthday Sam on top."
+							/>
+						)}
+					</Field>
+
+					{/* A picture is usually the whole brief. Most people have one saved
+					    already, and the ones who don't have a link to it. */}
+					<InspirationPicker
+						photos={photos}
+						onChange={setPhotos}
+						error={fieldErrors.inspirationPhotos}
+					/>
+
+					<Field
+						label="Or a link to one"
+						hint="Pinterest, Instagram, anywhere. One link is plenty."
+						error={fieldErrors.inspirationUrl}>
+						{(props) => (
+							<Input
+								{...props}
+								name="inspirationUrl"
+								type="url"
+								inputMode="url"
+								autoComplete="off"
+								placeholder="https://www.instagram.com/p/…"
+								invalid={Boolean(fieldErrors.inspirationUrl)}
 							/>
 						)}
 					</Field>
@@ -538,85 +576,5 @@ function FulfilmentOption({
 				<span className="text-cocoa-soft text-xs">{detail}</span>
 			</span>
 		</label>
-	);
-}
-
-/**
- * Pickup dates as pills, grouped into the weeks they fall in.
- *
- * Only bookable dates appear at all, a date that is full or closed is simply
- * not there. Offering a date and then rejecting it is a worse experience than
- * never offering it, and the database enforces the same rule anyway.
- */
-function PickupDatePicker({
-	dates,
-	value,
-	onChange,
-	leadTimeDays,
-}: {
-	dates: PickableDate[];
-	value: string;
-	onChange: (date: IsoDate) => void;
-	leadTimeDays: number;
-}) {
-	const weeks = useMemo(() => groupByWeek(dates), [dates]);
-
-	if (dates.length === 0) {
-		return (
-			<p className="border-line bg-paper-deep rounded-md border px-4 py-3 text-sm">
-				No dates open for booking just now. Follow along on Instagram, that&rsquo;s where new dates
-				go up first.
-			</p>
-		);
-	}
-
-	return (
-		<div className="flex flex-col gap-4">
-			<fieldset className="flex flex-col gap-4">
-				<legend className="sr-only">Choose a pickup date</legend>
-				{weeks.map((week) => (
-					<div
-						key={week[0]!.date}
-						className="flex flex-wrap gap-2">
-						{week.map((date) => {
-							const selected = date.date === value;
-							return (
-								<label
-									key={date.date}
-									className={cn(
-										"flex cursor-pointer flex-col items-start gap-0.5 rounded-md border px-4 py-3 transition-colors",
-										selected
-											? "border-cocoa bg-rose"
-											: "border-line hover:border-cocoa hover:bg-paper-deep",
-									)}>
-									<input
-										type="radio"
-										name="pickupDateChoice"
-										className="sr-only"
-										checked={selected}
-										onChange={() => onChange(date.date)}
-									/>
-									<span className="text-sm font-medium">{formatDateShort(date.date)}</span>
-									{date.note ? (
-										<span className="text-cocoa-soft text-2xs">{date.note}</span>
-									) : date.remaining <= 2 ? (
-										<span className="text-cocoa-soft text-2xs">
-											{date.remaining} {date.remaining === 1 ? "spot" : "spots"} left
-										</span>
-									) : null}
-								</label>
-							);
-						})}
-					</div>
-				))}
-			</fieldset>
-
-			{leadTimeDays > 0 ? (
-				<p className="text-cocoa-soft text-xs">
-					I need {leadTimeDays} day{leadTimeDays === 1 ? "" : "s"} notice, so the next day or two
-					never show up.
-				</p>
-			) : null}
-		</div>
 	);
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { computeAvailability } from "@/lib/availability";
+import { buildPublicCalendar, computeAvailability } from "@/lib/availability";
 import { getAvailabilityInputs } from "@/lib/queries";
 import { ButtonLink } from "@/components/ui/Button";
 import { Container, Section } from "@/components/ui/Container";
@@ -70,6 +70,9 @@ export default async function OrderPage({
 				<OrderForm
 					products={products}
 					dates={availability.dates}
+					// The same grids the home page draws, so the calendar someone
+					// clicked a day on and the one they now pick from are one thing.
+					months={buildPublicCalendar({ settings, rules, overrides, counts })}
 					settings={settings}
 					// Someone who clicked a day on the home page's calendar has
 					// already chosen; don't make them choose again.

@@ -189,8 +189,8 @@ and a five-minute-old answer there means overselling.
 ### Ordering
 
 A customer builds an order in their browser (kept in `localStorage`, since there
-are no accounts), picks a pickup date, and submits. The server hands the whole
-thing to a single Postgres function, `place_order`, which:
+are no accounts), picks a pickup date on the calendar, and submits. The server
+hands the whole thing to a single Postgres function, `place_order`, which:
 
 - re-prices every line from the database, ignoring whatever the browser said;
 - checks lead time and the daily cut-off in the bakery's own timezone;
@@ -206,6 +206,30 @@ Prices are also computed in the browser so the form can show a running total.
 `lib/pricing.ts` and the SQL function are two implementations of the same rule,
 so a test runs both across many quantities and tier shapes and fails if they
 ever disagree on a single cent.
+
+### Inspiration photos and links
+
+Almost nobody describes a cake in words alone, so an order can carry up to three
+photos and one link. The photos are re-encoded to WebP in the browser at around
+400 KB each and then travel **with the order itself**, not through an upload
+endpoint of their own: by the time they reach Supabase Storage the submission
+has already passed the honeypot, the timing check and the per-address rate
+limit, which is why the `order-inspiration` bucket has no anonymous insert
+policy. If `place_order` then refuses the order, the uploaded files are removed
+again rather than left behind.
+
+The bucket is public to read, like the product one, because the photos are shown
+in the admin, in the owner's notification email and on the customer's own order
+page, none of which can use a URL that expires. What keeps one customer's photo
+away from the next is the path, minted on the server from a UUID.
+
+The link is the one part of an order a stranger writes that ends up inside an
+`href`. `new URL()` will happily parse `javascript:`, so every place that renders
+it checks the scheme first through `isHttpUrl` in `lib/validation.ts`.
+
+A photo or a link with no words at all is a complete request: `place_order`
+counts either as a brief, so someone who has the cake saved on their phone and
+nothing to add is no longer turned away with "your order is empty".
 
 ### Bundle pricing
 
@@ -237,8 +261,12 @@ not linked from anywhere.
 
 Two layers. **Your usual week** says which weekdays you bake and how many orders
 you can take on each. Individual dates override that, closed for a holiday, or
-open with extra capacity for a market. The order form offers only dates that are
-open and have room; a date that is full simply is not shown.
+open with extra capacity for a market. The home page and the order form draw the
+same month grid from the same rules, so the day you click on one is the day you
+land on in the other. Only open days with room can be chosen; a day that is
+full, closed or inside the notice period is drawn and greyed rather than left
+out, because a gap where next Saturday should be tells a customer nothing about
+why they cannot have it.
 
 Closing a day that already has orders on it does not cancel them. It only stops
 new ones, and the admin says so before you save.
@@ -251,7 +279,7 @@ Start with `npm run check`, which covers the whole setup: keys, tables, seed
 data, the owner account, the security boundary, storage and email. Then:
 
 ```bash
-npm test          # migrations, RLS policies, pricing, availability. 119 tests
+npm test          # migrations, RLS policies, pricing, availability. 133 tests
 npm run typecheck
 npm run build
 ```
@@ -266,6 +294,12 @@ product to sold out in the admin and reload, the badge should appear.
 `$20.00`, and the cupcake line should read `1 x 4 for $12.00 + 1 x $3.00 each`.
 Submit it, then check that you got the notification email and the customer got
 the acknowledgement.
+
+**A cake with a picture.** Place an order with an empty basket, two photos and a
+Pinterest link. It should be accepted, the photos should appear in the admin
+next to the price box, in your notification email and on the customer's order
+page, and the link should open. Then try `javascript:alert(1)` in the link
+field; the form should refuse it.
 
 **Confirming.** Open the order in the admin and confirm it. The customer's email
 should now carry the bank details, the reference and the full pickup address.

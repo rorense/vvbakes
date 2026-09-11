@@ -8,6 +8,7 @@ import {
 	DetailRows,
 	EmailLayout,
 	FulfilmentDetails,
+	InspirationBlock,
 	Label,
 	OrderItemsTable,
 	Paragraph,
@@ -77,6 +78,11 @@ function NewOrderOwnerEmail(ctx: EmailContext) {
 				</>
 			) : null}
 
+			<InspirationBlock
+				order={order}
+				heading="Pictures they sent"
+			/>
+
 			<ActionLink href={`${ctx.siteUrl}/admin/orders/${order.id}`}>Open in the admin</ActionLink>
 
 			<Paragraph>
@@ -128,6 +134,13 @@ function OrderReceivedEmail(ctx: EmailContext) {
 			/>
 
 			{order.customRequest ? <CustomRequestBlock request={order.customRequest} /> : null}
+
+			{/* Read back as well, for the same reason the words are: this is the
+			    last chance anyone has to notice the wrong picture went up. */}
+			<InspirationBlock
+				order={order}
+				heading="Pictures you sent"
+			/>
 
 			<ActionLink href={statusUrl(ctx)}>Check your order</ActionLink>
 

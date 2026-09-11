@@ -293,6 +293,21 @@ if (productBucket) {
 	);
 }
 
+const inspirationBucket = buckets.data?.find((bucket) => bucket.id === "order-inspiration");
+report(
+	Boolean(inspirationBucket),
+	"The inspiration photo bucket exists",
+	"Run `npx supabase db push`, the inspiration storage migration creates it.",
+);
+if (inspirationBucket) {
+	report(
+		inspirationBucket.public === true,
+		"The inspiration bucket is public",
+		"The photos are shown in the admin and in your notification email, both of\n" +
+			"        which need a URL that does not expire. The paths are unguessable.",
+	);
+}
+
 // --- email ------------------------------------------------------------------
 
 console.log();

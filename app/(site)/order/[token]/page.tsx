@@ -18,6 +18,7 @@ import { Container, Section } from "@/components/ui/Container";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { CopyValue } from "@/components/order/CopyValue";
+import { Inspiration } from "@/components/order/Inspiration";
 
 export const dynamic = "force-dynamic";
 
@@ -151,11 +152,20 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
 						/>
 					) : null}
 
-					{order.notes || order.customRequest ? (
+					{order.notes ||
+					order.customRequest ||
+					order.inspirationImagePaths.length > 0 ||
+					order.inspirationUrl ? (
 						<div className="flex flex-col gap-3">
 							<SectionLabel as="h2">What you told us</SectionLabel>
 							{order.notes ? <p className="text-sm">{order.notes}</p> : null}
-							{order.customRequest ? <p className="text-sm">{order.customRequest}</p> : null}
+							{order.customRequest ? (
+								<p className="text-sm whitespace-pre-wrap">{order.customRequest}</p>
+							) : null}
+							<Inspiration
+								paths={order.inspirationImagePaths}
+								url={order.inspirationUrl}
+							/>
 						</div>
 					) : null}
 

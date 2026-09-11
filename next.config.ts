@@ -17,6 +17,13 @@ const nextConfig: NextConfig = {
 			: [],
 		formats: ["image/webp"],
 	},
+	experimental: {
+		serverActions: {
+			// An order can carry three inspiration photos, re-encoded in the browser
+			// to roughly 400 KB each. The 1 MB default would refuse the second one.
+			bodySizeLimit: "4mb",
+		},
+	},
 	poweredByHeader: false,
 	async headers() {
 		return [

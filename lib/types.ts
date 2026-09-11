@@ -236,6 +236,10 @@ export interface Order {
 	deliveryAddress: string | null;
 	notes: string | null;
 	customRequest: string | null;
+	/** Object paths in the order-inspiration bucket. At most three. */
+	inspirationImagePaths: string[];
+	/** A link the customer gave. Checked for scheme before it is ever rendered. */
+	inspirationUrl: string | null;
 	subtotalCents: number;
 	deliveryFeeCents: number;
 	/** What the owner quoted for custom work. Zero means not priced yet. */

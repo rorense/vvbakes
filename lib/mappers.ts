@@ -161,6 +161,8 @@ export function toOrder(row: OrderRow & { order_items?: OrderItemRow[] | null })
 		deliveryAddress: row.delivery_address,
 		notes: row.notes,
 		customRequest: row.custom_request,
+		inspirationImagePaths: row.inspiration_image_paths ?? [],
+		inspirationUrl: row.inspiration_url,
 		subtotalCents: row.subtotal_cents,
 		deliveryFeeCents: row.delivery_fee_cents,
 		quoteCents: row.quote_cents,

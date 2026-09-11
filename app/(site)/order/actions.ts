@@ -2,8 +2,15 @@
 
 import { headers } from "next/headers";
 import { orderErrorMessage } from "@/lib/availability";
-import { MIN_FORM_FILL_MS } from "@/lib/constants";
+import {
+	INSPIRATION_IMAGE_BUCKET,
+	MAX_INSPIRATION_PHOTOS,
+	MAX_INSPIRATION_PHOTO_BYTES,
+	MIN_FORM_FILL_MS,
+} from "@/lib/constants";
+import { todayIn } from "@/lib/dates";
 import { sendOrderEmail } from "@/lib/email";
+import { inspirationImagePath } from "@/lib/images";
 import { toOrder } from "@/lib/mappers";
 import { clientIp, getPrivateSettings, hashIp } from "@/lib/orders";
 import { getSettings } from "@/lib/queries";
@@ -76,6 +83,7 @@ export async function placeOrder(
 		deliveryAddress: String(formData.get("deliveryAddress") ?? ""),
 		notes: String(formData.get("notes") ?? ""),
 		customRequest: String(formData.get("customRequest") ?? ""),
+		inspirationUrl: String(formData.get("inspirationUrl") ?? ""),
 	});
 
 	if (!parsed.success) {
@@ -87,6 +95,15 @@ export async function placeOrder(
 	}
 
 	const input = parsed.data;
+
+	// --- inspiration photos --------------------------------------------------
+	// Uploaded before the order is written, because the row wants their paths.
+	// If the order is then refused, they are swept up again below rather than
+	// left behind in the bucket.
+	const photos = await uploadPhotos(formData);
+	if ("error" in photos) {
+		return fail(photos.error, { inspirationPhotos: photos.error });
+	}
 
 	// --- write ---------------------------------------------------------------
 	const supabase = createAdminClient();
@@ -103,9 +120,12 @@ export async function placeOrder(
 		p_notes: input.notes ?? null,
 		p_custom_request: input.customRequest ?? null,
 		p_ip_hash: hashIp(clientIp(requestHeaders)),
+		p_inspiration_image_paths: photos.paths,
+		p_inspiration_url: input.inspirationUrl,
 	});
 
 	if (error) {
+		await discardPhotos(photos.paths);
 		// place_order raises named exceptions; anything else is ours, not theirs.
 		const message = orderErrorMessage(error.message);
 		if (message === "Something went wrong sending your order. Please try again.") {
@@ -116,6 +136,7 @@ export async function placeOrder(
 
 	const placed = Array.isArray(data) ? data[0] : data;
 	if (!placed) {
+		await discardPhotos(photos.paths);
 		console.error("[vvbakes] place_order returned nothing");
 		return fail("Something went wrong sending your order. Please try again.");
 	}
@@ -124,6 +145,86 @@ export async function placeOrder(
 	await notify(placed.id);
 
 	return { result: actionOk({ token: placed.token, reference: placed.reference }) };
+}
+
+/**
+ * What a photo may be, and what it is filed as. The bucket allows the same
+ * three; the browser sends WebP unless it could not re-encode the original.
+ */
+const EXTENSIONS: Record<string, string> = {
+	"image/webp": "webp",
+	"image/jpeg": "jpg",
+	"image/png": "png",
+};
+
+/**
+ * Puts the customer's inspiration photos in the bucket.
+ *
+ * These arrive attached to the order itself rather than through an upload
+ * endpoint of their own, which is the whole point: by the time this runs the
+ * submission has already been through the honeypot, the timing check and, in
+ * the database, the per-address rate limit. There is nothing here for an
+ * anonymous visitor to call on its own.
+ *
+ * The browser re-encodes to WebP at around 400 KB first. The checks below are
+ * for a caller that skipped that step, so they read as a wall rather than as
+ * anything a real customer will meet.
+ */
+async function uploadPhotos(formData: FormData): Promise<{ paths: string[] } | { error: string }> {
+	const files = formData
+		.getAll("inspirationPhotos")
+		.filter((entry): entry is File => entry instanceof File && entry.size > 0);
+
+	if (files.length === 0) return { paths: [] };
+	if (files.length > MAX_INSPIRATION_PHOTOS) {
+		return { error: `Please send at most ${MAX_INSPIRATION_PHOTOS} photos.` };
+	}
+
+	for (const file of files) {
+		if (!(file.type in EXTENSIONS)) {
+			return { error: "Photos need to be a JPEG, PNG or WebP." };
+		}
+		if (file.size > MAX_INSPIRATION_PHOTO_BYTES) {
+			return { error: "One of those photos is too big. Please try a smaller one." };
+		}
+	}
+
+	const supabase = createAdminClient();
+	const today = todayIn("UTC");
+	const paths: string[] = [];
+
+	for (const file of files) {
+		const path = inspirationImagePath(today, EXTENSIONS[file.type]);
+		const { error } = await supabase.storage
+			.from(INSPIRATION_IMAGE_BUCKET)
+			.upload(path, await file.arrayBuffer(), {
+				contentType: file.type,
+				cacheControl: "31536000",
+				upsert: false,
+			});
+
+		if (error) {
+			console.error("[vvbakes] inspiration upload failed", error);
+			// Whatever did land is of no use without the order, so take it back out.
+			await discardPhotos(paths);
+			return { error: "Your photos didn't upload. Please try again, or leave them off." };
+		}
+
+		paths.push(path);
+	}
+
+	return { paths };
+}
+
+/** Removes uploaded photos again when the order they belong to never existed. */
+async function discardPhotos(paths: string[]): Promise<void> {
+	if (paths.length === 0) return;
+	try {
+		await createAdminClient().storage.from(INSPIRATION_IMAGE_BUCKET).remove(paths);
+	} catch (error) {
+		// An orphaned photo is litter, not a failure the customer should hear about.
+		console.error("[vvbakes] could not remove orphaned inspiration photos", error);
+	}
 }
 
 /** Sends the two "we've got it" emails. Failures are logged, never surfaced. */
