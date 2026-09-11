@@ -13,7 +13,7 @@ export const revalidate = 300;
 export const metadata: Metadata = {
 	title: "Shop",
 	description:
-		"Everything vvbakes is baking right now: cupcakes, cookies and Indonesian-inspired cakes, made to order for your pickup date.",
+		"The ready-made half of vvbakes: cupcakes, cookies and Indonesian cakes, baked for the day you collect them. Custom cakes are made to order separately.",
 };
 
 const BAND: Record<Accent, string> = {
@@ -35,8 +35,7 @@ export default async function ShopPage() {
 						<SectionLabel>Shop</SectionLabel>
 						<h1 className="font-display text-3xl">Nothing on the shelf just yet</h1>
 						<p className="text-cocoa-soft">
-							We&rsquo;re between bakes. Follow along on Instagram and we&rsquo;ll post as soon as
-							the next batch is up.
+							Between bakes at the moment. Custom cakes are still on though &mdash; ask away.
 						</p>
 					</div>
 				</Container>
@@ -52,11 +51,10 @@ export default async function ShopPage() {
 				<Container width="wide">
 					<div className="flex flex-col gap-4">
 						<SectionLabel>Shop</SectionLabel>
-						<h1 className="font-display max-w-2xl text-4xl">
-							Everything we&rsquo;re baking right now
-						</h1>
+						<h1 className="font-display max-w-2xl text-4xl">The ready-made half</h1>
 						<p className="text-cocoa-soft max-w-xl">
-							Each order is made fresh for the date you pick.
+							Everything here is baked for the day you pick, no decisions required. After a custom
+							cake instead? Say so on the order form.
 							{settings.leadTimeDays > 0
 								? ` We need ${settings.leadTimeDays} day${settings.leadTimeDays === 1 ? "" : "s"} notice.`
 								: ""}
@@ -124,7 +122,7 @@ export default async function ShopPage() {
 					className="flex flex-col items-center gap-4 text-center">
 					<p className="font-display text-2xl">Ready when you are</p>
 					<p className="text-cocoa-soft text-sm">
-						Put an order together and pick a date. We&rsquo;ll confirm it by email.
+						Put an order together and pick a day. I&rsquo;ll confirm by email.
 					</p>
 					<ButtonLink
 						href="/order"

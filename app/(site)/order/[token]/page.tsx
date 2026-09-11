@@ -148,7 +148,7 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
 
 					<div className="border-line flex flex-col gap-2 border-t pt-6">
 						<p className="text-cocoa-soft text-xs">
-							Keep this link — it&rsquo;s how you check on your order. We&rsquo;ll also email you at{" "}
+							Keep this link — it&rsquo;s how you check on your order. I&rsquo;ll also email you at{" "}
 							{order.customerEmail}.
 						</p>
 						{settings.contactEmail ? (
@@ -253,7 +253,7 @@ function Fulfilment({
 			) : null}
 			{!showPrivate && order.fulfilment === "pickup" ? (
 				<p className="text-cocoa-soft text-xs">
-					We&rsquo;ll send the exact address once your order is confirmed.
+					I&rsquo;ll send the exact address once your order is confirmed.
 				</p>
 			) : null}
 		</div>

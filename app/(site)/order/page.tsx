@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
 	title: "Place an order",
 	description:
-		"Choose what you'd like and a pickup date. We'll confirm by email with payment details.",
+		"Ask about a custom cake, or order something from the menu. Pick a day and I'll confirm by email.",
 };
 
 export default async function OrderPage({
@@ -37,10 +37,10 @@ export default async function OrderPage({
 				<Container width="narrow">
 					<div className="flex flex-col items-start gap-4">
 						<SectionLabel>Orders</SectionLabel>
-						<h1 className="font-display text-3xl">We&rsquo;ve paused new orders</h1>
+						<h1 className="font-display text-3xl">The oven&rsquo;s off for now</h1>
 						<p className="text-cocoa-soft">
 							{settings.ordersClosedMessage ??
-								"We're taking a short break. Follow along on Instagram and we'll post when we're back."}
+								"Taking a short break. Follow along on Instagram — that's where new dates go up first."}
 						</p>
 						<ButtonLink
 							href="/shop"
@@ -60,10 +60,10 @@ export default async function OrderPage({
 			<Container width="narrow">
 				<div className="mb-10 flex flex-col gap-3">
 					<SectionLabel>Your order</SectionLabel>
-					<h1 className="font-display text-4xl">Let&rsquo;s get this booked in</h1>
+					<h1 className="font-display text-4xl">Right, let&rsquo;s get this booked in</h1>
 					<p className="text-cocoa-soft">
-						Nothing is charged here. We&rsquo;ll check the date, confirm by email, and send you bank
-						details and a reference.
+						Nothing is charged here. I&rsquo;ll check the day, come back to you with a price, and
+						send bank details then.
 					</p>
 				</div>
 

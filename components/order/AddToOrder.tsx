@@ -24,7 +24,7 @@ export function AddToOrder({ product }: { product: Product }) {
 			<div className="border-line bg-paper-deep flex flex-col gap-2 rounded-md border p-4">
 				<p className="text-sm font-medium">{product.availabilityNote ?? "Sold out for now"}</p>
 				<p className="text-cocoa-soft text-sm">
-					Follow along on Instagram and we&rsquo;ll post when it&rsquo;s back.
+					Follow along on Instagram and I&rsquo;ll post when it&rsquo;s back.
 				</p>
 			</div>
 		);

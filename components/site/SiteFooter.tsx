@@ -66,7 +66,7 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
 
 				<div className="border-line flex flex-col gap-2 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
 					<p className="text-cocoa-soft text-xs">
-						Orders by request. We confirm by email, then you pay by bank transfer.
+						Custom cakes and small-batch bakes. I confirm by email, then you pay by bank transfer.
 					</p>
 					<p className="text-cocoa-soft text-xs">
 						&copy; {year} {settings.businessName}

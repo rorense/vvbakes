@@ -147,7 +147,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 								<AllergenChips product={product} />
 								<p className="text-cocoa-soft text-xs">
 									Baked in a home kitchen that also handles nuts, dairy, egg, gluten and sesame.
-									Tell us about any allergies when you order.
+									Tell me about any allergies when you order.
 								</p>
 							</div>
 						) : null}

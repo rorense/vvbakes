@@ -22,21 +22,45 @@ import { PublicCalendar } from "@/components/site/PublicCalendar";
 // Revalidated on a timer and on demand whenever the admin changes the catalogue.
 export const revalidate = 300;
 
+/** What to mention when asking about a custom cake. */
+const CUSTOM_PROMPTS = [
+	{
+		label: "The occasion",
+		body: "Birthday, wedding, Tuesday. It changes what I'd suggest more than you'd think.",
+	},
+	{
+		label: "How many people",
+		body: "Roughly is fine. I'd rather you had leftovers than ran out.",
+	},
+	{
+		label: "Flavours",
+		body: "Or what to avoid. Allergies especially — tell me early, not on the day.",
+	},
+	{
+		label: "How it should look",
+		body: "Colours, writing on top, a photo you've saved. Screenshots are genuinely useful.",
+	},
+	{
+		label: "When you need it",
+		body: "Pick a date from the calendar below. The further ahead, the more I can do.",
+	},
+];
+
 const STEPS = [
 	{
 		n: "01",
-		title: "Pick your treats",
-		body: "Browse the shop and choose what you'd like, and how many.",
+		title: "Tell me about it",
+		body: "What you're celebrating, roughly how many people, and any flavour or colour you're set on. Send a photo if you've seen something you like.",
 	},
 	{
 		n: "02",
-		title: "Choose a pickup date",
-		body: "Only the dates we're baking on are offered, so nothing is promised twice.",
+		title: "Pick a day",
+		body: "Only the days I'm actually baking turn up, so nothing gets promised twice.",
 	},
 	{
 		n: "03",
-		title: "We confirm, you pay",
-		body: "You'll get an email confirming your order with bank details and a reference.",
+		title: "I'll come back to you",
+		body: "An email with the price, where to send it and a reference. Nothing to pay before that.",
 	},
 ];
 
@@ -75,32 +99,33 @@ export default async function HomePage() {
 						<div className="flex flex-col gap-6 lg:col-span-7">
 							<SectionLabel>
 								{settings.pickupSuburb
-									? `Baked to order in ${settings.pickupSuburb}`
-									: "Baked to order"}
+									? `Custom cakes, made in ${settings.pickupSuburb}`
+									: "Custom cakes, made to order"}
 							</SectionLabel>
 
 							<h1
 								className="text-5xl"
 								style={{ fontVariationSettings: '"SOFT" 40, "WONK" 1' }}>
-								Small-batch cakes, cupcakes and kue.
+								Tell me what you&rsquo;re celebrating. I&rsquo;ll bake it.
 							</h1>
 
 							<p className="text-cocoa-soft max-w-lg text-lg">
-								Everything is made fresh for your pickup date, in small batches, by hand. Choose
-								what you&rsquo;d like and we&rsquo;ll confirm by email.
+								Cakes made for one occasion and one day &mdash; your flavours, your colours,
+								whatever it needs to say on top. Or take something ready-made off the menu and
+								I&rsquo;ll box it up.
 							</p>
 
 							<div className="mt-2 flex flex-wrap gap-3">
 								<ButtonLink
 									href="/order"
 									size="lg">
-									{nextDate ? `Order for ${formatDateShort(nextDate.date)}` : "Place an order"}
+									{nextDate ? `Start a cake for ${formatDateShort(nextDate.date)}` : "Start a cake"}
 								</ButtonLink>
 								<ButtonLink
 									href="/shop"
 									variant="secondary"
 									size="lg">
-									See the shop
+									See the menu
 								</ButtonLink>
 							</div>
 						</div>
@@ -134,17 +159,17 @@ export default async function HomePage() {
 									{availability.ordersOpen ? (
 										nextDate ? (
 											<>
-												now taking orders
+												oven&rsquo;s on
 												<br />
 												<span className="font-display text-sm">
-													next pickup {formatDateShort(nextDate.date)}
+													next free day {formatDateShort(nextDate.date)}
 												</span>
 											</>
 										) : (
-											<>fully booked right now</>
+											<>booked solid, sorry</>
 										)
 									) : (
-										<>orders paused</>
+										<>oven&rsquo;s off for now</>
 									)}
 								</Sticker>
 							</div>
@@ -169,19 +194,64 @@ export default async function HomePage() {
 				</Section>
 			) : null}
 
+			{/* Custom cakes. This is the actual business — the menu below is the
+			    easy half — so it gets a section of its own rather than a line in
+			    the hero and a textarea at the end of the order form. */}
+			<Section tone="blush">
+				<Container width="wide">
+					<div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
+						<div className="flex flex-col gap-4 lg:col-span-5">
+							<SectionLabel>Custom cakes</SectionLabel>
+							<h2 className="font-display text-3xl">The one in your head</h2>
+							<p className="text-cocoa-soft">
+								Birthdays, engagements, the cake someone has been hinting about for a month. Tell me
+								what it&rsquo;s for and I&rsquo;ll tell you what&rsquo;s possible, what it costs,
+								and whether I can fit it in.
+							</p>
+							<p className="text-cocoa-soft">
+								No idea where to start? That&rsquo;s fine. &ldquo;Chocolate, for eight, not too
+								sweet&rdquo; is plenty to go on.
+							</p>
+							<div className="mt-2">
+								<ButtonLink href="/order#custom">Ask about a cake</ButtonLink>
+							</div>
+						</div>
+
+						<div className="lg:col-span-7">
+							<SectionLabel
+								as="h3"
+								className="mb-3">
+								Helpful to know
+							</SectionLabel>
+							<HairlineList as="dl">
+								{CUSTOM_PROMPTS.map((prompt) => (
+									<HairlineRow
+										key={prompt.label}
+										align="start"
+										className="flex-col gap-1 sm:flex-row sm:gap-8">
+										<dt className="text-sm font-medium sm:w-40 sm:shrink-0">{prompt.label}</dt>
+										<dd className="text-cocoa-soft flex-1 text-sm">{prompt.body}</dd>
+									</HairlineRow>
+								))}
+							</HairlineList>
+						</div>
+					</div>
+				</Container>
+			</Section>
+
 			{/* Featured products. */}
 			{featured.length > 0 ? (
 				<Section tone="paper">
 					<Container width="wide">
 						<div className="mb-10 flex flex-wrap items-end justify-between gap-4">
 							<div className="flex flex-col gap-2">
-								<SectionLabel>This week</SectionLabel>
-								<h2 className="font-display text-3xl">A few favourites</h2>
+								<SectionLabel>From the menu</SectionLabel>
+								<h2 className="font-display text-3xl">No decisions required</h2>
 							</div>
 							<Link
 								href="/shop"
 								className="text-sm font-medium underline underline-offset-4">
-								See everything
+								See the whole menu
 							</Link>
 						</div>
 
@@ -203,7 +273,7 @@ export default async function HomePage() {
 				<Container width="narrow">
 					<div className="mb-8 flex flex-col gap-2">
 						<SectionLabel>How it works</SectionLabel>
-						<h2 className="font-display text-3xl">Ordering takes a minute</h2>
+						<h2 className="font-display text-3xl">Three steps, none of them hard</h2>
 					</div>
 
 					<HairlineList
@@ -238,15 +308,15 @@ export default async function HomePage() {
 				<Container width="wide">
 					<div className="mb-8 flex flex-col gap-2">
 						<SectionLabel>Dates</SectionLabel>
-						<h2 className="font-display text-3xl">When we&rsquo;re baking</h2>
+						<h2 className="font-display text-3xl">When the oven&rsquo;s free</h2>
 						{availability.ordersOpen ? (
 							<p className="text-cocoa-soft max-w-xl">
-								Every order is made fresh for the day you collect it, so there are only so many each
-								time.
+								Everything is baked for the day you collect it, which is lovely for you and means
+								there are only so many of me to go round.
 							</p>
 						) : (
 							<p className="text-cocoa-soft max-w-xl">
-								{settings.ordersClosedMessage ?? "We've paused new orders for the moment."}
+								{settings.ordersClosedMessage ?? "I've paused new orders for the moment."}
 							</p>
 						)}
 					</div>
