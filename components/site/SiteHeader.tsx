@@ -68,7 +68,7 @@ export function SiteHeader({ settings }: { settings: SiteSettings }) {
 							key={link.href}
 							href={link.href}
 							className={cn(
-								"hover:bg-paper-deep rounded-pill px-2.5 py-2 text-sm font-medium transition-colors sm:px-4",
+								"tap-safe hover:bg-paper-deep rounded-pill px-2.5 py-2 text-sm font-medium transition-colors sm:px-4",
 								!link.small && "xs:inline-block hidden",
 							)}>
 							{link.label}

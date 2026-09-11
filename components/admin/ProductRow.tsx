@@ -57,7 +57,7 @@ export function ProductRow({
 						type="button"
 						disabled={pending || isFirst}
 						onClick={() => startTransition(() => onMove(product.id, "up"))}
-						className="border-line hover:border-cocoa grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
+						className="border-line hover:border-cocoa tap-safe grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
 						aria-label={`Move ${product.name} up`}>
 						<span aria-hidden="true">↑</span>
 					</button>
@@ -65,7 +65,7 @@ export function ProductRow({
 						type="button"
 						disabled={pending || isLast}
 						onClick={() => startTransition(() => onMove(product.id, "down"))}
-						className="border-line hover:border-cocoa grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
+						className="border-line hover:border-cocoa tap-safe grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
 						aria-label={`Move ${product.name} down`}>
 						<span aria-hidden="true">↓</span>
 					</button>

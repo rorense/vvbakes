@@ -34,7 +34,7 @@ export function Stepper({
 	const canIncrease = max === null || value + step <= max;
 
 	const button =
-		"grid place-content-center rounded-pill border border-line text-lg leading-none " +
+		"tap-safe grid place-content-center rounded-pill border border-line text-lg leading-none " +
 		"transition-colors hover:border-cocoa hover:bg-paper-deep " +
 		"disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent " +
 		"disabled:hover:border-line";

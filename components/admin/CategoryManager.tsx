@@ -133,7 +133,7 @@ function CategoryRow({
 					type="button"
 					disabled={pending || isFirst}
 					onClick={() => startTransition(() => onMove(category.id, "up"))}
-					className="border-line hover:border-cocoa grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
+					className="border-line hover:border-cocoa tap-safe grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
 					aria-label={`Move ${category.name} up`}>
 					<span aria-hidden="true">↑</span>
 				</button>
@@ -141,7 +141,7 @@ function CategoryRow({
 					type="button"
 					disabled={pending || isLast}
 					onClick={() => startTransition(() => onMove(category.id, "down"))}
-					className="border-line hover:border-cocoa grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
+					className="border-line hover:border-cocoa tap-safe grid size-8 place-content-center rounded-md border text-sm disabled:opacity-30"
 					aria-label={`Move ${category.name} down`}>
 					<span aria-hidden="true">↓</span>
 				</button>

@@ -261,6 +261,34 @@
 		}
 	}
 
+	/*
+	 * Guarantees a 44px hit area on a touch screen without changing how the
+	 * control looks.
+	 *
+	 * Several controls are deliberately small — the quantity steppers sit inside
+	 * a cart row, the admin's reorder arrows sit in a list — and growing them to
+	 * 44px would wreck those layouts. This grows the *target* instead, with a
+	 * centred pseudo-element, and only where the pointer is coarse, so a mouse
+	 * user gets no invisible dead zone around the button.
+	 */
+	@media (pointer: coarse) {
+		.tap-safe {
+			position: relative;
+		}
+
+		.tap-safe::after {
+			content: "";
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			translate: -50% -50%;
+			width: 100%;
+			height: 100%;
+			min-width: 44px;
+			min-height: 44px;
+		}
+	}
+
 	/* Hide scrollbars on the horizontal date/category rails without losing scroll. */
 	.rail {
 		overflow-x: auto;
