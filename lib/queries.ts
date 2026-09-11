@@ -9,7 +9,7 @@ import {
 	DEMO_SETTINGS,
 } from "./demo-data";
 import { countsFromRows } from "./availability";
-import type { IsoDate } from "./dates";
+import { addDays, todayIn, type IsoDate } from "./dates";
 import { toCategory, toOverride, toProduct, toRule, toSettings } from "./mappers";
 import { createPublicClient } from "./supabase/public";
 import { hasSupabaseConfig } from "./supabase/env";
@@ -40,6 +40,9 @@ import type {
  * clone runs. That path is announced loudly: a warning in the server log and a
  * banner on the page.
  */
+
+/** Matches the check constraint on site_settings.booking_window_days. */
+const MAX_BOOKING_WINDOW_DAYS = 120;
 
 let warned = false;
 
@@ -230,3 +233,35 @@ export const getOrderCounts = cache(
 		return countsFromRows(data ?? []);
 	},
 );
+
+/**
+ * Everything the availability calculation needs, in one round trip.
+ *
+ * The obvious shape — read settings, then use its timezone and booking window
+ * to bound the override and count queries — costs two sequential round trips to
+ * the database. On a page that is not cached that is the whole page weight: the
+ * order form measured 1.6s in production, almost all of it waiting.
+ *
+ * So the date range is widened to a fixed window that is guaranteed to contain
+ * whatever the settings ask for (the column caps `booking_window_days` at 120,
+ * and a day either side covers every timezone), and everything is fetched at
+ * once. The extra rows are nothing: overrides are sparse and the counts are
+ * already aggregated.
+ */
+export async function getAvailabilityInputs() {
+	// One day of slack each side absorbs the difference between the server's
+	// date and the bakery's, whatever timezone is configured.
+	const utcToday = todayIn("UTC");
+	const from = addDays(utcToday, -1);
+	const to = addDays(utcToday, MAX_BOOKING_WINDOW_DAYS + 1);
+
+	const [settings, products, rules, overrides, counts] = await Promise.all([
+		getSettings(),
+		getProducts(),
+		getAvailabilityRules(),
+		getAvailabilityOverrides(from, to),
+		getOrderCounts(from, to),
+	]);
+
+	return { settings, products, rules, overrides, counts };
+}

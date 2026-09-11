@@ -1,15 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { computeAvailability } from "@/lib/availability";
-import { addDays, formatDateShort, todayIn } from "@/lib/dates";
+import { formatDateShort } from "@/lib/dates";
 import { instagramUrl, siteUrl } from "@/lib/constants";
 import {
-	getAvailabilityOverrides,
-	getAvailabilityRules,
+	getAvailabilityInputs,
 	getCategories,
 	getFeaturedProducts,
-	getOrderCounts,
-	getProducts,
 	getSettings,
 } from "@/lib/queries";
 import { ButtonLink } from "@/components/ui/Button";
@@ -43,17 +40,8 @@ const STEPS = [
 ];
 
 export default async function HomePage() {
-	const settings = await getSettings();
-	const today = todayIn(settings.timezone);
-
-	const [featured, categories, products, rules, overrides, counts] = await Promise.all([
-		getFeaturedProducts(),
-		getCategories(),
-		getProducts(),
-		getAvailabilityRules(),
-		getAvailabilityOverrides(today, addDays(today, settings.bookingWindowDays)),
-		getOrderCounts(today, addDays(today, settings.bookingWindowDays)),
-	]);
+	const [{ settings, products, rules, overrides, counts }, featured, categories] =
+		await Promise.all([getAvailabilityInputs(), getFeaturedProducts(), getCategories()]);
 
 	const availability = computeAvailability({
 		settings,

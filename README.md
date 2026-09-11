@@ -151,6 +151,20 @@ are.
 Supabase project pauses after seven days without activity, which would take the
 shop offline without warning; one read a day prevents that.
 
+### Where things run
+
+`vercel.json` pins the server functions to `icn1` (Seoul) because that is where
+the Supabase project lives. This matters more than it sounds: Vercel's default
+is `iad1` (Washington DC), so every database query on a page that isn't cached
+went Sydney → Washington → Seoul and back. Measured on the live site, `/order`
+took 1.6 seconds; cached pages took 0.14.
+
+**If you ever recreate the Supabase project, put it in Sydney**
+(`ap-southeast-2`) and change this to `["syd1"]`. Seoul is about 9,500km from
+Auckland; Sydney is 2,200km. The database region cannot be changed after a
+project is created, which is why it is worth getting right while the project is
+still small.
+
 ---
 
 ## How it fits together

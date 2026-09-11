@@ -1,13 +1,6 @@
 import type { Metadata } from "next";
 import { computeAvailability } from "@/lib/availability";
-import { addDays, todayIn } from "@/lib/dates";
-import {
-	getAvailabilityOverrides,
-	getAvailabilityRules,
-	getOrderCounts,
-	getProducts,
-	getSettings,
-} from "@/lib/queries";
+import { getAvailabilityInputs } from "@/lib/queries";
 import { ButtonLink } from "@/components/ui/Button";
 import { Container, Section } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
@@ -27,16 +20,9 @@ export const metadata: Metadata = {
 };
 
 export default async function OrderPage() {
-	const settings = await getSettings();
-	const today = todayIn(settings.timezone);
-	const windowEnd = addDays(today, settings.bookingWindowDays);
-
-	const [products, rules, overrides, counts] = await Promise.all([
-		getProducts(),
-		getAvailabilityRules(),
-		getAvailabilityOverrides(today, windowEnd),
-		getOrderCounts(today, windowEnd),
-	]);
+	// One round trip rather than two. This page is never cached, so the wait is
+	// the page.
+	const { settings, products, rules, overrides, counts } = await getAvailabilityInputs();
 
 	const availability = computeAvailability({ settings, rules, overrides, counts });
 
