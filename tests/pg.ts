@@ -67,6 +67,13 @@ alter default privileges in schema public
 	grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public
 	grant all on sequences to anon, authenticated, service_role;
+
+-- Supabase grants execute on new functions to these roles as well. Without
+-- this line the harness is *more* locked down than production, so a migration
+-- that only revokes from PUBLIC looks safe here and is not: a grant made
+-- directly to the anon role survives a revoke from PUBLIC.
+alter default privileges in schema public
+	grant all on functions to anon, authenticated, service_role;
 `;
 
 export type TestDb = PGlite & {
