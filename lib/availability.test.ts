@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildCalendarMonth,
+	buildPublicCalendar,
 	computeAvailability,
 	earliestPickupDate,
 	nextPickupDate,
@@ -351,5 +352,117 @@ describe("orderErrorMessage", () => {
 			'duplicate key value violates unique constraint "orders_reference_key"',
 		);
 		expect(message).toBe("Something went wrong sending your order. Please try again.");
+	});
+});
+
+describe("buildPublicCalendar", () => {
+	const base = {
+		settings: {
+			ordersOpen: true,
+			ordersClosedMessage: null,
+			leadTimeDays: 2,
+			cutoffTime: "20:00:00",
+			bookingWindowDays: 28,
+			timezone: NZ,
+		},
+		rules: openAllWeek(3),
+		overrides: [] as AvailabilityOverride[],
+		counts: {} as Record<string, number>,
+		now: new Date("2026-09-14T02:00:00Z"), // 2pm Monday 14 September in NZ
+	};
+
+	function dayOf(months: ReturnType<typeof buildPublicCalendar>, date: string) {
+		for (const month of months) {
+			const found = month.days.find((day) => day.date === date);
+			if (found) return found;
+		}
+		return undefined;
+	}
+
+	it("covers every month the booking window touches", () => {
+		const months = buildPublicCalendar(base);
+		expect(months.map((m) => m.label)).toEqual(["September 2026", "October 2026"]);
+	});
+
+	it("lays each month out Monday first with whole weeks", () => {
+		const [september] = buildPublicCalendar(base);
+		expect(september!.days.length % 7).toBe(0);
+		expect(september!.days[0]!.weekday).toBe(1);
+		expect(september!.days.at(-1)!.weekday).toBe(0);
+	});
+
+	it("marks days before today as past", () => {
+		const months = buildPublicCalendar(base);
+		expect(dayOf(months, "2026-09-13")!.state).toBe("past");
+	});
+
+	it("separates 'not enough notice' from 'not baking'", () => {
+		// Monday the 14th with two days' notice: the 15th is a baking day but too
+		// soon, the 16th is the first one anyone can actually have.
+		const months = buildPublicCalendar(base);
+		expect(dayOf(months, "2026-09-15")!.state).toBe("too-soon");
+		expect(dayOf(months, "2026-09-16")!.state).toBe("available");
+	});
+
+	it("shows a day the bakery never opens as closed, not as too-soon", () => {
+		const rules = closedAllWeek();
+		rules[6] = { weekday: 6, isOpen: true, capacity: 3 };
+		const months = buildPublicCalendar({ ...base, rules });
+
+		expect(dayOf(months, "2026-09-16")!.state).toBe("closed"); // a Wednesday
+		expect(dayOf(months, "2026-09-19")!.state).toBe("available"); // Saturday
+	});
+
+	it("shows a booked-out day as full", () => {
+		const months = buildPublicCalendar({ ...base, counts: { "2026-09-19": 3 } });
+		expect(dayOf(months, "2026-09-19")!.state).toBe("full");
+	});
+
+	it("shows days past the booking window as not yet open", () => {
+		const months = buildPublicCalendar(base);
+		// The window ends 28 days after the 14th, so 13 October is one too far.
+		expect(dayOf(months, "2026-10-12")!.state).toBe("available");
+		expect(dayOf(months, "2026-10-13")!.state).toBe("not-yet-open");
+	});
+
+	it("carries an override's note through to the customer", () => {
+		const overrides: AvailabilityOverride[] = [
+			{ date: "2026-09-19", isOpen: true, capacity: 8, note: "Market day" },
+		];
+		const months = buildPublicCalendar({ ...base, overrides });
+		expect(dayOf(months, "2026-09-19")!.note).toBe("Market day");
+	});
+
+	it("treats a blocked day exactly like a day she does not bake", () => {
+		// A customer has no use for the distinction, and publishing it says more
+		// about her diary than it needs to.
+		const overrides: AvailabilityOverride[] = [
+			{ date: "2026-09-19", isOpen: false, capacity: null, note: "Away" },
+		];
+		const months = buildPublicCalendar({ ...base, overrides });
+		expect(dayOf(months, "2026-09-19")!.state).toBe("closed");
+	});
+
+	it("never publishes how many orders are on a day", () => {
+		const months = buildPublicCalendar({ ...base, counts: { "2026-09-19": 2 } });
+		const day = dayOf(months, "2026-09-19")!;
+		expect(Object.keys(day)).toEqual(["date", "weekday", "inMonth", "state", "note"]);
+	});
+
+	it("agrees with the order form about which dates are bookable", () => {
+		const overrides: AvailabilityOverride[] = [
+			{ date: "2026-09-19", isOpen: false, capacity: null, note: null },
+		];
+		const input = { ...base, overrides, counts: { "2026-09-18": 3 } };
+
+		const bookable = new Set(computeAvailability(input).dates.map((d) => d.date));
+		const shownAvailable = buildPublicCalendar(input)
+			.flatMap((month) => month.days)
+			.filter((day) => day.inMonth && day.state === "available")
+			.map((day) => day.date);
+
+		for (const date of shownAvailable) {
+			expect(bookable.has(date), `${date} shown as available`).toBe(true);
+		}
 	});
 });

@@ -41,7 +41,21 @@ export function Field({
 	const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
 
 	return (
-		<div className={cn("flex flex-col gap-2", className)}>
+		/*
+		 * Label on top, control in the middle, hint and error underneath.
+		 *
+		 * The hint used to sit between the label and the control, which quietly
+		 * broke every two-column row where one field had a hint and its neighbour
+		 * did not: the two inputs ended up 26px apart. Putting the hint below
+		 * means the label and the control are the only things above the fold of
+		 * the field, both fixed height, so controls line up across a row whatever
+		 * else each field is carrying.
+		 *
+		 * `self-start` matters too: grid cells stretch to the tallest in the row by
+		 * default, and a field with nothing under its control would otherwise have
+		 * that space distributed inside it.
+		 */
+		<div className={cn("flex flex-col gap-2 self-start", className)}>
 			<label
 				htmlFor={id}
 				className="text-sm font-medium">
@@ -58,6 +72,15 @@ export function Field({
 				)}
 			</label>
 
+			<div>
+				{children({
+					id,
+					"aria-describedby": describedBy,
+					"aria-invalid": error ? true : undefined,
+					required: required || undefined,
+				})}
+			</div>
+
 			{hint ? (
 				<p
 					id={hintId}
@@ -65,13 +88,6 @@ export function Field({
 					{hint}
 				</p>
 			) : null}
-
-			{children({
-				id,
-				"aria-describedby": describedBy,
-				"aria-invalid": error ? true : undefined,
-				required: required || undefined,
-			})}
 
 			{error ? (
 				<p

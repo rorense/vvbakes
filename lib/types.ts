@@ -167,6 +167,40 @@ export interface CalendarDay {
 	hasOverride: boolean;
 }
 
+/**
+ * How a day looks to a customer.
+ *
+ * Narrower than the admin's view on purpose. A customer does not need to know
+ * the difference between a day the bakery never opens and one that was blocked
+ * for a holiday — both mean "not then" — and publishing how many orders are
+ * already booked says more about the business than it needs to.
+ */
+export type PublicDayState =
+	| "available"
+	| "full"
+	/** Open in principle, but inside the notice period. */
+	| "too-soon"
+	/** Not a baking day, or blocked. */
+	| "closed"
+	| "past"
+	/** Beyond how far ahead she takes bookings. */
+	| "not-yet-open";
+
+export interface PublicCalendarDay {
+	date: string;
+	weekday: Weekday;
+	inMonth: boolean;
+	state: PublicDayState;
+	note: string | null;
+}
+
+export interface PublicCalendarMonth {
+	/** The first of the month, YYYY-MM-DD. */
+	month: string;
+	label: string;
+	days: PublicCalendarDay[];
+}
+
 export interface CartLine {
 	productId: string;
 	qty: number;

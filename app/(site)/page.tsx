@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { computeAvailability } from "@/lib/availability";
+import { buildPublicCalendar, computeAvailability } from "@/lib/availability";
 import { formatDateShort } from "@/lib/dates";
 import { instagramUrl, siteUrl } from "@/lib/constants";
 import {
@@ -17,6 +17,7 @@ import { ArchFrame } from "@/components/ui/ArchFrame";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Sticker } from "@/components/ui/Sticker";
 import { ProductCard, ProductImage } from "@/components/site/ProductCard";
+import { PublicCalendar } from "@/components/site/PublicCalendar";
 
 // Revalidated on a timer and on demand whenever the admin changes the catalogue.
 export const revalidate = 300;
@@ -50,6 +51,7 @@ export default async function HomePage() {
 		counts,
 	});
 	const nextDate = availability.dates[0] ?? null;
+	const calendarMonths = buildPublicCalendar({ settings, rules, overrides, counts });
 
 	const marqueeItems = products.length > 0 ? products.map((p) => p.name) : [settings.tagline];
 
@@ -224,6 +226,37 @@ export default async function HomePage() {
 					<div className="mt-8">
 						<ButtonLink href="/order">Start an order</ButtonLink>
 					</div>
+				</Container>
+			</Section>
+
+			{/* When she bakes. Without this, the only way to find out is to put
+			    something in a basket first, which is a strange thing to ask of
+			    someone who just wants to know if Saturday is possible. */}
+			<Section
+				tone="paper"
+				id="dates">
+				<Container width="wide">
+					<div className="mb-8 flex flex-col gap-2">
+						<SectionLabel>Dates</SectionLabel>
+						<h2 className="font-display text-3xl">When we&rsquo;re baking</h2>
+						{availability.ordersOpen ? (
+							<p className="text-cocoa-soft max-w-xl">
+								Every order is made fresh for the day you collect it, so there are only so many each
+								time.
+							</p>
+						) : (
+							<p className="text-cocoa-soft max-w-xl">
+								{settings.ordersClosedMessage ?? "We've paused new orders for the moment."}
+							</p>
+						)}
+					</div>
+
+					{availability.ordersOpen ? (
+						<PublicCalendar
+							months={calendarMonths}
+							leadTimeDays={settings.leadTimeDays}
+						/>
+					) : null}
 				</Container>
 			</Section>
 

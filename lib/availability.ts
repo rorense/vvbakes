@@ -9,10 +9,14 @@
  */
 import {
 	addDays,
+	addMonths,
 	compareDates,
 	compareTimes,
 	eachDay,
+	endOfMonth,
+	formatMonth,
 	localTimeIn,
+	startOfMonth,
 	todayIn,
 	weekdayOf,
 	type IsoDate,
@@ -24,6 +28,9 @@ import type {
 	CalendarDay,
 	DayState,
 	PickableDate,
+	PublicCalendarDay,
+	PublicCalendarMonth,
+	PublicDayState,
 	SiteSettings,
 	Weekday,
 } from "./types";
@@ -226,4 +233,98 @@ export function orderErrorMessage(raw: string): string {
 		if (raw.includes(code)) return message;
 	}
 	return "Something went wrong sending your order. Please try again.";
+}
+
+/**
+ * The calendar customers see.
+ *
+ * Built from the same rules as everything else, but it answers a different
+ * question. The order form asks "which dates may I pick"; this asks "when does
+ * this bakery bake", which has to include the days you cannot have — otherwise
+ * someone looking on a Tuesday for a Thursday cake just sees a gap and has no
+ * idea whether that is a closed day or a full one.
+ *
+ * It deliberately does not publish how many orders are on a day. "Full" is what
+ * a customer can act on; the exact count is the owner's business.
+ */
+export function buildPublicCalendar(options: {
+	settings: Pick<
+		SiteSettings,
+		| "ordersOpen"
+		| "ordersClosedMessage"
+		| "leadTimeDays"
+		| "cutoffTime"
+		| "bookingWindowDays"
+		| "timezone"
+	>;
+	rules: AvailabilityRule[];
+	overrides: AvailabilityOverride[];
+	counts: Record<IsoDate, number>;
+	now?: Date;
+}): PublicCalendarMonth[] {
+	const { settings, rules, overrides, counts } = options;
+	const now = options.now ?? new Date();
+
+	const today = todayIn(settings.timezone, now);
+	const earliest = earliestPickupDate(settings, now);
+	const latest = addDays(today, settings.bookingWindowDays);
+
+	const rulesByWeekday = indexRules(rules);
+	const overridesByDate = indexOverrides(overrides);
+
+	// Every month the booking window touches, and never fewer than one.
+	const months: IsoDate[] = [];
+	for (
+		let month = startOfMonth(today);
+		compareDates(month, startOfMonth(latest)) <= 0 && months.length < 6;
+		month = addMonths(month, 1)
+	) {
+		months.push(month);
+	}
+
+	return months.map((month) => {
+		const first = startOfMonth(month);
+		const firstWeekday = weekdayOf(first);
+		// Monday-first, so Sunday needs six days of padding rather than none.
+		const leading = firstWeekday === 0 ? 6 : firstWeekday - 1;
+		const gridStart = addDays(first, -leading);
+
+		const last = endOfMonth(month);
+		const trailing = (7 - (weekdayOf(last) === 0 ? 7 : weekdayOf(last))) % 7;
+		const gridEnd = addDays(last, trailing);
+
+		const days: PublicCalendarDay[] = eachDay(gridStart, gridEnd).map((date) => {
+			const override = overridesByDate.get(date);
+			const rule = rulesByWeekday.get(weekdayOf(date));
+			const isOpen = override ? override.isOpen : (rule?.isOpen ?? false);
+			const capacity = override?.capacity ?? rule?.capacity ?? 0;
+			const remaining = capacity - (counts[date] ?? 0);
+
+			let state: PublicDayState;
+			if (compareDates(date, today) < 0) {
+				state = "past";
+			} else if (!isOpen) {
+				state = "closed";
+			} else if (compareDates(date, earliest) < 0) {
+				// She bakes that day, but there is not enough notice left.
+				state = "too-soon";
+			} else if (compareDates(date, latest) > 0) {
+				state = "not-yet-open";
+			} else if (remaining <= 0) {
+				state = "full";
+			} else {
+				state = "available";
+			}
+
+			return {
+				date,
+				weekday: weekdayOf(date),
+				inMonth: date.startsWith(month.slice(0, 7)),
+				state,
+				note: override?.note ?? null,
+			};
+		});
+
+		return { month: first, label: formatMonth(first), days };
+	});
 }

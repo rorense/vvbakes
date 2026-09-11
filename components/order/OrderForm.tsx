@@ -30,10 +30,13 @@ export function OrderForm({
 	products,
 	dates,
 	settings,
+	initialDate = null,
 }: {
 	products: Product[];
 	dates: PickableDate[];
 	settings: SiteSettings;
+	/** Preselected from ?date=, when someone arrived via the public calendar. */
+	initialDate?: string | null;
 }) {
 	const router = useRouter();
 	const { cart, ready, setQty, remove } = useCart();
@@ -42,7 +45,7 @@ export function OrderForm({
 	// The chosen date is stored, but the value actually used is always checked
 	// against the dates on offer — derived rather than synced, so it can never
 	// point at a date that has gone.
-	const [chosenDateValue, setChosenDateValue] = useState<IsoDate | "">("");
+	const [chosenDateValue, setChosenDateValue] = useState<IsoDate | "">(initialDate ?? "");
 	const [fulfilment, setFulfilment] = useState<"pickup" | "delivery">("pickup");
 
 	// When the form was opened, used to reject submissions no human could have

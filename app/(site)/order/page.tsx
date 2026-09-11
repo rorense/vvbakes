@@ -19,7 +19,12 @@ export const metadata: Metadata = {
 		"Choose what you'd like and a pickup date. We'll confirm by email with payment details.",
 };
 
-export default async function OrderPage() {
+export default async function OrderPage({
+	searchParams,
+}: {
+	searchParams: Promise<{ date?: string }>;
+}) {
+	const { date: requestedDate } = await searchParams;
 	// One round trip rather than two. This page is never cached, so the wait is
 	// the page.
 	const { settings, products, rules, overrides, counts } = await getAvailabilityInputs();
@@ -66,6 +71,13 @@ export default async function OrderPage() {
 					products={products}
 					dates={availability.dates}
 					settings={settings}
+					// Someone who clicked a day on the home page's calendar has
+					// already chosen; don't make them choose again.
+					initialDate={
+						requestedDate && availability.dates.some((d) => d.date === requestedDate)
+							? requestedDate
+							: null
+					}
 				/>
 			</Container>
 		</Section>
