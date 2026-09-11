@@ -251,7 +251,7 @@ Start with `npm run check`, which covers the whole setup: keys, tables, seed
 data, the owner account, the security boundary, storage and email. Then:
 
 ```bash
-npm test          # migrations, RLS policies, pricing, availability. 98 tests
+npm test          # migrations, RLS policies, pricing, availability. 119 tests
 npm run typecheck
 npm run build
 ```
