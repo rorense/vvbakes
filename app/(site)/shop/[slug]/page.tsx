@@ -33,11 +33,10 @@ export async function generateMetadata({
 	return {
 		title: product.name,
 		description:
-			product.description ??
-			`${product.name} from vvbakes — ${priceRule(product)}. Baked to order.`,
+			product.description ?? `${product.name} from vvbakes. ${priceRule(product)}. Baked to order.`,
 		alternates: { canonical: `/shop/${product.slug}` },
 		openGraph: {
-			title: `${product.name} — vvbakes`,
+			title: `${product.name} from vvbakes`,
 			description: product.description ?? priceRule(product),
 			url: `${siteUrl()}/shop/${product.slug}`,
 			images: image ? [{ url: image }] : undefined,

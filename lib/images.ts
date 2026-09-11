@@ -29,7 +29,7 @@ const ACCENT_CYCLE: Accent[] = ["rose", "butter", "mint", "peach", "blush"];
  * The pastel a product falls back to when it has no photo yet.
  *
  * Derived from the slug so a product keeps the same colour between renders, and
- * never the colour of the band it is sitting on — a mint tile on a mint band is
+ * never the colour of the band it is sitting on, a mint tile on a mint band is
  * an invisible card, which is exactly what a missing photo must not look like.
  */
 export function fallbackAccent(product: Pick<Product, "slug">, behind?: Accent | null): Accent {

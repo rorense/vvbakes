@@ -12,7 +12,7 @@ import type { Order, PrivateSettings, SiteSettings } from "./types";
  *
  * Sent over SMTP with nodemailer rather than through an email API, because the
  * shop has no domain of its own yet and every API provider's sandbox sender can
- * only deliver back to the account owner — customer mail would silently vanish.
+ * only deliver back to the account owner, customer mail would silently vanish.
  * A Gmail app password works today and needs no DNS.
  *
  * Swapping to a provider later means changing `deliver` and nothing else.
@@ -117,7 +117,7 @@ export interface SendOrderEmailOptions {
 }
 
 /**
- * Renders and sends one order email. Never throws — the caller has already done
+ * Renders and sends one order email. Never throws, the caller has already done
  * the thing the email is about.
  */
 export async function sendOrderEmail(options: SendOrderEmailOptions): Promise<SendResult> {

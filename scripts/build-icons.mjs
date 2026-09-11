@@ -33,7 +33,7 @@ async function main() {
 	const { width, height } = await sharp(trimmed).metadata();
 	console.log(`source trimmed to ${width}x${height}`);
 
-	// Page logo — transparent, 800px wide.
+	// Page logo, transparent, 800px wide.
 	await sharp(trimmed)
 		.resize({ width: 800, withoutEnlargement: true })
 		.png({ compressionLevel: 9, palette: true })
@@ -43,20 +43,20 @@ async function main() {
 		.webp({ quality: 88 })
 		.toFile(await out(join(root, "public", "logo.webp")));
 
-	// Email logo — small, flattened onto paper because email clients vary on alpha.
+	// Email logo, small, flattened onto paper because email clients vary on alpha.
 	await sharp(trimmed)
 		.resize({ width: 240 })
 		.flatten({ background: PAPER })
 		.png()
 		.toFile(await out(join(root, "emails", "logo.png")));
 
-	// Favicon — Next.js resizes app/icon.png for every size it needs.
+	// Favicon. Next.js resizes app/icon.png for every size it needs.
 	await sharp(trimmed)
 		.resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
 		.png()
 		.toFile(await out(join(root, "app", "icon.png")));
 
-	// Apple touch icon — must be opaque with a little breathing room.
+	// Apple touch icon, must be opaque with a little breathing room.
 	await sharp(trimmed)
 		.resize(160, 160, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
 		.extend({ top: 10, bottom: 10, left: 10, right: 10, background: PAPER })

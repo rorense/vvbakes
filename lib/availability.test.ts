@@ -318,7 +318,7 @@ describe("groupByWeek", () => {
 		);
 		const weeks = groupByWeek(dates);
 		expect(weeks.map((w) => w.map((d) => d.date))).toEqual([
-			["2026-09-16", "2026-09-17", "2026-09-20"], // Wed, Thu, Sun — one week
+			["2026-09-16", "2026-09-17", "2026-09-20"], // Wed, Thu, Sun, one week
 			["2026-09-21", "2026-09-22"], // the following Mon, Tue
 		]);
 	});

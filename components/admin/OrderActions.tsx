@@ -4,20 +4,21 @@ import { useActionState, useState } from "react";
 import {
 	resendEmail,
 	saveInternalNotes,
+	saveQuote,
 	setOrderStatus,
 } from "@/app/admin/(dashboard)/orders/actions";
-import { EMPTY_FORM_STATE, errorFrom, succeeded } from "@/lib/action-state";
+import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, succeeded } from "@/lib/action-state";
 import { TRANSITION_EFFECTS, TRANSITION_LABELS } from "@/lib/order-status";
 import type { OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
-import { FormError, FormSuccess, Textarea } from "@/components/ui/Form";
+import { Field, FormError, FormSuccess, Input, Textarea } from "@/components/ui/Form";
 import { AdminCard } from "./AdminShell";
 
 /**
  * Moving an order along, plus the owner's private notes.
  *
- * Each transition says what it will do to the customer before it is pressed —
- * "confirm" sends bank details, "cancel" sends an apology — because these
+ * Each transition says what it will do to the customer before it is pressed,
+ * "confirm" sends bank details, "cancel" sends an apology, because these
  * buttons send real email to a real person and there is no undo.
  */
 export function OrderActions({
@@ -25,18 +26,37 @@ export function OrderActions({
 	status,
 	transitions,
 	internalNotes,
+	customRequest,
+	quoteCents,
+	totalCents,
 }: {
 	orderId: string;
 	status: OrderStatus;
 	transitions: OrderStatus[];
 	internalNotes: string | null;
+	customRequest: string | null;
+	quoteCents: number;
+	totalCents: number;
 }) {
 	const [state, action, pending] = useActionState(setOrderStatus, EMPTY_FORM_STATE);
 	const [confirming, setConfirming] = useState<OrderStatus | null>(null);
 	const error = errorFrom(state);
 
+	// A custom cake arrives unpriced. Confirming it would email the customer
+	// bank details and a total of nothing, so the price comes first.
+	const needsPrice = totalCents === 0;
+
 	return (
 		<div className="flex flex-col gap-6">
+			{customRequest ? (
+				<QuoteCard
+					orderId={orderId}
+					customRequest={customRequest}
+					quoteCents={quoteCents}
+					needsPrice={needsPrice}
+				/>
+			) : null}
+
 			<AdminCard title="What happens next">
 				{transitions.length === 0 ? (
 					<p className="text-cocoa-soft text-sm">
@@ -93,11 +113,18 @@ export function OrderActions({
 					</form>
 				) : (
 					<div className="flex flex-col gap-4">
+						{needsPrice && transitions.includes("confirmed") ? (
+							<p className="border-line bg-paper-deep rounded-md border px-4 py-3 text-sm">
+								This one has no price on it yet, so it cannot be confirmed. Set one above first.
+							</p>
+						) : null}
+
 						<div className="flex flex-wrap gap-3">
 							{transitions.map((next) => (
 								<Button
 									key={next}
 									variant={next === "cancelled" ? "secondary" : "primary"}
+									disabled={next === "confirmed" && needsPrice}
 									onClick={() => setConfirming(next)}>
 									{TRANSITION_LABELS[next]}
 								</Button>
@@ -106,7 +133,7 @@ export function OrderActions({
 						<ul className="text-cocoa-soft flex flex-col gap-1 text-xs">
 							{transitions.map((next) => (
 								<li key={next}>
-									<strong className="font-medium">{TRANSITION_LABELS[next]}</strong> —{" "}
+									<strong className="font-medium">{TRANSITION_LABELS[next]}</strong>:{" "}
 									{TRANSITION_EFFECTS[next]}
 								</li>
 							))}
@@ -188,6 +215,80 @@ function InternalNotes({ orderId, value }: { orderId: string; value: string | nu
 						</span>
 					) : null}
 				</div>
+				{error ? <FormError>{error}</FormError> : null}
+			</form>
+		</AdminCard>
+	);
+}
+
+/**
+ * The custom request and the price the owner puts on it.
+ *
+ * Sits above the status buttons because it has to happen first: the request is
+ * the only description of what she is being asked to make, and until there is a
+ * price the order cannot be confirmed.
+ */
+function QuoteCard({
+	orderId,
+	customRequest,
+	quoteCents,
+	needsPrice,
+}: {
+	orderId: string;
+	customRequest: string;
+	quoteCents: number;
+	needsPrice: boolean;
+}) {
+	const [state, action, pending] = useActionState(saveQuote, EMPTY_FORM_STATE);
+	const errors = fieldErrorsFrom(state);
+	const error = errorFrom(state);
+
+	return (
+		<AdminCard
+			title="The cake they asked for"
+			className={needsPrice ? "border-cocoa" : undefined}>
+			<p className="mb-5 text-sm whitespace-pre-wrap">{customRequest}</p>
+
+			<form
+				action={action}
+				className="border-line flex flex-col gap-4 border-t pt-5">
+				<input
+					type="hidden"
+					name="id"
+					value={orderId}
+				/>
+
+				<Field
+					label="Price for this cake"
+					hint="In dollars. Added to anything they also ordered off the menu."
+					error={errors.quoteCents}>
+					{(props) => (
+						<Input
+							{...props}
+							name="quote"
+							inputMode="decimal"
+							defaultValue={quoteCents > 0 ? (quoteCents / 100).toString() : ""}
+							placeholder="85"
+							className="max-w-40"
+						/>
+					)}
+				</Field>
+
+				<div className="flex items-center gap-3">
+					<Button
+						type="submit"
+						disabled={pending}>
+						{pending ? "Saving…" : quoteCents > 0 ? "Update the price" : "Set the price"}
+					</Button>
+					{succeeded(state) ? (
+						<span
+							role="status"
+							className="text-cocoa-soft text-sm">
+							Saved.
+						</span>
+					) : null}
+				</div>
+
 				{error ? <FormError>{error}</FormError> : null}
 			</form>
 		</AdminCard>

@@ -124,7 +124,7 @@ export const DEMO_SETTINGS: SiteSettings = {
 	businessName: "vvbakes",
 	tagline: "inspired desserts",
 	aboutText:
-		"Hi, I'm the baker behind vvbakes. Everything is made in small batches, to order, in my own kitchen — cupcakes and cookies alongside the Indonesian cakes I grew up with.",
+		"Hi, I'm the baker behind vvbakes. Everything is made in small batches, to order, in my own kitchen, cupcakes and cookies alongside the Indonesian cakes I grew up with.",
 	pickupSuburb: "Auckland",
 	pickupInstructions: null,
 	pickupWindowText: "Pickups 4–7pm",

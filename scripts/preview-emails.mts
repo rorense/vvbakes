@@ -24,7 +24,7 @@ const order: Order = {
 	customerEmail: "alex@example.com",
 	customerPhone: "021 555 0100",
 	deliveryAddress: null,
-	notes: "One of the cupcakes needs to be nut free please — my niece is allergic.",
+	notes: "One of the cupcakes needs to be nut free please, my niece is allergic.",
 	customRequest: "Could you write 'Happy 30th Sam' on one of them?",
 	subtotalCents: 2000,
 	deliveryFeeCents: 0,
@@ -107,7 +107,7 @@ for (const name of Object.keys(TEMPLATES) as TemplateName[]) {
 	await writeFile(join(outDir, `${name}.txt`), text, "utf8");
 
 	const subject = SUBJECTS[name](context);
-	index.push(`<li><a href="./${name}.html">${name}</a> — <em>${subject}</em></li>`);
+	index.push(`<li><a href="./${name}.html">${name}</a>: <em>${subject}</em></li>`);
 	console.log(
 		`${name}\n  subject: ${subject}\n  html: ${html.length} bytes, text: ${text.length} bytes`,
 	);

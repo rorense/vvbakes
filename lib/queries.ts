@@ -27,7 +27,7 @@ import type {
  *
  * These deliberately use the cookie-free client. Every table they touch has a
  * `using (true)` select policy, so an anonymous reader and the signed-in owner
- * see exactly the same rows — attaching the request's session bought nothing.
+ * see exactly the same rows, attaching the request's session bought nothing.
  * What it cost was the cache: a page that so much as touches `cookies()` is
  * dynamic, whatever `revalidate` says, which turned every visit to the home
  * page and the shop into a database round trip. It also made them impossible to
@@ -52,7 +52,7 @@ export function isDemoMode(): boolean {
 	if (demo && !warned) {
 		warned = true;
 		console.warn(
-			"[vvbakes] NEXT_PUBLIC_SUPABASE_URL is not set — serving the built-in demo catalogue. " +
+			"[vvbakes] NEXT_PUBLIC_SUPABASE_URL is not set, serving the built-in demo catalogue. " +
 				"Copy .env.example to .env.local to connect a real database.",
 		);
 	}
@@ -215,7 +215,7 @@ export const getAvailabilityOverrides = cache(
 	},
 );
 
-/** Active order counts per pickup date. Aggregate only — see the RPC's comment. */
+/** Active order counts per pickup date. Aggregate only, see the RPC's comment. */
 export const getOrderCounts = cache(
 	async (from: IsoDate, to: IsoDate): Promise<Record<IsoDate, number>> => {
 		if (isDemoMode()) return {};
@@ -237,8 +237,8 @@ export const getOrderCounts = cache(
 /**
  * Everything the availability calculation needs, in one round trip.
  *
- * The obvious shape — read settings, then use its timezone and booking window
- * to bound the override and count queries — costs two sequential round trips to
+ * The obvious shape, read settings, then use its timezone and booking window
+ * to bound the override and count queries, costs two sequential round trips to
  * the database. On a page that is not cached that is the whole page weight: the
  * order form measured 1.6s in production, almost all of it waiting.
  *

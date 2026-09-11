@@ -5,13 +5,13 @@
  *
  * What is shimmed, and why it is safe to shim:
  *   - `auth.users` / `auth.uid()`: Supabase-managed, and nothing under test
- *     depends on their internals — only on `is_admin()` reading `admins`.
+ *     depends on their internals, only on `is_admin()` reading `admins`.
  *   - the `anon` / `authenticated` / `service_role` roles: created empty so the
  *     RLS migration's `to <role>` clauses parse and apply.
  *   - `storage.*`: the storage migration is skipped entirely (see MIGRATIONS).
  *
- * Everything else — the tables, constraints, triggers, RLS policies,
- * `price_for_qty` and `place_order` — is the real file, unmodified.
+ * Everything else, the tables, constraints, triggers, RLS policies,
+ * `price_for_qty` and `place_order`, is the real file, unmodified.
  */
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -29,7 +29,7 @@ const SKIP_MIGRATIONS = [/_storage\.sql$/];
 
 /**
  * Deliberately no extensions. A new Supabase project has only core PostgreSQL,
- * so the migrations must not reach for pgcrypto or anything else — enabling it
+ * so the migrations must not reach for pgcrypto or anything else, enabling it
  * here would hide exactly the kind of failure that only shows up on a real
  * project.
  */

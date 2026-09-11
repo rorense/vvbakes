@@ -42,7 +42,7 @@ home bakery.
 ### 1. Supabase
 
 1. Create a project at [supabase.com](https://supabase.com). Choose the region
-   closest to your customers — **Sydney** for New Zealand.
+   closest to your customers. **Sydney** for New Zealand.
 2. Save the database password somewhere safe; you cannot see it again.
 3. Go to **Project Settings → API Keys**. You need three values:
 
@@ -56,7 +56,7 @@ home bakery.
    and the service_role key. The variable names keep the old wording because
    that is what the client libraries expect.
 
-   The publishable key is meant to be in the browser — row level security is
+   The publishable key is meant to be in the browser, row level security is
    what protects the data, not the key. The secret key bypasses all of that, so
    it stays on the server and never goes in a `NEXT_PUBLIC_` variable.
 
@@ -123,7 +123,7 @@ password, which needs no domain and no DNS.
    ```
 
 4. In the admin, under **Settings → Getting in touch**, set **Send new orders
-   to** — that is where you get told about a new order.
+   to**, that is where you get told about a new order.
 
 Gmail allows about 500 emails a day, which is far more than this needs.
 
@@ -136,7 +136,7 @@ are.
 
 1. Import the repository at [vercel.com](https://vercel.com).
 2. Add every variable from `.env.local` under **Settings → Environment
-   Variables**, plus `CRON_SECRET` — any long random string.
+   Variables**, plus `CRON_SECRET`, any long random string.
 
    `NEXT_PUBLIC_SUPABASE_URL` has to be there **before the first build**, not
    just at runtime: the build reads it to prerender the shop and to whitelist
@@ -210,7 +210,7 @@ ever disagree on a single cent.
 
 "4 for $12" is stored as a tier. When someone orders five cupcakes they pay
 `$12 + $3`, not `5 × $3`. Where several bundles overlap, the customer gets the
-cheapest combination — worked out properly rather than by taking the biggest
+cheapest combination, worked out properly rather than by taking the biggest
 bundle first, which overcharges whenever a smaller bundle has a better rate.
 
 Cookies are the other shape: `$2.50` each with a step of `2`, so the shop
@@ -221,7 +221,7 @@ advertises "2 for $5" and the form only ever offers even numbers.
 `orders` has no row-level-security policy for anonymous visitors, and no insert
 policy for anybody. Orders are created only through `place_order`, called
 server-side. If the public key leaked tomorrow, it would expose the menu and
-nothing else — no names, no phone numbers, no addresses.
+nothing else, no names, no phone numbers, no addresses.
 
 Bank details and the pickup street address live in a separate table with no
 anonymous policy at all. They appear in exactly two places: the confirmation
@@ -235,7 +235,7 @@ not linked from anywhere.
 ### The calendar
 
 Two layers. **Your usual week** says which weekdays you bake and how many orders
-you can take on each. Individual dates override that — closed for a holiday, or
+you can take on each. Individual dates override that, closed for a holiday, or
 open with extra capacity for a market. The order form offers only dates that are
 open and have room; a date that is full simply is not shown.
 
@@ -250,7 +250,7 @@ Start with `npm run check`, which covers the whole setup: keys, tables, seed
 data, the owner account, the security boundary, storage and email. Then:
 
 ```bash
-npm test          # migrations, RLS policies, pricing, availability — 98 tests
+npm test          # migrations, RLS policies, pricing, availability. 98 tests
 npm run typecheck
 npm run build
 ```
@@ -259,7 +259,7 @@ Then, by hand:
 
 **The catalogue.** `/shop` should show three bands with five products, priced
 "$3 each · 4 for $12", "2 for $5", "$5 / slice" and "$3 / slice". Toggle a
-product to sold out in the admin and reload — the badge should appear.
+product to sold out in the admin and reload, the badge should appear.
 
 **An order.** Add five cupcakes and two cookies; the total should be exactly
 `$20.00`, and the cupcake line should read `1 x 4 for $12.00 + 1 x $3.00 each`.
@@ -309,7 +309,7 @@ supabase/        migrations and the seed
 tests/           SQL run against a real Postgres, in-process
 ```
 
-Two pieces of logic exist twice on purpose — pricing and availability, once in
+Two pieces of logic exist twice on purpose, pricing and availability, once in
 TypeScript for the browser and once in SQL for the database. The SQL is always
 the authority. If you change one, change the other, and the parity test will
 tell you if you did not.

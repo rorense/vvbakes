@@ -94,7 +94,7 @@ export function SettingsForm({
 									name="ordersClosedMessage"
 									rows={2}
 									defaultValue={settings.ordersClosedMessage ?? ""}
-									placeholder="Back after the school holidays — follow along on Instagram."
+									placeholder="Back after the school holidays. Follow along on Instagram."
 								/>
 							)}
 						</Field>
@@ -342,7 +342,7 @@ export function SettingsForm({
 			<AdminCard title="Bank details">
 				<p className="text-cocoa-soft mb-5 text-sm">
 					These are private. They are only ever sent in the confirmation email and shown on a
-					customer&rsquo;s own order page once you&rsquo;ve confirmed it — never on the public site.
+					customer&rsquo;s own order page once you&rsquo;ve confirmed it. Never on the public site.
 				</p>
 				<div className="grid gap-5 sm:grid-cols-2">
 					<Field

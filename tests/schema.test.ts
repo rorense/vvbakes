@@ -134,7 +134,7 @@ describe("seed data", () => {
 		expect(result.rows[0]!.count).toBe(7);
 	});
 
-	it("leaves bank details empty — they are entered in the admin, never committed", async () => {
+	it("leaves bank details empty, they are entered in the admin, never committed", async () => {
 		const result = await db.query<{
 			bank_account_number: string | null;
 			pickup_address: string | null;
@@ -340,11 +340,86 @@ describe("place_order", () => {
 		await db.query("update products set is_available = true where id = $1", [wingko]);
 	});
 
-	it("rejects an empty order", async () => {
+	it("rejects an order that is neither items nor a request", async () => {
 		const message = await errorOf(async () =>
 			placeOrder({ items: [], pickupDate: await dateIn(7) }),
 		);
 		expect(message).toContain("EMPTY_ORDER");
+	});
+
+	it("accepts a custom cake with nothing off the menu", async () => {
+		// The whole point: someone wanting a birthday cake has nothing to put in
+		// a basket, and used to be turned away.
+		const order = await placeOrder({
+			items: [],
+			pickupDate: await dateIn(7),
+			custom: "30th birthday, about 12 people, chocolate, not too sweet.",
+		});
+
+		expect(order.reference).toMatch(/^VV\d+$/);
+		// No price yet. Nobody can quote a cake before hearing about it.
+		expect(order.total_cents).toBe(0);
+
+		const row = await db.query<{ custom_request: string; quote_cents: number }>(
+			"select custom_request, quote_cents from orders where id = $1",
+			[order.id],
+		);
+		expect(row.rows[0]!.custom_request).toContain("30th birthday");
+		expect(row.rows[0]!.quote_cents).toBe(0);
+
+		const items = await db.query("select id from order_items where order_id = $1", [order.id]);
+		expect(items.rows).toHaveLength(0);
+	});
+
+	it("treats a request of only whitespace as nothing at all", async () => {
+		const message = await errorOf(async () =>
+			placeOrder({ items: [], pickupDate: await dateIn(7), custom: "   \n  " }),
+		);
+		expect(message).toContain("EMPTY_ORDER");
+	});
+
+	it("lets a custom cake sit alongside things off the menu", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: await productId("cookies"), qty: 2 }],
+			pickupDate: await dateIn(7),
+			custom: "And a small cake to go with them.",
+		});
+		expect(order.total_cents).toBe(500);
+	});
+
+	it("counts a custom cake against the day's capacity like any other order", async () => {
+		// A custom cake takes a day's work whether or not anything was bought
+		// off the menu, so it has to occupy a slot.
+		const date = await dateIn(11);
+		await db.query(
+			"insert into availability_overrides (date, is_open, capacity) values ($1, true, 1)",
+			[date],
+		);
+
+		const first = await errorOf(() =>
+			placeOrder({ items: [], pickupDate: date, custom: "A cake please" }),
+		);
+		expect(first).toBeNull();
+
+		const second = await errorOf(() =>
+			placeOrder({ items: [], pickupDate: date, custom: "Another cake please" }),
+		);
+		expect(second).toContain("DATE_FULL");
+
+		await db.query("delete from availability_overrides where date = $1", [date]);
+	});
+
+	it("records whether an order was a custom request", async () => {
+		const order = await placeOrder({
+			items: [],
+			pickupDate: await dateIn(7),
+			custom: "Something with lemon.",
+		});
+		const events = await db.query<{ data: { custom: boolean } }>(
+			"select data from order_events where order_id = $1 and type = 'created'",
+			[order.id],
+		);
+		expect(events.rows[0]!.data.custom).toBe(true);
 	});
 
 	it("refuses dates inside the lead time", async () => {

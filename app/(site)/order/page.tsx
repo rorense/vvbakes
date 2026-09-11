@@ -40,7 +40,7 @@ export default async function OrderPage({
 						<h1 className="font-display text-3xl">The oven&rsquo;s off for now</h1>
 						<p className="text-cocoa-soft">
 							{settings.ordersClosedMessage ??
-								"Taking a short break. Follow along on Instagram — that's where new dates go up first."}
+								"Taking a short break. Follow along on Instagram, that's where new dates go up first."}
 						</p>
 						<ButtonLink
 							href="/shop"

@@ -270,7 +270,7 @@ if (signUp.error) {
 		"Public sign-ups are still enabled",
 		"Turn off Authentication > Sign In / Providers > 'Allow new users to sign up'.\n" +
 			"        Nobody can reach the admin without an `admins` row, but there is no reason to leave it open.\n" +
-			`        A test account was just created (${probeEmail}) — delete it under Authentication > Users.`,
+			`        A test account was just created (${probeEmail}), delete it under Authentication > Users.`,
 	);
 }
 
@@ -283,7 +283,7 @@ const productBucket = buckets.data?.find((bucket) => bucket.id === "product-imag
 report(
 	Boolean(productBucket),
 	"The product image bucket exists",
-	"Run `npx supabase db push` — the storage migration creates it.",
+	"Run `npx supabase db push`, the storage migration creates it.",
 );
 if (productBucket) {
 	report(
@@ -303,7 +303,7 @@ const smtpSet = ["SMTP_HOST", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM"].every(
 report(
 	smtpSet ? true : "warn",
 	"Email is configured",
-	"Not fatal — the site works, but no order emails will be sent.\n" +
+	"Not fatal, the site works, but no order emails will be sent.\n" +
 		"        See the README under 'Email' for a Gmail app password.",
 );
 
@@ -323,7 +323,7 @@ if (failures > 0) {
 if (warnings > 0) {
 	console.log(pass("Everything essential is working."));
 	console.log(
-		dim(`${warnings} note${warnings === 1 ? "" : "s"} above — worth reading, not blocking.\n`),
+		dim(`${warnings} note${warnings === 1 ? "" : "s"} above, worth reading, not blocking.\n`),
 	);
 } else {
 	console.log(pass("Everything is set up correctly.\n"));

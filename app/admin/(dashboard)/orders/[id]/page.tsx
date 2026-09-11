@@ -66,9 +66,17 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 					status={order.status}
 					transitions={allowedTransitions(order.status)}
 					internalNotes={order.internalNotes}
+					customRequest={order.customRequest}
+					quoteCents={order.quoteCents}
+					totalCents={order.totalCents}
 				/>
 
 				<AdminCard title="Order">
+					{order.items.length === 0 ? (
+						<p className="text-cocoa-soft mb-4 text-sm">
+							Nothing off the menu. This is the cake above.
+						</p>
+					) : null}
 					<HairlineList>
 						{order.items.map((item) => (
 							<HairlineRow
@@ -91,10 +99,21 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 								<span className="shrink-0 text-sm">{formatMoney(order.deliveryFeeCents)}</span>
 							</HairlineRow>
 						) : null}
+						{order.quoteCents > 0 ? (
+							<HairlineRow>
+								<span className="text-cocoa-soft text-sm">Your price for the cake</span>
+								<span className="shrink-0 text-sm">{formatMoney(order.quoteCents)}</span>
+							</HairlineRow>
+						) : null}
 						<HairlineRow>
 							<span className="font-medium">Total</span>
-							<span className="font-display shrink-0 text-2xl">
-								{formatMoney(order.totalCents)}
+							<span
+								className={
+									order.totalCents === 0
+										? "text-cocoa-soft shrink-0 text-sm"
+										: "font-display shrink-0 text-2xl"
+								}>
+								{order.totalCents === 0 ? "Not priced yet" : formatMoney(order.totalCents)}
 							</span>
 						</HairlineRow>
 					</HairlineList>
@@ -150,7 +169,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 					</p>
 				</AdminCard>
 
-				{order.notes || order.customRequest ? (
+				{order.notes ? (
 					<AdminCard title="What they said">
 						{order.notes ? (
 							<div className="mb-4">
@@ -158,14 +177,6 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 									Allergies and notes
 								</p>
 								<p className="mt-1 text-sm">{order.notes}</p>
-							</div>
-						) : null}
-						{order.customRequest ? (
-							<div>
-								<p className="text-cocoa-soft text-2xs font-medium tracking-widest uppercase">
-									Custom request
-								</p>
-								<p className="mt-1 text-sm">{order.customRequest}</p>
 							</div>
 						) : null}
 					</AdminCard>
@@ -200,7 +211,7 @@ function describeEvent(type: string, data: Record<string, unknown>): string {
 			return "Order placed";
 		case "status_changed":
 			return `Moved from ${String(data.from)} to ${String(data.to)}${
-				data.reason ? ` — ${String(data.reason)}` : ""
+				data.reason ? `: ${String(data.reason)}` : ""
 			}`;
 		case "email_sent":
 			return `Sent the ${String(data.template)} email to ${String(data.to)}`;

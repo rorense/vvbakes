@@ -11,8 +11,8 @@ import type { Order, PrivateSettings } from "./types";
  *
  * `orders` has no policy for anonymous visitors at all, which is what keeps a
  * leaked anon key from exposing customer names, phone numbers and addresses. The
- * two places the public still needs to see an order — the tokenised status page,
- * and the emails — go through the service role here instead, server-side only,
+ * two places the public still needs to see an order, the tokenised status page,
+ * and the emails, go through the service role here instead, server-side only,
  * and narrow what they return.
  */
 
@@ -38,7 +38,7 @@ export async function getOrderByToken(token: string): Promise<Order | null> {
 	return toOrder(data);
 }
 
-/** One order by id. Admin pages only — callers must have checked the session. */
+/** One order by id. Admin pages only, callers must have checked the session. */
 export async function getOrderById(id: string): Promise<Order | null> {
 	if (!hasSupabaseConfig()) return null;
 

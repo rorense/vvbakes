@@ -5,7 +5,7 @@ export const SITE_TAGLINE = "inspired desserts";
 export const INSTAGRAM_HANDLE = "vv.bakes";
 export const CART_STORAGE_KEY = "vvbakes:cart";
 
-/** The order form rejects submissions faster than this — no human fills it in that quickly. */
+/** The order form rejects submissions faster than this, no human fills it in that quickly. */
 export const MIN_FORM_FILL_MS = 3000;
 
 /** Product image bucket. Public read, admin write. */

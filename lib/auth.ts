@@ -15,7 +15,7 @@ export interface AdminUser {
  *
  * Two questions, both of which have to be yes: is this a valid Supabase session,
  * and is that user in the `admins` table. Being able to sign in is not the same
- * as being the owner — sign-ups are disabled, but that is a setting, and a
+ * as being the owner, sign-ups are disabled, but that is a setting, and a
  * setting is not an access control.
  */
 export const getAdminUser = cache(async (): Promise<AdminUser | null> => {

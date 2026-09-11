@@ -18,7 +18,7 @@ export default async function NewProductPage() {
 
 			{categories.length === 0 ? (
 				<EmptyState>
-					Add a category first —{" "}
+					Add a category first. The shop groups products by{" "}
 					<Link
 						href="/admin/categories"
 						className="underline underline-offset-4">

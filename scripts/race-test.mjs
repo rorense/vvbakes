@@ -3,7 +3,7 @@
  *
  *   node scripts/race-test.mjs 2026-09-19 [rounds]
  *
- * Reads .env.local for the service role key. Development only — it writes real
+ * Reads .env.local for the service role key. Development only, it writes real
  * orders, so point it at a development Supabase project, and expect to delete
  * the rows it leaves behind.
  *
@@ -82,7 +82,7 @@ for (let round = 1; round <= rounds; round += 1) {
 			p_customer_email: `race${n}@example.com`,
 			p_customer_phone: "021 555 0000",
 			p_delivery_address: null,
-			p_notes: "Automated race test — safe to delete.",
+			p_notes: "Automated race test, safe to delete.",
 			p_custom_request: null,
 			// Distinct hashes so the rate limiter does not mask the result.
 			p_ip_hash: `racetest-${round}-${n}`,
@@ -99,7 +99,7 @@ for (let round = 1; round <= rounds; round += 1) {
 	if (!passed) failures += 1;
 
 	console.log(
-		`Round ${round}: ${passed ? "pass" : "FAIL"} — ${succeeded.length} accepted, ` +
+		`Round ${round}: ${passed ? "pass" : "FAIL"}: ${succeeded.length} accepted, ` +
 			`${refusedForFullness.length} refused as full` +
 			(passed
 				? ""
@@ -113,7 +113,7 @@ await supabase.from("orders").delete().eq("pickup_date", pickupDate).like("ip_ha
 console.log(
 	failures === 0
 		? `\nAll ${rounds} rounds behaved correctly. Test orders removed.`
-		: `\n${failures} of ${rounds} rounds were wrong — capacity is not being enforced.`,
+		: `\n${failures} of ${rounds} rounds were wrong, capacity is not being enforced.`,
 );
 
 process.exit(failures === 0 ? 0 : 1);

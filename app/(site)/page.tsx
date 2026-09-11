@@ -34,7 +34,7 @@ const CUSTOM_PROMPTS = [
 	},
 	{
 		label: "Flavours",
-		body: "Or what to avoid. Allergies especially — tell me early, not on the day.",
+		body: "Or what to avoid. Allergies especially. Tell me early, not on the day.",
 	},
 	{
 		label: "How it should look",
@@ -110,9 +110,9 @@ export default async function HomePage() {
 							</h1>
 
 							<p className="text-cocoa-soft max-w-lg text-lg">
-								Cakes made for one occasion and one day &mdash; your flavours, your colours,
-								whatever it needs to say on top. Or take something ready-made off the menu and
-								I&rsquo;ll box it up.
+								Cakes made for one occasion and one day. Your flavours, your colours, whatever it
+								needs to say on top. Or take something ready-made off the menu and I&rsquo;ll box it
+								up.
 							</p>
 
 							<div className="mt-2 flex flex-wrap gap-3">
@@ -194,8 +194,8 @@ export default async function HomePage() {
 				</Section>
 			) : null}
 
-			{/* Custom cakes. This is the actual business — the menu below is the
-			    easy half — so it gets a section of its own rather than a line in
+			{/* Custom cakes. This is the actual business. The menu below is the
+			    easy half, so it gets a section of its own rather than a line in
 			    the hero and a textarea at the end of the order form. */}
 			<Section tone="blush">
 				<Container width="wide">

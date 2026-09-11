@@ -3,7 +3,7 @@ import { SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
 
 export default function manifest(): MetadataRoute.Manifest {
 	return {
-		name: `${SITE_NAME} — ${SITE_TAGLINE}`,
+		name: `${SITE_NAME}, ${SITE_TAGLINE}`,
 		short_name: SITE_NAME,
 		description: "Small-batch cupcakes, cookies and Indonesian-inspired cakes, baked to order.",
 		start_url: "/",

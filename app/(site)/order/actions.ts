@@ -49,7 +49,7 @@ export async function placeOrder(
 	// and turning away a real customer is worse than letting one bot through.
 	const startedAt = Number(formData.get("startedAt"));
 	if (startedAt > 0 && Date.now() - startedAt < MIN_FORM_FILL_MS) {
-		return fail("That was quick — please take another look and submit again.");
+		return fail("That was quick. Please take another look and submit again.");
 	}
 
 	if (!hasSupabaseConfig()) {

@@ -7,7 +7,7 @@
  *   npm run db:types
  *
  * If a query starts complaining about a column that plainly exists, this file is
- * stale — regenerate it rather than widening a type.
+ * stale, regenerate it rather than widening a type.
  *
  * After regenerating, re-append the compile-time guard at the bottom of this
  * file. It is the only thing that catches the schema silently degrading to
@@ -120,6 +120,7 @@ type OrderRow = {
 	custom_request: string | null;
 	subtotal_cents: number;
 	delivery_fee_cents: number;
+	quote_cents: number;
 	total_cents: number;
 	internal_notes: string | null;
 	cancellation_reason: string | null;
@@ -315,7 +316,7 @@ export type Database = {
  * `.rpc()` arguments become `undefined`, and column typos stop being caught.
  *
  * The subtle way to break this is to declare a row with `interface` instead of
- * `type` — TypeScript gives type aliases an implicit index signature but not
+ * `type`. TypeScript gives type aliases an implicit index signature but not
  * interfaces, so `Row: Record<string, unknown>` fails and the whole schema is
  * discarded without an error anywhere.
  *

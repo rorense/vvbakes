@@ -35,7 +35,7 @@ export default async function ShopPage() {
 						<SectionLabel>Shop</SectionLabel>
 						<h1 className="font-display text-3xl">Nothing on the shelf just yet</h1>
 						<p className="text-cocoa-soft">
-							Between bakes at the moment. Custom cakes are still on though &mdash; ask away.
+							Between bakes at the moment. Custom cakes are still on though, so ask away.
 						</p>
 					</div>
 				</Container>

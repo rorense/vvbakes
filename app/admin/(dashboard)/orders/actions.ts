@@ -10,6 +10,7 @@ import { allowedTransitions } from "@/lib/order-status";
 import { createClient } from "@/lib/supabase/server";
 import type { FormState } from "@/lib/action-state";
 import { actionError, actionOk, type OrderStatus } from "@/lib/types";
+import { fieldErrorsOf, quoteSchema } from "@/lib/validation";
 
 type State = FormState;
 
@@ -36,6 +37,14 @@ export async function setOrderStatus(_previous: State, formData: FormData): Prom
 
 	const order = await adminOrder(id);
 	if (!order) return { result: actionError("That order no longer exists.") };
+
+	if (status === "confirmed" && order.totalCents === 0) {
+		return {
+			result: actionError(
+				"Put a price on this one first. Confirming sends the customer bank details and an amount, and right now that amount is nothing.",
+			),
+		};
+	}
 
 	if (!allowedTransitions(order.status).includes(status)) {
 		return {
@@ -79,6 +88,48 @@ export async function setOrderStatus(_previous: State, formData: FormData): Prom
 	revalidatePath("/admin/orders");
 	revalidatePath(`/admin/orders/${id}`);
 	revalidatePath("/admin");
+	return { result: actionOk() };
+}
+
+/**
+ * Puts a price on custom work.
+ *
+ * A custom cake arrives with no price, because nobody can quote one before
+ * hearing what it is. The owner sets it here, and the order total becomes the
+ * quote plus anything that came off the menu.
+ */
+export async function saveQuote(_previous: State, formData: FormData): Promise<State> {
+	await requireAdmin();
+
+	const parsed = quoteSchema.safeParse({
+		id: formData.get("id") ?? "",
+		quoteCents: formData.get("quote") ?? "",
+	});
+
+	if (!parsed.success) {
+		return { result: actionError("Use a price like 85 or 85.50.", fieldErrorsOf(parsed.error)) };
+	}
+
+	const order = await adminOrder(parsed.data.id);
+	if (!order) return { result: actionError("That order no longer exists.") };
+
+	const total = order.subtotalCents + order.deliveryFeeCents + parsed.data.quoteCents;
+
+	const supabase = await createClient();
+	const { error } = await supabase
+		.from("orders")
+		.update({ quote_cents: parsed.data.quoteCents, total_cents: total })
+		.eq("id", order.id);
+
+	if (error) return { result: actionError("That price couldn't be saved. Please try again.") };
+
+	await supabase.from("order_events").insert({
+		order_id: order.id,
+		type: "note",
+		data: { quoted_cents: parsed.data.quoteCents, total_cents: total },
+	});
+
+	revalidatePath(`/admin/orders/${order.id}`);
 	return { result: actionOk() };
 }
 

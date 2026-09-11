@@ -160,7 +160,7 @@ function Legend() {
 						className={cn("size-3 rounded-sm", STATE_STYLES[item.state])}
 						aria-hidden="true"
 					/>
-					{STATE_LABELS[item.state]} — {item.description}
+					{STATE_LABELS[item.state]}: {item.description}
 				</li>
 			))}
 		</ul>
@@ -257,7 +257,7 @@ function DayEditor({ day, onClose }: { day: CalendarDay; onClose: () => void }) 
 				{day.orderCount > 0 ? (
 					<p className="border-line bg-paper-deep rounded-md border px-4 py-3 text-sm">
 						There {day.orderCount === 1 ? "is already an order" : "are already orders"} on this day.
-						Closing it will not cancel {day.orderCount === 1 ? "it" : "them"} — it only stops new
+						Closing it will not cancel {day.orderCount === 1 ? "it" : "them"}. It only stops new
 						ones.
 					</p>
 				) : null}

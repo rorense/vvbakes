@@ -9,7 +9,7 @@ import { supabaseAnonKey, supabaseUrl } from "./env";
  *
  * `lib/supabase/server.ts` reads the request's cookies so a page renders as
  * whoever is signed in. That is right for anything serving a request, and
- * impossible anywhere there isn't one — `generateStaticParams` runs at build
+ * impossible anywhere there isn't one, `generateStaticParams` runs at build
  * time and throws if it so much as touches `cookies()`.
  *
  * This client is for those build-time reads. It carries no session, so row

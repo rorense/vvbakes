@@ -3,7 +3,7 @@ import typescript from "eslint-config-next/typescript";
 
 /**
  * eslint-config-next ships flat configs directly, so there is no need for the
- * eslintrc compatibility bridge — which in fact throws on this version.
+ * eslintrc compatibility bridge, which in fact throws on this version.
  */
 const eslintConfig = [
 	{

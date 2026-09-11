@@ -48,7 +48,9 @@ export const orderItemSchema = z.object({
 
 export const orderInputSchema = z
 	.object({
-		items: z.array(orderItemSchema).min(1, "Add something to your order first").max(20),
+		// May be empty: a custom cake enquiry has nothing off the menu in it. The
+		// refinement below makes sure the order is still *something*.
+		items: z.array(orderItemSchema).max(20),
 		pickupDate: isoDate,
 		fulfilment: z.enum(["pickup", "delivery"]),
 		customerName: z.string().trim().min(2, "Please tell us your name").max(80),
@@ -175,6 +177,12 @@ export const blockRangeSchema = z
 	);
 
 // --- admin: settings --------------------------------------------------------
+
+/** What the owner quotes for custom work, entered in the admin. */
+export const quoteSchema = z.object({
+	id: z.string().uuid(),
+	quoteCents: dollars,
+});
 
 export const settingsSchema = z.object({
 	businessName: z.string().trim().min(1).max(60),

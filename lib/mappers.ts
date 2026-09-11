@@ -163,6 +163,7 @@ export function toOrder(row: OrderRow & { order_items?: OrderItemRow[] | null })
 		customRequest: row.custom_request,
 		subtotalCents: row.subtotal_cents,
 		deliveryFeeCents: row.delivery_fee_cents,
+		quoteCents: row.quote_cents,
 		totalCents: row.total_cents,
 		internalNotes: row.internal_notes,
 		cancellationReason: row.cancellation_reason,

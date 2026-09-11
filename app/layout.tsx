@@ -24,8 +24,8 @@ const instrumentSans = Instrument_Sans({
 export const metadata: Metadata = {
 	metadataBase: new URL(siteUrl()),
 	title: {
-		default: `${SITE_NAME} — ${SITE_TAGLINE}`,
-		template: `%s — ${SITE_NAME}`,
+		default: `${SITE_NAME}, ${SITE_TAGLINE}`,
+		template: `%s | ${SITE_NAME}`,
 	},
 	description:
 		"Small-batch cupcakes, cookies and Indonesian-inspired cakes, baked to order. Choose a pickup date and we'll confirm by email.",

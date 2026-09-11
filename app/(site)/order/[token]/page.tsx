@@ -32,24 +32,24 @@ export const metadata: Metadata = {
 
 const STATUS_COPY: Record<OrderStatus, { heading: string; body: string }> = {
 	new: {
-		heading: "We’ve got your request",
-		body: "Nothing to do yet. We're checking the date and we'll email you to confirm, with payment details.",
+		heading: "I’ve got your request",
+		body: "Nothing to do yet. I'm checking the day and I'll email you to confirm, with a price and where to send it.",
 	},
 	confirmed: {
 		heading: "Your order is confirmed",
-		body: "Please transfer the total using the reference below. Everything will be ready on the day.",
+		body: "Transfer the total using the reference below, and it'll be ready on the day.",
 	},
 	ready: {
 		heading: "Your order is ready",
 		body: "It's boxed up and waiting for you.",
 	},
 	collected: {
-		heading: "Collected — thank you",
+		heading: "Collected. Thank you",
 		body: "Thanks for supporting vvbakes. We hope it was good.",
 	},
 	cancelled: {
 		heading: "This order was cancelled",
-		body: "If you've already paid, get in touch and we'll refund you.",
+		body: "If you've already paid, get in touch and I'll refund you.",
 	},
 };
 
@@ -92,6 +92,14 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
 					<div className="bg-paper-deep torn-edge rounded-t-lg px-6 pt-6 pb-10 sm:px-8 sm:pt-8">
 						<SectionLabel as="h2">Your order</SectionLabel>
 						<HairlineList className="mt-3">
+							{order.items.length === 0 ? (
+								<HairlineRow align="start">
+									<div className="flex flex-col gap-0.5">
+										<span className="font-medium">One custom cake</span>
+										<span className="text-cocoa-soft text-xs">As you described it</span>
+									</div>
+								</HairlineRow>
+							) : null}
 							{order.items.map((item) => (
 								<HairlineRow
 									key={item.id}
@@ -117,8 +125,13 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
 
 							<HairlineRow>
 								<span className="font-medium">Total</span>
-								<span className="font-display shrink-0 text-2xl">
-									{formatMoney(order.totalCents)}
+								<span
+									className={
+										order.totalCents === 0
+											? "text-cocoa-soft shrink-0 text-sm"
+											: "font-display shrink-0 text-2xl"
+									}>
+									{order.totalCents === 0 ? "I'll send you a price" : formatMoney(order.totalCents)}
 								</span>
 							</HairlineRow>
 						</HairlineList>
@@ -148,7 +161,7 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
 
 					<div className="border-line flex flex-col gap-2 border-t pt-6">
 						<p className="text-cocoa-soft text-xs">
-							Keep this link — it&rsquo;s how you check on your order. I&rsquo;ll also email you at{" "}
+							Keep this link. It&rsquo;s how you check on your order. I&rsquo;ll also email you at{" "}
 							{order.customerEmail}.
 						</p>
 						{settings.contactEmail ? (

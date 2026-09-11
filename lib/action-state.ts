@@ -4,7 +4,7 @@ import type { ActionResult } from "./types";
  * The shape every admin form action returns, and its initial value.
  *
  * This lives outside the action modules because a "use server" file may only
- * export async functions — a plain `const` export there is a build error.
+ * export async functions, a plain `const` export there is a build error.
  */
 export interface FormState {
 	result: ActionResult | null;

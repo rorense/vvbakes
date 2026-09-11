@@ -16,7 +16,7 @@
 insert into site_settings (id, about_text, pickup_window_text, pickup_suburb)
 values (
 	1,
-	'Hi, I''m the baker behind vvbakes. Everything is made in small batches, to order, in my own kitchen — cupcakes and cookies alongside the Indonesian cakes I grew up with.',
+	'Hi, I''m the baker behind vvbakes. Everything is made in small batches, to order, in my own kitchen, cupcakes and cookies alongside the Indonesian cakes I grew up with.',
 	'Pickups 4–7pm',
 	'Auckland'
 )

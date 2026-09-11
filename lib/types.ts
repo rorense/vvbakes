@@ -172,7 +172,7 @@ export interface CalendarDay {
  *
  * Narrower than the admin's view on purpose. A customer does not need to know
  * the difference between a day the bakery never opens and one that was blocked
- * for a holiday — both mean "not then" — and publishing how many orders are
+ * for a holiday, both mean "not then", and publishing how many orders are
  * already booked says more about the business than it needs to.
  */
 export type PublicDayState =
@@ -246,6 +246,8 @@ export interface Order {
 	customRequest: string | null;
 	subtotalCents: number;
 	deliveryFeeCents: number;
+	/** What the owner quoted for custom work. Zero means not priced yet. */
+	quoteCents: number;
 	totalCents: number;
 	internalNotes: string | null;
 	cancellationReason: string | null;

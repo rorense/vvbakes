@@ -9,7 +9,7 @@ import { hasSupabaseConfig, supabaseAnonKey, supabaseUrl } from "./env";
  *
  * This is a convenience, not the security boundary. The real gate is
  * `requireAdmin()` inside the admin layout, plus row level security on every
- * table — middleware alone has historically been the wrong place to trust.
+ * table, middleware alone has historically been the wrong place to trust.
  */
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
 	// Server components can read request headers but not the request URL, and the

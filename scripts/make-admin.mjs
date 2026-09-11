@@ -8,7 +8,7 @@
  * plumbing afterwards: it finds that user and adds the `admins` row the site
  * checks for.
  *
- * That row is the actual gate. Being able to sign in is not enough — a Supabase
+ * That row is the actual gate. Being able to sign in is not enough, a Supabase
  * account with no row here sees an empty admin and can read nothing, which is
  * what makes leaving sign-ups on merely untidy rather than dangerous.
  *

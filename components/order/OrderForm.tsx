@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { placeOrder, type PlaceOrderState } from "@/app/(site)/order/actions";
 import { clearCart, useCart } from "@/lib/cart";
-import { instagramUrl } from "@/lib/constants";
 import { cn } from "@/lib/cn";
 import { formatDateShort, groupByWeek, type IsoDate } from "@/lib/dates";
 import { formatMoney, isValidQty, minQty, priceProduct } from "@/lib/pricing";
@@ -44,7 +43,7 @@ export function OrderForm({
 	const [state, formAction, pending] = useActionState(placeOrder, INITIAL);
 
 	// The chosen date is stored, but the value actually used is always checked
-	// against the dates on offer — derived rather than synced, so it can never
+	// against the dates on offer, derived rather than synced, so it can never
 	// point at a date that has gone.
 	const [chosenDateValue, setChosenDateValue] = useState<IsoDate | "">(initialDate ?? "");
 	const [fulfilment, setFulfilment] = useState<"pickup" | "delivery">("pickup");
@@ -52,7 +51,7 @@ export function OrderForm({
 	// When the form was opened, used to reject submissions no human could have
 	// completed that fast. Held in a ref written from an effect: the clock is an
 	// external system, so reading it during render is not allowed, and a hidden
-	// input is no good either — React re-applies its value on every re-render,
+	// input is no good either. React re-applies its value on every re-render,
 	// which happens on every quantity change.
 	const openedAt = useRef(0);
 	const errorRef = useRef<HTMLDivElement>(null);
@@ -111,14 +110,9 @@ export function OrderForm({
 
 	const fieldErrors = state.result && !state.result.ok ? (state.result.fieldErrors ?? {}) : {};
 
-	if (ready && lines.length === 0) {
-		return (
-			<EmptyOrder
-				droppedCount={droppedCount}
-				settings={settings}
-			/>
-		);
-	}
+	// An empty basket used to end the journey here. It now means a custom cake:
+	// the thing she mostly makes, and the thing nobody can put in a basket.
+	const isCustomOnly = ready && lines.length === 0;
 
 	return (
 		<form
@@ -159,7 +153,7 @@ export function OrderForm({
 
 			<Step
 				n="01"
-				title="What you'd like">
+				title={isCustomOnly ? "Your cake" : "What you'd like"}>
 				{droppedCount > 0 ? (
 					<p className="border-line bg-paper-deep mb-4 rounded-md border px-4 py-3 text-sm">
 						{droppedCount === 1 ? "An item" : `${droppedCount} items`} in your order
@@ -168,7 +162,23 @@ export function OrderForm({
 					</p>
 				) : null}
 
-				<HairlineList>
+				{isCustomOnly ? (
+					<div className="border-line bg-paper-deep flex flex-col items-start gap-3 rounded-md border p-5">
+						<p className="text-sm font-medium">Nothing off the menu, just a cake</p>
+						<p className="text-cocoa-soft text-sm">
+							{droppedCount > 0
+								? "What you had saved is no longer available. Tell me what you're after below and I'll see what I can do."
+								: "Tell me about it below and I'll come back with a price. You can add things from the menu too if you'd like."}
+						</p>
+						<Link
+							href="/shop"
+							className="text-sm font-medium underline underline-offset-4">
+							Have a look at the menu
+						</Link>
+					</div>
+				) : null}
+
+				<HairlineList className={isCustomOnly ? "hidden" : undefined}>
 					{lines.map((line) => (
 						<HairlineRow
 							key={line.product.id}
@@ -219,11 +229,13 @@ export function OrderForm({
 					))}
 				</HairlineList>
 
-				<Link
-					href="/shop"
-					className="mt-4 inline-block text-sm font-medium underline underline-offset-4">
-					Add something else
-				</Link>
+				{isCustomOnly ? null : (
+					<Link
+						href="/shop"
+						className="mt-4 inline-block text-sm font-medium underline underline-offset-4">
+						Add something else
+					</Link>
+				)}
 			</Step>
 
 			<Step
@@ -362,8 +374,9 @@ export function OrderForm({
 					</Field>
 
 					<Field
-						label="Tell me about your cake"
-						hint="The occasion, roughly how many people, flavours, colours, what it says on top. This is where custom cakes start — the more you tell me, the better I can price it."
+						label={isCustomOnly ? "What would you like?" : "Tell me about your cake"}
+						required={isCustomOnly}
+						hint="The occasion, roughly how many people, flavours, colours, what it says on top. This is where custom cakes start. The more you tell me, the better I can price it."
 						error={fieldErrors.customRequest}>
 						{(props) => (
 							<Textarea
@@ -390,13 +403,14 @@ export function OrderForm({
 					subtotal={subtotal}
 					deliveryFee={deliveryFee}
 					total={total}
+					pending={isCustomOnly}
 				/>
 				<div>
 					<Button
 						type="submit"
 						size="lg"
 						disabled={pending || !pickupDate}>
-						{pending ? "Sending…" : "Send order request"}
+						{pending ? "Sending…" : isCustomOnly ? "Ask about this cake" : "Send order request"}
 					</Button>
 				</div>
 				<p className="text-cocoa-soft text-xs">
@@ -410,14 +424,16 @@ export function OrderForm({
 					<span className="text-cocoa-soft text-xs">
 						{chosenDate ? formatDateShort(chosenDate.date) : "Choose a date"}
 					</span>
-					<span className="font-display text-xl">{formatMoney(total)}</span>
+					<span className={isCustomOnly ? "text-cocoa-soft text-xs" : "font-display text-xl"}>
+						{isCustomOnly ? "Price to follow" : formatMoney(total)}
+					</span>
 				</div>
 				<Button
 					type="submit"
 					size="lg"
 					className="w-full"
 					disabled={pending || !pickupDate}>
-					{pending ? "Sending…" : "Send order request"}
+					{pending ? "Sending…" : isCustomOnly ? "Ask about this cake" : "Send order request"}
 				</Button>
 			</div>
 		</form>
@@ -456,10 +472,13 @@ function Total({
 	subtotal,
 	deliveryFee,
 	total,
+	pending,
 }: {
 	subtotal: number;
 	deliveryFee: number;
 	total: number;
+	/** True when the order is custom work with no price on it yet. */
+	pending: boolean;
 }) {
 	return (
 		<HairlineList as="dl">
@@ -477,7 +496,9 @@ function Total({
 			) : null}
 			<HairlineRow as="div">
 				<dt className="font-medium">Total</dt>
-				<dd className="font-display text-2xl">{formatMoney(total)}</dd>
+				<dd className={pending ? "text-cocoa-soft text-sm" : "font-display text-2xl"}>
+					{pending ? "I'll send you a price" : formatMoney(total)}
+				</dd>
 			</HairlineRow>
 		</HairlineList>
 	);
@@ -523,7 +544,7 @@ function FulfilmentOption({
 /**
  * Pickup dates as pills, grouped into the weeks they fall in.
  *
- * Only bookable dates appear at all — a date that is full or closed is simply
+ * Only bookable dates appear at all, a date that is full or closed is simply
  * not there. Offering a date and then rejecting it is a worse experience than
  * never offering it, and the database enforces the same rule anyway.
  */
@@ -543,7 +564,7 @@ function PickupDatePicker({
 	if (dates.length === 0) {
 		return (
 			<p className="border-line bg-paper-deep rounded-md border px-4 py-3 text-sm">
-				No dates open for booking just now. Follow along on Instagram — that&rsquo;s where new dates
+				No dates open for booking just now. Follow along on Instagram, that&rsquo;s where new dates
 				go up first.
 			</p>
 		);
@@ -596,76 +617,6 @@ function PickupDatePicker({
 					never show up.
 				</p>
 			) : null}
-		</div>
-	);
-}
-
-function EmptyOrder({ droppedCount, settings }: { droppedCount: number; settings: SiteSettings }) {
-	/*
-	 * Two different people land here, and only one of them wants the shop.
-	 *
-	 * The other followed "ask about a cake" from the home page, because custom
-	 * work is most of what she does — and the form cannot take an order with
-	 * nothing in it, so sending them to browse cupcakes is a dead end. Until the
-	 * form can carry a request on its own, they get a real way to reach her.
-	 */
-	const subject = encodeURIComponent("Custom cake enquiry");
-	const body = encodeURIComponent(
-		[
-			"Hi,",
-			"",
-			"I'd love a cake for:",
-			"Occasion:",
-			"How many people:",
-			"Flavours (or anything to avoid):",
-			"Date I need it:",
-			"",
-			"Thanks!",
-		].join("\n"),
-	);
-
-	return (
-		<div className="flex flex-col gap-8">
-			<div className="flex flex-col items-start gap-4">
-				<p className="font-display text-3xl">
-					{droppedCount > 0 ? "That's no longer available" : "Nothing in your order yet"}
-				</p>
-				<p className="text-cocoa-soft max-w-lg">
-					{droppedCount > 0
-						? "What you had saved has sold out or come off the menu. Have another look and we'll start again."
-						: "Pick something off the menu and it'll show up here."}
-				</p>
-				<Link
-					href="/shop"
-					className="bg-rose hover:bg-rose-deep rounded-pill px-6 py-3 text-sm font-medium transition-colors">
-					See the menu
-				</Link>
-			</div>
-
-			<div className="border-line flex flex-col items-start gap-3 border-t pt-8">
-				<p className="font-display text-xl">After a custom cake?</p>
-				<p className="text-cocoa-soft max-w-lg text-sm">
-					Those start with a message rather than a basket. Tell me the occasion, roughly how many
-					people, and when you need it &mdash; I&rsquo;ll come back with what I can do and what it
-					costs.
-				</p>
-				<div className="mt-1 flex flex-wrap gap-3">
-					{settings.contactEmail ? (
-						<a
-							href={`mailto:${settings.contactEmail}?subject=${subject}&body=${body}`}
-							className="border-line hover:border-cocoa hover:bg-paper-deep rounded-pill border px-6 py-3 text-sm font-medium transition-colors">
-							Email me about a cake
-						</a>
-					) : null}
-					<a
-						href={instagramUrl(settings.instagramHandle)}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="border-line hover:border-cocoa hover:bg-paper-deep rounded-pill border px-6 py-3 text-sm font-medium transition-colors">
-						Message @{settings.instagramHandle}
-					</a>
-				</div>
-			</div>
 		</div>
 	);
 }

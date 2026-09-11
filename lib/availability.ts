@@ -2,7 +2,7 @@
  * Which pickup dates a customer may choose.
  *
  * Mirrors the checks inside `place_order` (see the functions migration). As with
- * pricing, this is for display only — the database re-derives all of it under an
+ * pricing, this is for display only, the database re-derives all of it under an
  * advisory lock when the order is written, so a stale page can never oversell a
  * day. When the two disagree the customer sees a date vanish with a message
  * rather than an order being taken that cannot be baked.
@@ -240,7 +240,7 @@ export function orderErrorMessage(raw: string): string {
  *
  * Built from the same rules as everything else, but it answers a different
  * question. The order form asks "which dates may I pick"; this asks "when does
- * this bakery bake", which has to include the days you cannot have — otherwise
+ * this bakery bake", which has to include the days you cannot have, otherwise
  * someone looking on a Tuesday for a Thursday cake just sees a gap and has no
  * idea whether that is a closed day or a full one.
  *

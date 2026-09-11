@@ -26,7 +26,7 @@ function assertIso(value: string): asserts value is IsoDate {
 	if (!isIsoDate(value)) throw new RangeError(`not a calendar date: ${value}`);
 }
 
-/** Midnight UTC on that calendar date — a stable anchor for arithmetic. */
+/** Midnight UTC on that calendar date, a stable anchor for arithmetic. */
 export function toUtcDate(date: IsoDate): Date {
 	assertIso(date);
 	const [y, m, d] = date.split("-").map(Number) as [number, number, number];
@@ -135,19 +135,19 @@ const MONTH_LONG = [
 	"December",
 ] as const;
 
-/** "Sat 20 Sep" — the form the site uses almost everywhere. */
+/** "Sat 20 Sep", the form the site uses almost everywhere. */
 export function formatDateShort(date: IsoDate): string {
 	const d = toUtcDate(date);
 	return `${WEEKDAY_SHORT[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH_SHORT[d.getUTCMonth()]}`;
 }
 
-/** "Saturday 20 September 2026" — for emails and the order status page. */
+/** "Saturday 20 September 2026", for emails and the order status page. */
 export function formatDateLong(date: IsoDate): string {
 	const d = toUtcDate(date);
 	return `${WEEKDAY_LONG[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH_LONG[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-/** "September 2026" — the admin calendar's heading. */
+/** "September 2026", the admin calendar's heading. */
 export function formatMonth(date: IsoDate): string {
 	const d = toUtcDate(date);
 	return `${MONTH_LONG[d.getUTCMonth()]} ${d.getUTCFullYear()}`;

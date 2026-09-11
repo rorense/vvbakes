@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 
 /**
- * A scrolling band of short phrases — the bakery-window strip of what's in today.
+ * A scrolling band of short phrases, the bakery-window strip of what's in today.
  *
  * Entirely decorative, and hidden from assistive technology: the same product
  * names are real links a few hundred pixels further down, and hearing them read

@@ -33,7 +33,7 @@ export function NewOrderOwnerEmail(ctx: EmailContext) {
 
 	return (
 		<EmailLayout
-			preview={`${order.reference} — ${formatDateLong(order.pickupDate)} — ${formatMoney(order.totalCents)}`}
+			preview={`${order.reference}, ${formatDateLong(order.pickupDate)}, ${formatMoney(order.totalCents)}`}
 			heading={`New order ${order.reference}`}
 			footerNote="You're getting this because you're listed as the notification email in the admin settings.">
 			<Paragraph>
@@ -79,7 +79,7 @@ export function NewOrderOwnerEmail(ctx: EmailContext) {
 			<ActionLink href={`${ctx.siteUrl}/admin/orders/${order.id}`}>Open in the admin</ActionLink>
 
 			<Paragraph>
-				Nothing has been confirmed yet — the customer has been told to wait for your confirmation
+				Nothing has been confirmed yet. The customer has been told to wait for your confirmation
 				before paying.
 			</Paragraph>
 		</EmailLayout>
@@ -97,15 +97,15 @@ export function OrderReceivedEmail(ctx: EmailContext) {
 	return (
 		<EmailLayout
 			preview={`We've got your order request ${order.reference}`}
-			heading="Thanks — we've got your order request"
+			heading="Thanks, I've got your order request"
 			footerNote={
 				settings.contactEmail
 					? `Questions? Reply to this email or write to ${settings.contactEmail}.`
 					: undefined
 			}>
 			<Paragraph>
-				Hi {firstName(order.customerName)}, thank you. This is a request rather than a confirmation
-				— we&rsquo;ll check the date and come back to you shortly with payment details.
+				Hi {firstName(order.customerName)}, thank you. This is a request rather than a confirmation.
+				I&rsquo;ll check the day and come back to you shortly.
 			</Paragraph>
 
 			<Label>Your order</Label>
@@ -128,7 +128,11 @@ export function OrderReceivedEmail(ctx: EmailContext) {
 
 			<ActionLink href={statusUrl(ctx)}>Check your order</ActionLink>
 
-			<Paragraph>Please hold off on paying until you get the confirmation email.</Paragraph>
+			<Paragraph>
+				{order.totalCents === 0
+					? "I'll come back to you with a price and a date I can do, usually within a day. Nothing to pay until then."
+					: "Please hold off on paying until you get the confirmation email."}
+			</Paragraph>
 		</EmailLayout>
 	);
 }
@@ -189,7 +193,7 @@ export function OrderConfirmedEmail(ctx: EmailContext) {
 				</Section>
 			) : (
 				<Paragraph>
-					We&rsquo;ll send payment details separately — reply here if you don&rsquo;t hear from us.
+					I&rsquo;ll send payment details separately. Reply here if you don&rsquo;t hear from me.
 				</Paragraph>
 			)}
 
@@ -255,8 +259,8 @@ export function OrderCancelledEmail(ctx: EmailContext) {
 			{order.cancellationReason ? <Paragraph>{order.cancellationReason}</Paragraph> : null}
 
 			<Paragraph>
-				If you&rsquo;ve already paid, we&rsquo;ll refund you — reply to this email and we&rsquo;ll
-				sort it out.
+				If you&rsquo;ve already paid, I&rsquo;ll refund you. Reply to this email and I&rsquo;ll sort
+				it out.
 				{settings.contactPhone ? ` You can also call ${settings.contactPhone}.` : ""}
 			</Paragraph>
 		</EmailLayout>
@@ -275,9 +279,9 @@ export type TemplateName = keyof typeof TEMPLATES;
 
 export const SUBJECTS: Record<TemplateName, (ctx: EmailContext) => string> = {
 	"new-order-owner": ({ order }) =>
-		`New order ${order.reference} — ${formatDateLong(order.pickupDate)} — ${formatMoney(order.totalCents)}`,
+		`New order ${order.reference}, ${formatDateLong(order.pickupDate)}, ${formatMoney(order.totalCents)}`,
 	"order-received": ({ order }) => `We've got your order request (${order.reference})`,
-	"order-confirmed": ({ order }) => `Order ${order.reference} confirmed — payment details inside`,
+	"order-confirmed": ({ order }) => `Order ${order.reference} confirmed, payment details inside`,
 	"order-ready": ({ order }) =>
 		order.fulfilment === "delivery"
 			? `${order.reference} is ready for delivery`

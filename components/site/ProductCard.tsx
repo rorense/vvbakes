@@ -15,7 +15,7 @@ const ACCENT_TILE: Record<Accent, string> = {
 };
 
 /**
- * A product photo, or — until there is one — the vvbakes badge on a pastel tile.
+ * A product photo, or, until there is one, the vvbakes badge on a pastel tile.
  *
  * The catalogue goes live before the photo shoot, so this state has to look
  * finished rather than broken. A grey "image coming soon" box says the site is

@@ -123,7 +123,7 @@ export function ImageUploader({
 					) : null}
 
 					<p className="text-cocoa-soft max-w-xs text-xs">
-						Square or slightly tall photos work best. Big files are fine — they get resized here
+						Square or slightly tall photos work best. Big files are fine, they get resized here
 						before uploading.
 					</p>
 				</div>

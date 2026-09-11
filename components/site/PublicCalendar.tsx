@@ -107,7 +107,7 @@ export function PublicCalendar({
 									);
 								}
 
-								const description = `${formatDateLong(day.date)} — ${style.label}${
+								const description = `${formatDateLong(day.date)}: ${style.label}${
 									day.note ? `, ${day.note}` : ""
 								}`;
 
@@ -175,7 +175,7 @@ export function PublicCalendar({
 					</p>
 				) : (
 					<p className="text-cocoa-soft text-xs">
-						Nothing is open for booking at the moment. Follow along on Instagram — new dates go up
+						Nothing is open for booking at the moment. Follow along on Instagram, new dates go up
 						there first.
 					</p>
 				)}

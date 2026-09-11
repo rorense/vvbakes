@@ -111,7 +111,7 @@ export function cartCount(cart: Cart): number {
 
 /**
  * The snapshot React reads. Cached against the raw stored string so repeated
- * reads return the identical object — useSyncExternalStore compares by
+ * reads return the identical object, useSyncExternalStore compares by
  * reference and would loop forever on a fresh object each time.
  */
 let cachedRaw: string | null = null;

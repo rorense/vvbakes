@@ -168,6 +168,16 @@ export function OrderItemsTable({
 }) {
 	return (
 		<Section style={{ borderTop: `1px solid ${LINE}`, margin: "0 0 20px" }}>
+			{items.length === 0 ? (
+				<Row style={{ borderBottom: `1px solid ${LINE}` }}>
+					<Column style={{ padding: "12px 0" }}>
+						<Text style={{ fontSize: "15px", fontWeight: 600, margin: 0 }}>One custom cake</Text>
+						<Text style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
+							As described below
+						</Text>
+					</Column>
+				</Row>
+			) : null}
 			{items.map((item) => (
 				<Row
 					key={item.id}
@@ -221,10 +231,12 @@ export function OrderItemsTable({
 					style={{
 						padding: "14px 0",
 						fontFamily: SERIF,
-						fontSize: "20px",
+						fontSize: totalCents === 0 ? "15px" : "20px",
 						textAlign: "right",
 					}}>
-					{formatMoney(totalCents)}
+					{/* A custom cake has no price until the baker sets one. Showing
+					    $0.00 would be worse than showing nothing. */}
+					{totalCents === 0 ? "To be confirmed" : formatMoney(totalCents)}
 				</Column>
 			</Row>
 		</Section>
