@@ -28,6 +28,7 @@ const order: Order = {
 	customRequest: "Could you write 'Happy 30th Sam' on one of them?",
 	subtotalCents: 2000,
 	deliveryFeeCents: 0,
+	quoteCents: 0,
 	totalCents: 2000,
 	internalNotes: null,
 	cancellationReason: "I'm unwell and can't bake that weekend. So sorry.",
@@ -93,25 +94,48 @@ const context: EmailContext = {
 	siteUrl: "https://vvbakes.example",
 };
 
+/**
+ * A custom cake: nothing off the menu, priced by the baker after she read the
+ * request. This is the shape most of her orders take.
+ */
+const customOrder: Order = {
+	...order,
+	reference: "VV1043",
+	token: "abcdef0123456789abcdef0123456789",
+	items: [],
+	subtotalCents: 0,
+	quoteCents: 8500,
+	totalCents: 8500,
+	customRequest:
+		"30th birthday, about 12 people. Chocolate, not too sweet. Pale pink if you can, and 'Happy Birthday Sam' on top.",
+	notes: "One guest is allergic to walnuts.",
+};
+
 const outDir = process.argv[2] ?? ".email-preview";
 await mkdir(outDir, { recursive: true });
 
 const index: string[] = [];
 
-for (const name of Object.keys(TEMPLATES) as TemplateName[]) {
-	const element = TEMPLATES[name](context);
-	const html = await render(element);
-	const text = await render(element, { plainText: true });
+const scenarios: Array<{ suffix: string; ctx: EmailContext }> = [
+	{ suffix: "", ctx: context },
+	{ suffix: "-custom", ctx: { ...context, order: customOrder } },
+];
 
-	await writeFile(join(outDir, `${name}.html`), html, "utf8");
-	await writeFile(join(outDir, `${name}.txt`), text, "utf8");
+for (const { suffix, ctx } of scenarios)
+	for (const name of Object.keys(TEMPLATES) as TemplateName[]) {
+		const element = TEMPLATES[name](ctx);
+		const html = await render(element);
+		const text = await render(element, { plainText: true });
 
-	const subject = SUBJECTS[name](context);
-	index.push(`<li><a href="./${name}.html">${name}</a>: <em>${subject}</em></li>`);
-	console.log(
-		`${name}\n  subject: ${subject}\n  html: ${html.length} bytes, text: ${text.length} bytes`,
-	);
-}
+		await writeFile(join(outDir, `${name}${suffix}.html`), html, "utf8");
+		await writeFile(join(outDir, `${name}${suffix}.txt`), text, "utf8");
+
+		const subject = SUBJECTS[name](ctx);
+		index.push(
+			`<li><a href="./${name}${suffix}.html">${name}${suffix}</a>: <em>${subject}</em></li>`,
+		);
+		console.log(`${name}${suffix}\n  subject: ${subject}`);
+	}
 
 await writeFile(
 	join(outDir, "index.html"),

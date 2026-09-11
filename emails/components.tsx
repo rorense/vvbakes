@@ -173,7 +173,7 @@ export function OrderItemsTable({
 					<Column style={{ padding: "12px 0" }}>
 						<Text style={{ fontSize: "15px", fontWeight: 600, margin: 0 }}>One custom cake</Text>
 						<Text style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
-							As described below
+							Made to your description
 						</Text>
 					</Column>
 				</Row>
@@ -297,6 +297,42 @@ export function ActionLink({ href, children }: { href: string; children: React.R
 				}}>
 				{children}
 			</Link>
+		</Section>
+	);
+}
+
+/**
+ * The customer's own words, read back to them.
+ *
+ * For a custom cake this is the agreement. If a name was misspelled or "not too
+ * sweet" was missed, this is the only chance anyone has to notice before it is
+ * baked, so it goes in the acknowledgement and again in the confirmation.
+ */
+export function CustomRequestBlock({
+	request,
+	heading = "What you asked for",
+}: {
+	request: string;
+	heading?: string;
+}) {
+	return (
+		<Section
+			style={{
+				backgroundColor: PAPER_DEEP,
+				borderRadius: "12px",
+				padding: "18px 20px",
+				margin: "0 0 20px",
+			}}>
+			<Label>{heading}</Label>
+			<Text
+				style={{
+					fontSize: "15px",
+					lineHeight: 1.6,
+					margin: 0,
+					whiteSpace: "pre-wrap",
+				}}>
+				{request}
+			</Text>
 		</Section>
 	);
 }

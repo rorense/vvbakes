@@ -4,6 +4,7 @@ import { formatMoney } from "@/lib/pricing";
 import type { Order, PrivateSettings, SiteSettings } from "@/lib/types";
 import {
 	ActionLink,
+	CustomRequestBlock,
 	DetailRows,
 	EmailLayout,
 	FulfilmentDetails,
@@ -126,6 +127,8 @@ export function OrderReceivedEmail(ctx: EmailContext) {
 				]}
 			/>
 
+			{order.customRequest ? <CustomRequestBlock request={order.customRequest} /> : null}
+
 			<ActionLink href={statusUrl(ctx)}>Check your order</ActionLink>
 
 			<Paragraph>
@@ -167,6 +170,13 @@ export function OrderConfirmedEmail(ctx: EmailContext) {
 				totalCents={order.totalCents}
 			/>
 
+			{order.customRequest ? (
+				<CustomRequestBlock
+					request={order.customRequest}
+					heading="The cake I'm making you"
+				/>
+			) : null}
+
 			{hasBank ? (
 				<Section
 					style={{
@@ -187,7 +197,7 @@ export function OrderConfirmedEmail(ctx: EmailContext) {
 						]}
 					/>
 					<Text style={{ fontSize: "13px", color: styles.COCOA_SOFT, margin: "0 0 12px" }}>
-						Please use <strong>{order.reference}</strong> as the reference so we can match your
+						Please use <strong>{order.reference}</strong> as the reference so I can match your
 						payment.
 					</Text>
 				</Section>
