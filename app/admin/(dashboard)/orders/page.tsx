@@ -127,14 +127,22 @@ export default async function AdminOrdersPage({
 										</span>
 									</span>
 									<span className="text-cocoa-soft text-xs">
-										{order.reference} · {order.itemCount} {order.itemCount === 1 ? "item" : "items"}
+										{order.reference} ·{" "}
+										{order.itemCount === 0
+											? "custom cake"
+											: `${order.itemCount} ${order.itemCount === 1 ? "item" : "items"}`}
 										{order.fulfilment === "delivery" ? " · delivery" : ""}
 									</span>
 								</span>
 
 								<span className="flex shrink-0 items-center gap-4 text-sm">
 									<span>{formatDateShort(order.pickupDate)}</span>
-									<span className="font-display text-lg">{formatMoney(order.totalCents)}</span>
+									<span
+										className={
+											order.totalCents === 0 ? "text-cocoa-soft text-xs" : "font-display text-lg"
+										}>
+										{order.totalCents === 0 ? "No price yet" : formatMoney(order.totalCents)}
+									</span>
 								</span>
 							</Link>
 						</li>

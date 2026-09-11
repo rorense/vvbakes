@@ -115,8 +115,11 @@ export default async function AdminHomePage() {
 										<span className="flex min-w-0 flex-col gap-0.5">
 											<span className="truncate text-sm font-medium">{order.customerName}</span>
 											<span className="text-cocoa-soft text-xs">
-												{order.reference} · {order.itemCount}{" "}
-												{order.itemCount === 1 ? "item" : "items"} · {formatMoney(order.totalCents)}
+												{order.reference} ·{" "}
+												{order.itemCount === 0
+													? "custom cake"
+													: `${order.itemCount} ${order.itemCount === 1 ? "item" : "items"}`}{" "}
+												· {order.totalCents === 0 ? "no price yet" : formatMoney(order.totalCents)}
 											</span>
 										</span>
 										<span className="flex shrink-0 items-center gap-3">
