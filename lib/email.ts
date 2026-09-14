@@ -1,7 +1,7 @@
 import "server-only";
 
 import { render } from "@react-email/render";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { SUBJECTS, TEMPLATES, type EmailContext, type TemplateName } from "@/emails/templates";
 import { siteUrl } from "./constants";
 import { createAdminClient } from "./supabase/admin";
@@ -10,12 +10,13 @@ import type { Order, PrivateSettings, SiteSettings } from "./types";
 /**
  * Transactional email.
  *
- * Sent over SMTP with nodemailer rather than through an email API, because the
- * shop has no domain of its own yet and every API provider's sandbox sender can
- * only deliver back to the account owner, customer mail would silently vanish.
- * An app password on an ordinary mailbox works today and needs no DNS.
+ * Sent through Resend's HTTP API, from the shop's own verified domain.
  *
- * Swapping to a provider later means changing `deliver` and nothing else.
+ * This went over SMTP from an ordinary mailbox for as long as there was no
+ * domain to send from. An API suits where this actually runs: one HTTPS
+ * request rather than a TCP and TLS handshake to port 465 inside a function
+ * that may only live a second, and a refusal that arrives as a structured
+ * error rather than an SMTP string to read by eye.
  *
  * Sending is best-effort by design. A confirmed order whose email bounced is
  * still a confirmed order; the failure is recorded against the order so the
@@ -28,48 +29,12 @@ export interface SendResult {
 	error?: string;
 }
 
-function smtpConfig() {
-	const host = process.env.SMTP_HOST;
-	const user = process.env.SMTP_USER;
-	const pass = process.env.SMTP_PASS;
-	const from = process.env.EMAIL_FROM ?? user;
+function mailConfig() {
+	const apiKey = process.env.RESEND_API_KEY;
+	const from = process.env.EMAIL_FROM;
 
-	if (!host || !user || !pass || !from) return null;
-
-	const port = Number(process.env.SMTP_PORT ?? 465);
-	return {
-		host,
-		port,
-		// 465 is implicit TLS; 587 upgrades with STARTTLS.
-		secure: port === 465,
-		auth: { user, pass },
-		from,
-	};
-}
-
-/** The domain of an address, given either bare or as `Name <addr>`. */
-function domainOf(address: string): string | null {
-	const angled = address.match(/<([^>]+)>/);
-	const bare = (angled?.[1] ?? address).trim();
-	const at = bare.lastIndexOf("@");
-	return at === -1 ? null : bare.slice(at + 1).toLowerCase();
-}
-
-/**
- * Yahoo's SMTP rejects, with `550 Request failed; Mailbox unavailable`, any
- * message carrying a Reply-To on a domain other than the account sending it.
- * The owner's new-order alert replies to the customer, so under Yahoo it was
- * every single one of them, and she heard about no orders at all.
- *
- * Dropping the header rather than the message is the right trade: the alert is
- * the thing she needs, and the customer's address is printed in its body
- * anyway. Same-domain addresses still get a Reply-To, so once the shop sends
- * from its own domain the customer emails keep theirs.
- */
-function allowedReplyTo(from: string, replyTo: string | null | undefined): string | undefined {
-	if (!replyTo) return undefined;
-	const sender = domainOf(from);
-	return sender && domainOf(replyTo) === sender ? replyTo : undefined;
+	if (!apiKey || !from) return null;
+	return { apiKey, from };
 }
 
 async function deliver(options: {
@@ -79,28 +44,29 @@ async function deliver(options: {
 	text: string;
 	replyTo?: string | null;
 }): Promise<SendResult> {
-	const config = smtpConfig();
+	const config = mailConfig();
 	if (!config) {
-		return { sent: false, skipped: "SMTP is not configured" };
+		return { sent: false, skipped: "Resend is not configured" };
 	}
 
 	try {
-		const transport = nodemailer.createTransport({
-			host: config.host,
-			port: config.port,
-			secure: config.secure,
-			auth: config.auth,
-		});
-
-		await transport.sendMail({
+		const { error } = await new Resend(config.apiKey).emails.send({
 			from: config.from,
 			to: options.to,
 			subject: options.subject,
 			html: options.html,
 			text: options.text,
-			replyTo: allowedReplyTo(config.from, options.replyTo),
+			// Anyone may be replied to now. Yahoo's SMTP refused a Reply-To on any
+			// domain but the sending account's, which cost the owner every
+			// new-order alert until the header was dropped for mismatches. Only
+			// the From domain is signed here, so her own mailbox can take the
+			// replies without the shop having to send from it.
+			replyTo: options.replyTo ?? undefined,
 		});
 
+		if (error) {
+			return { sent: false, error: `${error.name}: ${error.message}` };
+		}
 		return { sent: true };
 	} catch (error) {
 		return { sent: false, error: error instanceof Error ? error.message : String(error) };
@@ -192,5 +158,5 @@ export async function sendOrderEmail(options: SendOrderEmailOptions): Promise<Se
 
 /** True when email is configured at all. The admin surfaces this. */
 export function isEmailConfigured(): boolean {
-	return smtpConfig() !== null;
+	return mailConfig() !== null;
 }

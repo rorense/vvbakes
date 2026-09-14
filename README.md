@@ -106,32 +106,35 @@ would see nothing.
 ### 4. Email
 
 The site sends five emails: one to you when an order arrives, and four to the
-customer as their order moves along. It sends them over SMTP with a Gmail app
-password, which needs no domain and no DNS.
+customer as their order moves along. They go out through
+[Resend](https://resend.com), from an address on a domain you own.
 
-1. Turn on 2-step verification on the Google account you want to send from.
-2. Create an app password at
-   [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
-   It is 16 characters. Your normal Google password will not work.
-3. Put it in `.env.local`:
+1. Add the domain at **Resend → Domains**. Prefer a subdomain, `send.yourdomain`
+   rather than the bare one: it leaves the apex MX record alone, so a real
+   mailbox on the domain can be added later without the two arrangements
+   arguing over the same record.
+2. Copy the DKIM, SPF and MX records it gives you into your DNS. On Cloudflare
+   every one of them has to be **DNS only**, the grey cloud, never proxied.
+   Wait for the domain to read **Verified**.
+3. Create an API key under **Resend → API Keys**. Sending permission is enough.
+4. Put both in `.env.local`:
 
    ```
-   SMTP_HOST="smtp.gmail.com"
-   SMTP_PORT="465"
-   SMTP_USER="youraddress@gmail.com"
-   SMTP_PASS="the-16-character-app-password"
-   EMAIL_FROM="vvbakes <youraddress@gmail.com>"
+   RESEND_API_KEY="re_..."
+   EMAIL_FROM="vvbakes <orders@send.yourdomain>"
    ```
 
-4. In the admin, under **Settings → Getting in touch**, set **Send new orders
-   to**, that is where you get told about a new order.
+   `EMAIL_FROM` has to sit on the domain you verified. Verifying
+   `send.yourdomain` does not let you send as `orders@yourdomain`.
 
-Gmail allows about 500 emails a day, which is far more than this needs.
+5. In the admin, under **Settings → Getting in touch**, set **Send new orders
+   to**, which is where you get told about a new order, and **Contact email**,
+   which is where a customer's reply lands.
 
-**When you get a domain**, switch to a proper sending service (Resend, Postmark)
-and verify the domain, so mail comes from `orders@yourdomain` rather than a
-Gmail address. Only `lib/email.ts` needs to change; the templates stay as they
-are.
+That second address does not have to be on the domain. Reply-To is not signed
+and nothing checks it, so it can be an ordinary Gmail or Yahoo mailbox she
+already reads; only the From address has to be one Resend has verified. Resend's
+free tier is far more than this shop needs.
 
 ### 5. Deploy
 

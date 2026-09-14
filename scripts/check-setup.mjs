@@ -312,15 +312,39 @@ if (inspirationBucket) {
 
 console.log();
 
-const smtpSet = ["SMTP_HOST", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM"].every(
-	(key) => process.env[key] && !process.env[key].includes("youraddress"),
-);
+const resendKey = process.env.RESEND_API_KEY;
+const emailFrom = process.env.EMAIL_FROM;
+
 report(
-	smtpSet ? true : "warn",
+	resendKey && emailFrom && !emailFrom.includes("yourdomain") ? true : "warn",
 	"Email is configured",
 	"Not fatal, the site works, but no order emails will be sent.\n" +
-		"        See the README under 'Email' for a Gmail app password.",
+		"        See the README under 'Email' for the Resend setup.",
 );
+
+if (resendKey && !resendKey.startsWith("re_")) {
+	report(
+		"warn",
+		"RESEND_API_KEY does not look like a Resend key",
+		"They start re_. Copy it again from Resend > API Keys.",
+	);
+}
+
+// The likeliest mistake once a domain exists is sending as the mailbox you read.
+// Resend refuses it, and without this the first real order is where you find out.
+const FREE_MAIL = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com"];
+const fromAddress = emailFrom?.match(/<([^>]+)>/)?.[1] ?? emailFrom ?? "";
+const fromDomain = fromAddress.split("@")[1]?.trim().toLowerCase();
+
+if (fromDomain && FREE_MAIL.includes(fromDomain)) {
+	report(
+		"warn",
+		`EMAIL_FROM sends as ${fromDomain}`,
+		"Resend only sends from a domain verified with it, which a free mailbox\n" +
+			"        cannot be. Send from your own domain and put this address in the\n" +
+			"        admin as the contact email instead, so replies still reach it.",
+	);
+}
 
 report(
 	process.env.CRON_SECRET ? true : "warn",
