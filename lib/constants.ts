@@ -1,7 +1,7 @@
 /** Values that must exist before the database does, or that never change. */
 
 export const SITE_NAME = "vvbakes";
-export const SITE_TAGLINE = "inspired desserts";
+export const SITE_TAGLINE = "Inspired Desserts";
 const INSTAGRAM_HANDLE = "vv.bakes";
 export const CART_STORAGE_KEY = "vvbakes:cart";
 
