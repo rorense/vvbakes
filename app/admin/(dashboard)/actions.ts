@@ -63,7 +63,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 	try {
 		variants = JSON.parse(String(formData.get("variants") ?? "[]"));
 	} catch {
-		return fail("The flavours couldn't be read. Please try again.");
+		return fail("The variants couldn't be read. Please try again.");
 	}
 
 	const parsed = productSchema.safeParse({
@@ -75,7 +75,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		unitPriceCents: formData.get("unitPrice") ?? "",
 		unitLabel: formData.get("unitLabel") ?? "each",
 		qtyStep: formData.get("qtyStep") ?? 1,
-		maxPerOrder: formData.get("maxPerOrder") ?? "",
+		minPerOrder: formData.get("minPerOrder") ?? "",
 		imagePath: formData.get("imagePath") ?? "",
 		imageAlt: formData.get("imageAlt") ?? "",
 		isAvailable: checkbox(formData, "isAvailable"),
@@ -104,7 +104,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		unit_price_cents: input.unitPriceCents,
 		unit_label: input.unitLabel,
 		qty_step: input.qtyStep,
-		max_per_order: input.maxPerOrder,
+		min_per_order: input.minPerOrder,
 		image_path: input.imagePath,
 		image_alt: input.imageAlt,
 		is_available: input.isAvailable,
@@ -163,7 +163,14 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 async function saveVariants(
 	supabase: Awaited<ReturnType<typeof createClient>>,
 	productId: string,
-	variants: Array<{ id?: string; name: string; unitPriceCents: number; isAvailable: boolean }>,
+	variants: Array<{
+		id?: string;
+		name: string;
+		unitPriceCents: number;
+		imagePath: string | null;
+		allergens: string[];
+		isAvailable: boolean;
+	}>,
 	variantLabel: string,
 ): Promise<string | null> {
 	const keep = variants.map((variant) => variant.id).filter((id): id is string => Boolean(id));
@@ -174,7 +181,7 @@ async function saveVariants(
 		keep.length > 0 ? await remove.not("id", "in", `(${keep.join(",")})`) : await remove;
 
 	if (deleteError) {
-		return "The product saved, but its flavours didn't. Please try again.";
+		return "The product saved, but its variants didn't. Please try again.";
 	}
 
 	// The order the owner put them in is the order they appear in the picker.
@@ -183,6 +190,8 @@ async function saveVariants(
 			product_id: productId,
 			name: variant.name,
 			unit_price_cents: variant.unitPriceCents,
+			image_path: variant.imagePath,
+			allergens: variant.allergens,
 			is_available: variant.isAvailable,
 			sort_order: index,
 		};
@@ -196,7 +205,7 @@ async function saveVariants(
 			// written one at a time and the halfway state has a duplicate in it.
 			return error.message.includes("product_variants_product_id_name_key")
 				? `Two of those ${variantLabel.toLowerCase()}s clashed on a name. Rename one and save again.`
-				: "The product saved, but its flavours didn't. Please try again.";
+				: "The product saved, but its variants didn't. Please try again.";
 		}
 	}
 

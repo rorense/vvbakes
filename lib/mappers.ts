@@ -63,7 +63,7 @@ function toPriceTier(row: Pick<TierRow, "qty" | "price_cents">): PriceTier {
 
 type VariantColumns = Pick<
 	VariantRow,
-	"id" | "name" | "unit_price_cents" | "is_available" | "sort_order"
+	"id" | "name" | "unit_price_cents" | "image_path" | "allergens" | "is_available" | "sort_order"
 >;
 
 function toProductVariant(row: VariantColumns): ProductVariant {
@@ -71,6 +71,8 @@ function toProductVariant(row: VariantColumns): ProductVariant {
 		id: row.id,
 		name: row.name,
 		unitPriceCents: row.unit_price_cents,
+		imagePath: row.image_path,
+		allergens: toAllergens(row.allergens),
 		isAvailable: row.is_available,
 		sortOrder: row.sort_order,
 	};
@@ -91,7 +93,7 @@ export function toProduct(
 		unitPriceCents: row.unit_price_cents,
 		unitLabel: row.unit_label,
 		qtyStep: row.qty_step,
-		maxPerOrder: row.max_per_order,
+		minPerOrder: row.min_per_order,
 		tiers: (row.product_price_tiers ?? []).map(toPriceTier).sort((a, b) => a.qty - b.qty),
 		variantLabel: row.variant_label,
 		variants: (row.product_variants ?? [])

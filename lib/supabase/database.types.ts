@@ -38,7 +38,7 @@ type ProductRow = {
 	unit_price_cents: number;
 	unit_label: string;
 	qty_step: number;
-	max_per_order: number | null;
+	min_per_order: number | null;
 	variant_label: string;
 	image_path: string | null;
 	image_alt: string | null;
@@ -63,6 +63,8 @@ type ProductVariantRow = {
 	product_id: string;
 	name: string;
 	unit_price_cents: number;
+	image_path: string | null;
+	allergens: string[];
 	is_available: boolean;
 	sort_order: number;
 	created_at: string;

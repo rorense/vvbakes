@@ -300,23 +300,34 @@ describe("place_order", () => {
 		expect(items.rows).toEqual([{ qty: 4, line_total_cents: 1200 }]);
 	});
 
-	it("enforces max_per_order across split lines", async () => {
+	it("enforces min_per_order across split lines", async () => {
 		const cupcakes = await productId("cupcakes");
-		await db.query("update products set max_per_order = 6 where id = $1", [cupcakes]);
+		await db.query("update products set min_per_order = 6 where id = $1", [cupcakes]);
 
 		const date = await dateIn(7);
 		const message = await errorOf(() =>
 			placeOrder({
 				items: [
-					{ product_id: cupcakes, qty: 4 },
-					{ product_id: cupcakes, qty: 4 },
+					{ product_id: cupcakes, qty: 2 },
+					{ product_id: cupcakes, qty: 2 },
 				],
 				pickupDate: date,
 			}),
 		);
-		expect(message).toContain("QTY_INVALID");
+		expect(message).toContain("QTY_BELOW_MINIMUM");
 
-		await db.query("update products set max_per_order = null where id = $1", [cupcakes]);
+		// The other half of the same rule: two lines that only reach the
+		// minimum together are a real order and have to go through.
+		const order = await placeOrder({
+			items: [
+				{ product_id: cupcakes, qty: 3 },
+				{ product_id: cupcakes, qty: 3 },
+			],
+			pickupDate: date,
+		});
+		expect(order.reference).toMatch(/^VV/);
+
+		await db.query("update products set min_per_order = null where id = $1", [cupcakes]);
 	});
 
 	it("rejects a quantity that does not match the product's step", async () => {
@@ -896,21 +907,32 @@ describe("variants", () => {
 		expect(items.rows).toEqual([{ qty: 2, line_total_cents: 9000 }]);
 	});
 
-	it("counts max_per_order across every flavour, not one at a time", async () => {
-		await db.query("update products set max_per_order = 2 where id = $1", [cakeId]);
+	it("counts min_per_order across every flavour, not one at a time", async () => {
+		await db.query("update products set min_per_order = 4 where id = $1", [cakeId]);
 
 		const message = await errorOf(async () =>
 			placeOrder({
 				items: [
-					{ product_id: cakeId, variant_id: chocolate, qty: 2 },
-					{ product_id: cakeId, variant_id: carrot, qty: 2 },
+					{ product_id: cakeId, variant_id: chocolate, qty: 1 },
+					{ product_id: cakeId, variant_id: carrot, qty: 1 },
 				],
 				pickupDate: await dateIn(7),
 			}),
 		);
-		expect(message).toContain("QTY_INVALID");
+		expect(message).toContain("QTY_BELOW_MINIMUM");
 
-		await db.query("update products set max_per_order = null where id = $1", [cakeId]);
+		// Two of each is four cakes, which is the minimum, even though neither
+		// flavour reaches it alone.
+		const order = await placeOrder({
+			items: [
+				{ product_id: cakeId, variant_id: chocolate, qty: 2 },
+				{ product_id: cakeId, variant_id: carrot, qty: 2 },
+			],
+			pickupDate: await dateIn(7),
+		});
+		expect(order.reference).toMatch(/^VV/);
+
+		await db.query("update products set min_per_order = null where id = $1", [cakeId]);
 	});
 
 	it("refuses a flavoured product ordered without a flavour", async () => {

@@ -201,27 +201,48 @@ export function priceRange(product: Product): string {
 		: `${formatPrice(low)} – ${formatPrice(high)} ${suffix}`;
 }
 
-/** The smallest quantity a customer can put in their cart. */
+/** The smallest quantity one line of this product can hold. */
 export function minQty(product: Product): number {
 	return product.qtyStep;
 }
 
 /**
- * The next valid quantity in the given direction, clamped to the product's step
- * and its per-order maximum. Returns 0 when stepping below the minimum, which
- * the cart treats as "remove this line".
+ * The least of this product an order may contain, counted across every
+ * variant.
+ *
+ * Not the same as `minQty`, which is the floor for one line. A minimum of six
+ * cupcakes is met by three chocolate and three vanilla, so the rule belongs to
+ * the basket rather than to either line, and `place_order` counts it the same
+ * way. Rounded up to a whole step defensively: the database already refuses a
+ * minimum that is not a multiple of one.
+ */
+export function minOrderQty(product: Product): number {
+	if (product.minPerOrder === null) return product.qtyStep;
+	const steps = Math.ceil(product.minPerOrder / product.qtyStep);
+	return Math.max(product.qtyStep, steps * product.qtyStep);
+}
+
+/**
+ * The next valid quantity in the given direction, clamped to the product's
+ * step. Returns 0 when stepping below one step's worth, which the cart treats
+ * as "remove this line".
  */
 export function stepQty(product: Product, current: number, direction: 1 | -1): number {
 	const next = current + product.qtyStep * direction;
 	if (next < product.qtyStep) return 0;
-	if (product.maxPerOrder !== null && next > product.maxPerOrder) return current;
 	return next;
 }
 
-/** True when `qty` is something the database will accept for this product. */
+/**
+ * True when `qty` is something the database will accept for this one line.
+ *
+ * The per-order minimum is deliberately not checked here. It is a rule about
+ * the whole product, and a basket split across two flavours can meet it
+ * without either line doing so, so checking it here would throw away half a
+ * legitimate basket. See `minOrderQty`.
+ */
 export function isValidQty(product: Product, qty: number): boolean {
 	if (!Number.isInteger(qty) || qty < 1) return false;
 	if (qty % product.qtyStep !== 0) return false;
-	if (product.maxPerOrder !== null && qty > product.maxPerOrder) return false;
 	return true;
 }

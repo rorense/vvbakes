@@ -1,36 +1,38 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/lib/cart";
 import { cn } from "@/lib/cn";
+import { productImageUrl } from "@/lib/images";
 import {
 	availableVariants,
-	defaultVariant,
 	formatMoney,
 	isOrderable,
-	minQty,
+	minOrderQty,
 	priceProduct,
 } from "@/lib/pricing";
-import type { Product, ProductVariant } from "@/lib/types";
+import type { Product } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Stepper } from "@/components/ui/Stepper";
+import { useVariantChoice } from "./VariantChoice";
 
 /**
  * Quantity picker plus "add to order" on a product page. Writes to the
  * localStorage cart and confirms inline rather than navigating away, so someone
  * adding three things does not have to walk back to the shop twice.
  *
- * A product with variants picks one first. The choice is part of what goes in
- * the basket, because two flavours of one cake are two lines with two prices,
- * so changing it resets the "Added." note rather than silently moving the last
- * thing added.
+ * A product with variants picks one first. The choice is shared with the photo
+ * above through `useVariantChoice`, and is part of what goes in the basket,
+ * because two flavours of one cake are two lines with two prices, so changing
+ * it resets the "Added." note rather than silently moving the last thing added.
  */
 export function AddToOrder({ product }: { product: Product }) {
 	const { add } = useCart();
 	const choices = availableVariants(product);
-	const [variant, setVariant] = useState<ProductVariant | null>(() => defaultVariant(product));
-	const [qty, setQty] = useState(() => minQty(product));
+	const { variant, setVariant } = useVariantChoice(product);
+	const [qty, setQty] = useState(() => minOrderQty(product));
 	const [added, setAdded] = useState(false);
 
 	if (!isOrderable(product)) {
@@ -45,6 +47,11 @@ export function AddToOrder({ product }: { product: Product }) {
 	}
 
 	const line = priceProduct(product, qty, variant);
+	// The floor for this picker is the whole product's minimum, not one step.
+	// Someone splitting six cupcakes across two flavours does it in the basket,
+	// where the lines can be counted together; starting at three here would just
+	// be an order the database refuses.
+	const floor = minOrderQty(product);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -54,28 +61,45 @@ export function AddToOrder({ product }: { product: Product }) {
 						{product.variantLabel}
 					</legend>
 					<div className="flex flex-wrap gap-2">
-						{choices.map((choice) => (
-							<label
-								key={choice.id}
-								className={cn(
-									"rounded-pill cursor-pointer border px-4 py-2 text-sm transition-colors",
-									choice.id === variant?.id
-										? "border-cocoa bg-paper-deep font-medium"
-										: "border-line hover:border-cocoa",
-								)}>
-								<input
-									type="radio"
-									name="variant"
-									className="sr-only"
-									checked={choice.id === variant?.id}
-									onChange={() => {
-										setVariant(choice);
-										setAdded(false);
-									}}
-								/>
-								{choice.name}
-							</label>
-						))}
+						{choices.map((choice) => {
+							const thumbnail = productImageUrl(choice.imagePath);
+
+							return (
+								<label
+									key={choice.id}
+									className={cn(
+										"rounded-pill flex cursor-pointer items-center border text-sm transition-colors",
+										// A pill with a photo in it is tighter on the left, so the
+										// image sits flush inside the rounded end rather than
+										// floating in a gap of its own.
+										thumbnail ? "gap-2 py-1 pr-4 pl-1" : "px-4 py-2",
+										choice.id === variant?.id
+											? "border-cocoa bg-paper-deep font-medium"
+											: "border-line hover:border-cocoa",
+									)}>
+									<input
+										type="radio"
+										name="variant"
+										className="sr-only"
+										checked={choice.id === variant?.id}
+										onChange={() => {
+											setVariant(choice);
+											setAdded(false);
+										}}
+									/>
+									{thumbnail ? (
+										<Image
+											src={thumbnail}
+											alt=""
+											width={64}
+											height={64}
+											className="size-7 shrink-0 rounded-full object-cover"
+										/>
+									) : null}
+									{choice.name}
+								</label>
+							);
+						})}
 					</div>
 				</fieldset>
 			) : null}
@@ -83,12 +107,12 @@ export function AddToOrder({ product }: { product: Product }) {
 			<div className="flex flex-wrap items-center gap-4">
 				<Stepper
 					value={qty}
-					min={minQty(product)}
-					max={product.maxPerOrder}
+					min={floor}
+					max={null}
 					step={product.qtyStep}
 					label={variant ? `${product.name}, ${variant.name}` : product.name}
 					onChange={(next) => {
-						setQty(Math.max(minQty(product), next));
+						setQty(Math.max(floor, next));
 						setAdded(false);
 					}}
 				/>
@@ -121,9 +145,9 @@ export function AddToOrder({ product }: { product: Product }) {
 				) : null}
 			</div>
 
-			{product.maxPerOrder !== null ? (
+			{product.minPerOrder !== null ? (
 				<p className="text-cocoa-soft text-xs">
-					Up to {product.maxPerOrder} per order
+					At least {floor} per order
 					{choices.length > 0 ? `, across every ${product.variantLabel.toLowerCase()}` : ""}.
 				</p>
 			) : null}

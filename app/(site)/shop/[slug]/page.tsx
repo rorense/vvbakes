@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { allergenSentence, extraAllergens } from "@/lib/allergens";
 import { siteUrl } from "@/lib/constants";
 import { productImageUrl } from "@/lib/images";
 import { formatPrice, priceRule } from "@/lib/pricing";
@@ -9,8 +10,12 @@ import { Container, Section } from "@/components/ui/Container";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { ArchFrame } from "@/components/ui/ArchFrame";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { AllergenChips, ProductImage } from "@/components/site/ProductCard";
 import { AddToOrder } from "@/components/order/AddToOrder";
+import {
+	VariantAllergens,
+	VariantChoiceProvider,
+	VariantPhoto,
+} from "@/components/order/VariantChoice";
 
 export const revalidate = 300;
 
@@ -89,95 +94,108 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 					</ol>
 				</nav>
 
-				<div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-					<ArchFrame
-						tone="blush"
-						className="relative aspect-4/5 w-full">
-						<ProductImage
-							product={product}
-							sizes="(min-width: 1024px) 45vw, 100vw"
-							priority
-						/>
-					</ArchFrame>
+				{/* The photo and the picker sit in opposite columns and have to agree
+				    on which variant is showing, so the choice lives in a provider
+				    around both rather than inside either. Everything between them is
+				    still rendered on the server. */}
+				<VariantChoiceProvider product={product}>
+					<div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
+						<ArchFrame
+							tone="blush"
+							className="relative aspect-4/5 w-full">
+							<VariantPhoto
+								product={product}
+								sizes="(min-width: 1024px) 45vw, 100vw"
+								priority
+							/>
+						</ArchFrame>
 
-					{/* The right column is laid out as a menu card: name, note, a
-					    hairline price table, then the quantity control. */}
-					<div className="flex flex-col gap-6">
-						<div className="flex flex-col gap-3">
-							<h1
-								className="text-4xl"
-								style={{ fontVariationSettings: '"SOFT" 40, "WONK" 1' }}>
-								{product.name}
-							</h1>
-							{product.description ? (
-								<p className="text-cocoa-soft text-lg">{product.description}</p>
-							) : null}
-						</div>
+						{/* The right column is laid out as a menu card: name, note, a
+						    hairline price table, then the quantity control. */}
+						<div className="flex flex-col gap-6">
+							<div className="flex flex-col gap-3">
+								<h1
+									className="text-4xl"
+									style={{ fontVariationSettings: '"SOFT" 40, "WONK" 1' }}>
+									{product.name}
+								</h1>
+								{product.description ? (
+									<p className="text-cocoa-soft text-lg">{product.description}</p>
+								) : null}
+							</div>
 
-						<div className="flex flex-col gap-2">
-							<SectionLabel as="h2">Price</SectionLabel>
-							<HairlineList as="dl">
-								{product.variants.length > 0 ? (
-									// One row per flavour, because the price is the thing that differs
-									// between them and a single "from $45" hides it.
-									product.variants.map((variant) => (
-										<HairlineRow
-											key={variant.id}
-											as="div">
+							<div className="flex flex-col gap-2">
+								<SectionLabel as="h2">Price</SectionLabel>
+								<HairlineList as="dl">
+									{product.variants.length > 0 ? (
+										// One row per flavour, because the price is the thing that differs
+										// between them and a single "from $45" hides it.
+										product.variants.map((variant) => {
+											// Only what this flavour adds. Repeating the three
+											// allergens every flavour shares, on every row, would
+											// bury the one that actually differs between them.
+											const extra = extraAllergens(product, variant);
+
+											return (
+												<HairlineRow
+													key={variant.id}
+													as="div">
+													<dt className="text-sm">
+														{variant.name}
+														{variant.isAvailable ? "" : " — sold out"}
+														{extra.length > 0 ? (
+															<span className="text-cocoa-soft mt-0.5 block text-xs">
+																Also contains {allergenSentence(extra)}
+															</span>
+														) : null}
+													</dt>
+													<dd className="font-display text-lg italic">
+														{formatPrice(variant.unitPriceCents)}
+													</dd>
+												</HairlineRow>
+											);
+										})
+									) : (
+										<HairlineRow as="div">
 											<dt className="text-sm">
-												{variant.name}
-												{variant.isAvailable ? "" : " — sold out"}
+												{product.qtyStep > 1
+													? `Per ${product.qtyStep}`
+													: `Per ${product.unitLabel}`}
 											</dt>
 											<dd className="font-display text-lg italic">
-												{formatPrice(variant.unitPriceCents)}
+												{product.qtyStep > 1
+													? formatPrice(product.unitPriceCents * product.qtyStep)
+													: formatPrice(product.unitPriceCents)}
 											</dd>
 										</HairlineRow>
-									))
-								) : (
-									<HairlineRow as="div">
-										<dt className="text-sm">
-											{product.qtyStep > 1 ? `Per ${product.qtyStep}` : `Per ${product.unitLabel}`}
-										</dt>
-										<dd className="font-display text-lg italic">
-											{product.qtyStep > 1
-												? formatPrice(product.unitPriceCents * product.qtyStep)
-												: formatPrice(product.unitPriceCents)}
-										</dd>
-									</HairlineRow>
-								)}
-								{product.tiers.map((tier) => (
-									<HairlineRow
-										key={tier.qty}
-										as="div">
-										<dt className="text-sm">{tier.qty} together</dt>
-										<dd className="font-display text-lg italic">{formatPrice(tier.priceCents)}</dd>
-									</HairlineRow>
-								))}
-							</HairlineList>
-						</div>
-
-						<AddToOrder product={product} />
-
-						{product.allergens.length > 0 ? (
-							<div className="flex flex-col gap-2">
-								<SectionLabel as="h2">Contains</SectionLabel>
-								<AllergenChips product={product} />
-								<p className="text-cocoa-soft text-xs">
-									Baked in a home kitchen that also handles nuts, dairy, egg, gluten and sesame.
-									Tell me about any allergies when you order.
-								</p>
+									)}
+									{product.tiers.map((tier) => (
+										<HairlineRow
+											key={tier.qty}
+											as="div">
+											<dt className="text-sm">{tier.qty} together</dt>
+											<dd className="font-display text-lg italic">
+												{formatPrice(tier.priceCents)}
+											</dd>
+										</HairlineRow>
+									))}
+								</HairlineList>
 							</div>
-						) : null}
 
-						{settings.leadTimeDays > 0 ? (
-							<p className="text-cocoa-soft text-sm">
-								Needs {settings.leadTimeDays} day
-								{settings.leadTimeDays === 1 ? "" : "s"} notice.
-								{settings.pickupSuburb ? ` Pickup from ${settings.pickupSuburb}.` : ""}
-							</p>
-						) : null}
+							<AddToOrder product={product} />
+
+							<VariantAllergens product={product} />
+
+							{settings.leadTimeDays > 0 ? (
+								<p className="text-cocoa-soft text-sm">
+									Needs {settings.leadTimeDays} day
+									{settings.leadTimeDays === 1 ? "" : "s"} notice.
+									{settings.pickupSuburb ? ` Pickup from ${settings.pickupSuburb}.` : ""}
+								</p>
+							) : null}
+						</div>
 					</div>
-				</div>
+				</VariantChoiceProvider>
 			</Container>
 		</Section>
 	);

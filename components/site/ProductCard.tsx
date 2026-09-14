@@ -1,9 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
-import { fallbackAccent, productImageAlt, productImageUrl } from "@/lib/images";
+import { fallbackAccent, productImageUrl, variantImageAlt } from "@/lib/images";
 import { isOrderable, priceRule } from "@/lib/pricing";
-import { ALLERGEN_LABELS, type Accent, type Product } from "@/lib/types";
+import {
+	ALLERGEN_LABELS,
+	type Accent,
+	type Allergen,
+	type Product,
+	type ProductVariant,
+} from "@/lib/types";
 import { Badge, Chip } from "@/components/ui/Badge";
 
 const ACCENT_TILE: Record<Accent, string> = {
@@ -25,6 +31,12 @@ const ACCENT_TILE: Record<Accent, string> = {
  */
 export function ProductImage({
 	product,
+	/**
+	 * The variant being shown, when one is chosen. Its photo wins over the
+	 * product's; a variant without one falls back, which is what a product
+	 * whose variants differ only by size wants.
+	 */
+	variant = null,
 	className,
 	sizes,
 	priority,
@@ -32,18 +44,19 @@ export function ProductImage({
 	behind,
 }: {
 	product: Product;
+	variant?: ProductVariant | null;
 	className?: string;
 	sizes?: string;
 	priority?: boolean;
 	behind?: Accent | null;
 }) {
-	const url = productImageUrl(product.imagePath);
+	const url = productImageUrl(variant?.imagePath ?? product.imagePath);
 
 	if (url) {
 		return (
 			<Image
 				src={url}
-				alt={productImageAlt(product)}
+				alt={variantImageAlt(product, variant)}
 				fill
 				sizes={sizes ?? "(min-width: 640px) 33vw, 50vw"}
 				className={cn("object-cover", className)}
@@ -77,11 +90,15 @@ function AvailabilityBadge({ product }: { product: Product }) {
 	return <Badge tone="cocoa">{product.availabilityNote ?? "Sold out"}</Badge>;
 }
 
-export function AllergenChips({ product }: { product: Product }) {
-	if (product.allergens.length === 0) return null;
+/**
+ * Takes a list rather than a product, because what a customer is eating
+ * depends on which variant they picked. See lib/allergens.ts.
+ */
+export function AllergenChips({ allergens }: { allergens: readonly Allergen[] }) {
+	if (allergens.length === 0) return null;
 	return (
 		<ul className="flex flex-wrap gap-1.5">
-			{product.allergens.map((allergen) => (
+			{allergens.map((allergen) => (
 				<li key={allergen}>
 					<Chip>{ALLERGEN_LABELS[allergen]}</Chip>
 				</li>

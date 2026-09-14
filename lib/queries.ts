@@ -91,7 +91,7 @@ export const getCategories = cache(async (): Promise<Category[]> => {
 });
 
 const PRODUCT_SELECT =
-	"*, product_price_tiers (qty, price_cents), product_variants (id, name, unit_price_cents, is_available, sort_order)";
+	"*, product_price_tiers (qty, price_cents), product_variants (id, name, unit_price_cents, image_path, allergens, is_available, sort_order)";
 
 const getProducts = cache(async (): Promise<Product[]> => {
 	if (isDemoMode()) return DEMO_PRODUCTS;

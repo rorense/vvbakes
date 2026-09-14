@@ -5,6 +5,7 @@ import {
 	formatPrice,
 	isOrderable,
 	isValidQty,
+	minOrderQty,
 	priceForQty,
 	priceProduct,
 	priceRule,
@@ -22,7 +23,7 @@ function product(overrides: Partial<Product> = {}): Product {
 		unitPriceCents: 300,
 		unitLabel: "each",
 		qtyStep: 1,
-		maxPerOrder: null,
+		minPerOrder: null,
 		tiers: [],
 		variantLabel: "Flavour",
 		variants: [],
@@ -141,10 +142,28 @@ describe("stepQty", () => {
 		expect(stepQty(product({ qtyStep: 2 }), 2, -1)).toBe(0);
 	});
 
-	it("refuses to step past the per-order maximum", () => {
-		const p = product({ maxPerOrder: 6 });
-		expect(stepQty(p, 6, 1)).toBe(6);
-		expect(stepQty(p, 5, 1)).toBe(6);
+	it("does not cap a line, because nothing caps one any more", () => {
+		const p = product({ minPerOrder: 6 });
+		expect(stepQty(p, 6, 1)).toBe(7);
+		expect(stepQty(p, 60, 1)).toBe(61);
+	});
+});
+
+describe("minOrderQty", () => {
+	it("is one step when the product has no minimum", () => {
+		expect(minOrderQty(product())).toBe(1);
+		expect(minOrderQty(product({ qtyStep: 2 }))).toBe(2);
+	});
+
+	it("is the product's minimum when it has one", () => {
+		expect(minOrderQty(product({ minPerOrder: 6 }))).toBe(6);
+		expect(minOrderQty(product({ qtyStep: 2, minPerOrder: 6 }))).toBe(6);
+	});
+
+	it("rounds a minimum up to a whole step", () => {
+		// The database refuses to store this, but a rounded answer is still
+		// better than offering a quantity nothing will accept.
+		expect(minOrderQty(product({ qtyStep: 4, minPerOrder: 6 }))).toBe(8);
 	});
 });
 
@@ -159,10 +178,13 @@ describe("isValidQty", () => {
 		expect(isValidQty(p, 2.5)).toBe(false);
 	});
 
-	it("enforces the per-order maximum", () => {
-		const p = product({ maxPerOrder: 4 });
-		expect(isValidQty(p, 4)).toBe(true);
-		expect(isValidQty(p, 5)).toBe(false);
+	it("leaves the per-order minimum to the basket, not the line", () => {
+		// Three chocolate and three vanilla is six cupcakes and a valid order.
+		// Judging each line against the minimum on its own would throw both of
+		// them away. See minOrderQty.
+		const p = product({ minPerOrder: 6 });
+		expect(isValidQty(p, 3)).toBe(true);
+		expect(isValidQty(p, 6)).toBe(true);
 	});
 });
 
@@ -172,6 +194,8 @@ function variant(
 	return {
 		id: `variant-${overrides.name.toLowerCase()}`,
 		unitPriceCents: 4500,
+		imagePath: null,
+		allergens: [],
 		isAvailable: true,
 		sortOrder: 0,
 		...overrides,

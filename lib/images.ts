@@ -1,5 +1,5 @@
 import { INSPIRATION_IMAGE_BUCKET, PRODUCT_IMAGE_BUCKET } from "./constants";
-import type { Accent, Product } from "./types";
+import type { Accent, Product, ProductVariant } from "./types";
 
 /**
  * Public URL for an object in one of the image buckets.
@@ -76,4 +76,21 @@ export function fallbackAccent(product: Pick<Product, "slug">, behind?: Accent |
 /** Alt text for a product photo, falling back to something descriptive. */
 export function productImageAlt(product: Pick<Product, "name" | "imageAlt">): string {
 	return product.imageAlt?.trim() || `${product.name} from vvbakes`;
+}
+
+/**
+ * Alt text for whichever photo a variant actually ends up showing.
+ *
+ * A variant with a photo of its own does not get the product's alt text: that
+ * sentence describes the product's picture, and this is a different picture.
+ * The variant name is the only thing that separates them, so it is what the
+ * sentence is built from. A variant without a photo is showing the product's,
+ * and gets the product's words with it.
+ */
+export function variantImageAlt(
+	product: Pick<Product, "name" | "imageAlt">,
+	variant: Pick<ProductVariant, "name" | "imagePath"> | null,
+): string {
+	if (!variant?.imagePath) return productImageAlt(product);
+	return `${product.name}, ${variant.name}, from vvbakes`;
 }

@@ -43,13 +43,25 @@ export interface PriceTier {
 
 /**
  * One version of a product, with a price of its own: a flavour, a size, a
- * filling. The product owns everything else, the photo and the description and
- * the allergens; a variant is a name and a price.
+ * filling. The product owns the description; a variant is a name, a price, and
+ * optionally a photo and extra allergens of its own.
  */
 export interface ProductVariant {
 	id: string;
 	name: string;
 	unitPriceCents: number;
+	/**
+	 * Object path inside the product-images bucket, not a URL. Null falls back
+	 * to the product's photo, which is what a product whose variants differ only
+	 * by size wants.
+	 */
+	imagePath: string | null;
+	/**
+	 * What this variant adds to the product's allergens, not a replacement for
+	 * them: the carrot cake's walnuts, not the gluten all three share. See
+	 * lib/allergens.ts.
+	 */
+	allergens: Allergen[];
 	/** One flavour can sell out without taking the rest of the product with it. */
 	isAvailable: boolean;
 	sortOrder: number;
@@ -74,7 +86,11 @@ export interface Product {
 	unitLabel: string;
 	/** Sold only in multiples of this. An item sold in pairs has step 2. */
 	qtyStep: number;
-	maxPerOrder: number | null;
+	/**
+	 * Smallest quantity of this product one order may contain, counted across
+	 * every variant. Null for no minimum.
+	 */
+	minPerOrder: number | null;
 	tiers: PriceTier[];
 	/** What this product calls its variants: "Flavour", "Size", "Filling". */
 	variantLabel: string;

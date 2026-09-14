@@ -49,7 +49,7 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		unitPriceCents: 300,
 		unitLabel: "each",
 		qtyStep: 1,
-		maxPerOrder: null,
+		minPerOrder: null,
 		tiers: [],
 		variantLabel: "Flavour",
 		variants: [],

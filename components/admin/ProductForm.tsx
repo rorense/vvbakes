@@ -7,7 +7,14 @@ import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, succeeded } from "@/lib/a
 import { cn } from "@/lib/cn";
 import { formatPrice, priceForQty } from "@/lib/pricing";
 import { useSlugField } from "@/lib/use-slug-field";
-import { ALLERGEN_LABELS, ALLERGENS, type Category, type Product } from "@/lib/types";
+import { allergenSentence } from "@/lib/allergens";
+import {
+	ALLERGEN_LABELS,
+	ALLERGENS,
+	type Allergen,
+	type Category,
+	type Product,
+} from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import {
 	Checkbox,
@@ -29,15 +36,22 @@ interface TierDraft {
 }
 
 /**
- * A flavour being edited. `id` is the database row's, and empty for one the
+ * A variant being edited. `id` is the database row's, and empty for one the
  * owner has just added; carrying it through the form is what lets the save
  * update the existing row instead of replacing it. See `saveVariants`.
+ *
+ * `imagePath` is an object path already uploaded to storage, not a pending
+ * file: the upload happens as soon as the photo is chosen, so a save only
+ * ever carries the path.
  */
 interface VariantDraft {
 	key: string;
 	id: string;
 	name: string;
 	price: string;
+	imagePath: string;
+	/** What this one adds to the product's allergens, never a replacement. */
+	allergens: Allergen[];
 	isAvailable: boolean;
 }
 
@@ -55,6 +69,8 @@ function initialVariants(product: Product | null): VariantDraft[] {
 		id: variant.id,
 		name: variant.name,
 		price: (variant.unitPriceCents / 100).toString(),
+		imagePath: variant.imagePath ?? "",
+		allergens: variant.allergens,
 		isAvailable: variant.isAvailable,
 	}));
 }
@@ -88,7 +104,7 @@ export function ProductForm({
 			.map((tier) => ({ qty: tier.qty, priceCents: tier.price })),
 	);
 
-	// A half-typed row is not a flavour yet. Dropping it here rather than failing
+	// A half-typed row is not a variant yet. Dropping it here rather than failing
 	// validation means an empty row left behind after "Add" is simply ignored.
 	const filledVariants = variants.filter(
 		(variant) => variant.name.trim() !== "" && variant.price.trim() !== "",
@@ -99,6 +115,8 @@ export function ProductForm({
 			id: variant.id || undefined,
 			name: variant.name,
 			unitPriceCents: variant.price,
+			imagePath: variant.imagePath,
+			allergens: variant.allergens,
 			isAvailable: variant.isAvailable,
 		})),
 	);
@@ -264,17 +282,17 @@ export function ProductForm({
 					</Field>
 
 					<Field
-						label="Most per order"
-						hint="Leave blank for no limit."
-						error={errors.maxPerOrder}
+						label="Minimum per order"
+						hint="The fewest someone can order. Leave blank for no minimum."
+						error={errors.minPerOrder}
 						className="sm:col-span-1">
 						{(props) => (
 							<Input
 								{...props}
-								name="maxPerOrder"
+								name="minPerOrder"
 								inputMode="numeric"
-								defaultValue={product?.maxPerOrder ?? ""}
-								invalid={Boolean(errors.maxPerOrder)}
+								defaultValue={product?.minPerOrder ?? ""}
+								invalid={Boolean(errors.minPerOrder)}
 							/>
 						)}
 					</Field>
@@ -296,8 +314,9 @@ export function ProductForm({
 				/>
 			</AdminCard>
 
-			<AdminCard title={`${variantLabel}s`}>
+			<AdminCard title="Variants">
 				<VariantFieldset
+					slug={nameAndSlug.slug || "product"}
 					variantLabel={variantLabel}
 					setVariantLabel={setVariantLabel}
 					variants={variants}
@@ -360,7 +379,8 @@ export function ProductForm({
 
 			<AdminCard title="Allergens">
 				<p className="text-cocoa-soft mb-4 text-sm">
-					Tick anything this contains. Shown on the product page.
+					Tick anything <em>every</em> version of this contains. If one variant has something extra
+					— walnuts in the carrot one — tick that on the variant itself, not here.
 				</p>
 				<div className="grid gap-3 sm:grid-cols-3">
 					{ALLERGENS.map((allergen) => (
@@ -469,7 +489,8 @@ function TierFieldset({
 }
 
 /**
- * Repeatable flavours, sizes or fillings, submitted as one JSON field.
+ * Repeatable variants — flavours, sizes, fillings — submitted as one JSON
+ * field.
  *
  * Adding one turns the product into something a customer chooses from; removing
  * the last one turns it back into a single thing at the price above. There is
@@ -481,6 +502,7 @@ function TierFieldset({
  * it with a new one.
  */
 function VariantFieldset({
+	slug,
 	variantLabel,
 	setVariantLabel,
 	variants,
@@ -488,6 +510,8 @@ function VariantFieldset({
 	error,
 	labelError,
 }: {
+	/** Where a variant photo is filed in storage: the product's own folder. */
+	slug: string;
 	variantLabel: string;
 	setVariantLabel: (next: string) => void;
 	variants: VariantDraft[];
@@ -499,6 +523,17 @@ function VariantFieldset({
 
 	const update = (index: number, patch: Partial<VariantDraft>) => {
 		setVariants(variants.map((variant, i) => (i === index ? { ...variant, ...patch } : variant)));
+	};
+
+	// Rebuilt from ALLERGENS rather than pushed onto, so a variant's list is
+	// always in the same order as the product's and the chips below it.
+	const toggleAllergen = (index: number, allergen: Allergen, on: boolean) => {
+		const current = variants[index]!.allergens;
+		update(index, {
+			allergens: on
+				? ALLERGENS.filter((one) => one === allergen || current.includes(one))
+				: current.filter((one) => one !== allergen),
+		});
 	};
 
 	const move = (index: number, direction: -1 | 1) => {
@@ -513,8 +548,8 @@ function VariantFieldset({
 		<div className="flex flex-col gap-5">
 			<p className="text-cocoa-soft text-sm">
 				For something sold in more than one version: a cake that comes in three flavours, a tin that
-				comes in two sizes. Each one carries its own price. Leave this empty for a product that is
-				just one thing.
+				comes in two sizes. Each one carries its own price, its own photo if it looks different, and
+				anything extra it contains. Leave this empty for a product that is just one thing.
 			</p>
 
 			<Field
@@ -535,74 +570,106 @@ function VariantFieldset({
 			</Field>
 
 			<fieldset className="flex flex-col gap-3">
-				<legend className="text-sm font-medium">{variantLabel || "Flavour"}s</legend>
+				<legend className="text-sm font-medium">Variants</legend>
 
 				{variants.map((variant, index) => (
 					<div
 						key={variant.key}
-						className="border-line flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-end">
-						<label className="flex flex-[2] flex-col gap-1">
-							<span className="text-cocoa-soft text-xs">Name</span>
-							<input
-								className="border-line bg-paper focus-visible:border-cocoa w-full rounded-md border px-3 py-2 text-base"
-								value={variant.name}
-								placeholder={index === 0 ? "e.g. Chocolate" : ""}
-								onChange={(event) => update(index, { name: event.target.value })}
+						className="border-line flex flex-col gap-3 rounded-md border p-3">
+						<div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+							<ImageUploader
+								size="sm"
+								slug={slug}
+								label={variant.name || `this ${noun}`}
+								value={variant.imagePath}
+								onChange={(path) => update(index, { imagePath: path })}
 							/>
-						</label>
 
-						<label className="flex flex-1 flex-col gap-1">
-							<span className="text-cocoa-soft text-xs">Price ($)</span>
-							<input
-								inputMode="decimal"
-								className="border-line bg-paper focus-visible:border-cocoa w-full rounded-md border px-3 py-2 text-base"
-								value={variant.price}
-								onChange={(event) => update(index, { price: event.target.value })}
-							/>
-						</label>
+							<label className="flex flex-[2] flex-col gap-1">
+								<span className="text-cocoa-soft text-xs">Name</span>
+								<input
+									className="border-line bg-paper focus-visible:border-cocoa w-full rounded-md border px-3 py-2 text-base"
+									value={variant.name}
+									placeholder={index === 0 ? "e.g. Chocolate" : ""}
+									onChange={(event) => update(index, { name: event.target.value })}
+								/>
+							</label>
 
-						<div className="flex items-center gap-2">
-							{/* One flavour can sell out without the rest of the product
+							<label className="flex flex-1 flex-col gap-1">
+								<span className="text-cocoa-soft text-xs">Price ($)</span>
+								<input
+									inputMode="decimal"
+									className="border-line bg-paper focus-visible:border-cocoa w-full rounded-md border px-3 py-2 text-base"
+									value={variant.price}
+									onChange={(event) => update(index, { price: event.target.value })}
+								/>
+							</label>
+
+							<div className="flex items-center gap-2">
+								{/* One flavour can sell out without the rest of the product
 							    going with it, so availability lives on the row. */}
-							<button
-								type="button"
-								aria-pressed={variant.isAvailable}
-								onClick={() => update(index, { isAvailable: !variant.isAvailable })}
-								className={cn(
-									"rounded-pill min-h-11 border px-3 text-sm font-medium",
-									variant.isAvailable
-										? "bg-mint border-transparent"
-										: "border-line text-cocoa-soft",
-								)}>
-								{variant.isAvailable ? "On" : "Sold out"}
-							</button>
-
-							<div className="flex">
 								<button
 									type="button"
-									onClick={() => move(index, -1)}
-									disabled={index === 0}
-									aria-label={`Move ${variant.name || noun} up`}
-									className="border-line hover:border-cocoa min-h-11 rounded-l-md border px-2.5 text-sm disabled:opacity-40">
-									↑
+									aria-pressed={variant.isAvailable}
+									onClick={() => update(index, { isAvailable: !variant.isAvailable })}
+									className={cn(
+										"rounded-pill min-h-11 border px-3 text-sm font-medium",
+										variant.isAvailable
+											? "bg-mint border-transparent"
+											: "border-line text-cocoa-soft",
+									)}>
+									{variant.isAvailable ? "On" : "Sold out"}
 								</button>
+
+								<div className="flex">
+									<button
+										type="button"
+										onClick={() => move(index, -1)}
+										disabled={index === 0}
+										aria-label={`Move ${variant.name || noun} up`}
+										className="border-line hover:border-cocoa min-h-11 rounded-l-md border px-2.5 text-sm disabled:opacity-40">
+										↑
+									</button>
+									<button
+										type="button"
+										onClick={() => move(index, 1)}
+										disabled={index === variants.length - 1}
+										aria-label={`Move ${variant.name || noun} down`}
+										className="border-line hover:border-cocoa -ml-px min-h-11 rounded-r-md border px-2.5 text-sm disabled:opacity-40">
+										↓
+									</button>
+								</div>
+
 								<button
 									type="button"
-									onClick={() => move(index, 1)}
-									disabled={index === variants.length - 1}
-									aria-label={`Move ${variant.name || noun} down`}
-									className="border-line hover:border-cocoa -ml-px min-h-11 rounded-r-md border px-2.5 text-sm disabled:opacity-40">
-									↓
+									onClick={() => setVariants(variants.filter((_, i) => i !== index))}
+									className="border-line hover:border-danger hover:text-danger min-h-11 rounded-md border px-3 text-sm">
+									Remove
 								</button>
 							</div>
-
-							<button
-								type="button"
-								onClick={() => setVariants(variants.filter((_, i) => i !== index))}
-								className="border-line hover:border-danger hover:text-danger min-h-11 rounded-md border px-3 text-sm">
-								Remove
-							</button>
 						</div>
+
+						{/* Folded away by default. Seven checkboxes on every row would
+						    bury the name and the price, and most variants add nothing;
+						    the summary says what is ticked without opening it. */}
+						<details className="border-line border-t pt-3">
+							<summary className="text-cocoa-soft cursor-pointer text-xs">
+								Allergens ·{" "}
+								{variant.allergens.length > 0
+									? `also contains ${allergenSentence(variant.allergens)}`
+									: "nothing beyond the product's"}
+							</summary>
+							<div className="mt-3 grid gap-3 sm:grid-cols-3">
+								{ALLERGENS.map((allergen) => (
+									<Checkbox
+										key={allergen}
+										label={ALLERGEN_LABELS[allergen]}
+										checked={variant.allergens.includes(allergen)}
+										onChange={(event) => toggleAllergen(index, allergen, event.target.checked)}
+									/>
+								))}
+							</div>
+						</details>
 					</div>
 				))}
 
@@ -614,7 +681,15 @@ function VariantFieldset({
 						onClick={() =>
 							setVariants([
 								...variants,
-								{ key: `variant-${Date.now()}`, id: "", name: "", price: "", isAvailable: true },
+								{
+									key: `variant-${Date.now()}`,
+									id: "",
+									name: "",
+									price: "",
+									imagePath: "",
+									allergens: [],
+									isAvailable: true,
+								},
 							])
 						}
 						className="border-line hover:border-cocoa rounded-pill w-fit border px-4 py-2 text-sm font-medium">

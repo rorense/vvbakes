@@ -13,6 +13,7 @@ import {
 	formatMoney,
 	hasVariants,
 	isValidQty,
+	minOrderQty,
 	minQty,
 	priceProduct,
 } from "@/lib/pricing";
@@ -121,6 +122,24 @@ export function OrderForm({
 		[cart.lines, byId],
 	);
 
+	// A minimum is a rule about the whole product, not about one line: six
+	// cupcakes is met by three chocolate and three vanilla. So the lines are
+	// counted back together here, the way `place_order` counts them, rather than
+	// being checked one at a time — which would drop half a legitimate basket.
+	const shortfalls = useMemo(() => {
+		const totals = new Map<string, number>();
+		for (const line of lines) {
+			totals.set(line.product.id, (totals.get(line.product.id) ?? 0) + line.qty);
+		}
+
+		return [...totals.entries()]
+			.map(([productId, qty]) => {
+				const product = byId.get(productId)!;
+				return { product, qty, minimum: minOrderQty(product) };
+			})
+			.filter((entry) => entry.qty < entry.minimum);
+	}, [lines, byId]);
+
 	const droppedCount = ready ? cart.lines.length - lines.length : 0;
 	const subtotal = lines.reduce((total, line) => total + line.totalCents, 0);
 	const deliveryFee = fulfilment === "delivery" ? settings.deliveryFeeCents : 0;
@@ -151,6 +170,11 @@ export function OrderForm({
 	// An empty basket used to end the journey here. It now means a custom cake:
 	// the thing she mostly makes, and the thing nobody can put in a basket.
 	const isCustomOnly = ready && lines.length === 0;
+
+	// Held back rather than sent and refused. The database would raise
+	// QTY_BELOW_MINIMUM and the customer would get the same answer a scroll
+	// later, having filled in the rest of the form for nothing.
+	const canSubmit = Boolean(pickupDate) && shortfalls.length === 0;
 
 	return (
 		<form
@@ -232,6 +256,7 @@ export function OrderForm({
 								<div className="bg-paper-deep relative size-16 shrink-0 overflow-hidden rounded-md">
 									<ProductImage
 										product={line.product}
+										variant={line.variant}
 										sizes="64px"
 									/>
 								</div>
@@ -261,7 +286,7 @@ export function OrderForm({
 									size="sm"
 									value={line.qty}
 									min={minQty(line.product)}
-									max={line.product.maxPerOrder}
+									max={null}
 									step={line.product.qtyStep}
 									label={
 										line.variant ? `${line.product.name}, ${line.variant.name}` : line.product.name
@@ -281,6 +306,19 @@ export function OrderForm({
 						</HairlineRow>
 					))}
 				</HairlineList>
+
+				{shortfalls.length > 0 ? (
+					<p
+						role="status"
+						className="border-danger text-danger mt-4 rounded-md border px-4 py-3 text-sm">
+						{shortfalls
+							.map(
+								(short) =>
+									`${short.product.name} is ordered ${short.minimum} at a time, and you have ${short.qty}.`,
+							)
+							.join(" ")}
+					</p>
+				) : null}
 
 				{isCustomOnly ? null : (
 					<Link
@@ -488,7 +526,7 @@ export function OrderForm({
 					<Button
 						type="submit"
 						size="lg"
-						disabled={pending || !pickupDate}>
+						disabled={pending || !canSubmit}>
 						{pending ? "Sending…" : isCustomOnly ? "Ask about this cake" : "Send order request"}
 					</Button>
 				</div>
@@ -511,7 +549,7 @@ export function OrderForm({
 					type="submit"
 					size="lg"
 					className="w-full"
-					disabled={pending || !pickupDate}>
+					disabled={pending || !canSubmit}>
 					{pending ? "Sending…" : isCustomOnly ? "Ask about this cake" : "Send order request"}
 				</Button>
 			</div>

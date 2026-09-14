@@ -125,6 +125,10 @@ const productVariantSchema = z.object({
 	id: z.string().uuid().optional(),
 	name: z.string().trim().min(1, "Give this one a name").max(60),
 	unitPriceCents: dollars,
+	/** Empty falls back to the product's photo. */
+	imagePath: optionalText(400),
+	/** Added to the product's allergens, never a replacement for them. */
+	allergens: z.array(z.enum(ALLERGENS)),
 	isAvailable: z.boolean(),
 });
 
@@ -145,13 +149,13 @@ export const productSchema = z
 		unitPriceCents: dollars,
 		unitLabel: z.string().trim().min(1, "e.g. each, slice, box of 6").max(30),
 		qtyStep: z.coerce.number().int().min(1).max(100),
-		maxPerOrder: z
+		minPerOrder: z
 			.union([z.string(), z.number()])
 			.transform((value) => (String(value).trim() === "" ? null : Number(value)))
 			.nullable()
 			.refine(
 				(value) => value === null || (Number.isInteger(value) && value >= 1),
-				"Leave blank for no limit",
+				"Leave blank for no minimum",
 			),
 		imagePath: optionalText(400),
 		imageAlt: optionalText(200),
@@ -164,9 +168,9 @@ export const productSchema = z
 		variantLabel: z.string().trim().min(1, "e.g. Flavour, Size").max(30),
 		variants: z.array(productVariantSchema).max(20),
 	})
-	.refine((value) => value.maxPerOrder === null || value.maxPerOrder % value.qtyStep === 0, {
-		message: "The maximum has to be a multiple of the step size",
-		path: ["maxPerOrder"],
+	.refine((value) => value.minPerOrder === null || value.minPerOrder % value.qtyStep === 0, {
+		message: "The minimum has to be a multiple of the step size",
+		path: ["minPerOrder"],
 	})
 	.refine((value) => new Set(value.tiers.map((tier) => tier.qty)).size === value.tiers.length, {
 		message: "Two bundles have the same quantity",
