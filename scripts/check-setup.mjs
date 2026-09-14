@@ -347,6 +347,13 @@ if (fromDomain && FREE_MAIL.includes(fromDomain)) {
 }
 
 report(
+	process.env.RESEND_WEBHOOK_SECRET?.startsWith("whsec_") ? true : "warn",
+	"RESEND_WEBHOOK_SECRET is set",
+	"Only needed in production, and only for bounces. Without it an order whose\n" +
+		"        email never arrived still reads as sent. Resend > Webhooks.",
+);
+
+report(
 	process.env.CRON_SECRET ? true : "warn",
 	"CRON_SECRET is set",
 	"Only needed in production, where it protects the daily keep-alive.",

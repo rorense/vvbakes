@@ -27,6 +27,12 @@ export interface SendResult {
 	sent: boolean;
 	skipped?: string;
 	error?: string;
+	/**
+	 * Resend's id for the accepted message. Recorded against the order so that a
+	 * bounce arriving by webhook minutes later can be matched back to it; that
+	 * id is the only thing the two have in common.
+	 */
+	id?: string;
 }
 
 function mailConfig() {
@@ -50,7 +56,7 @@ async function deliver(options: {
 	}
 
 	try {
-		const { error } = await new Resend(config.apiKey).emails.send({
+		const { data, error } = await new Resend(config.apiKey).emails.send({
 			from: config.from,
 			to: options.to,
 			subject: options.subject,
@@ -67,7 +73,7 @@ async function deliver(options: {
 		if (error) {
 			return { sent: false, error: `${error.name}: ${error.message}` };
 		}
-		return { sent: true };
+		return { sent: true, id: data?.id };
 	} catch (error) {
 		return { sent: false, error: error instanceof Error ? error.message : String(error) };
 	}
@@ -88,6 +94,8 @@ async function logEmail(
 			data: {
 				template,
 				to,
+				// What the bounce webhook joins on.
+				...(result.id ? { emailId: result.id } : {}),
 				...(result.error ? { error: result.error } : {}),
 				...(result.skipped ? { skipped: result.skipped } : {}),
 			},
