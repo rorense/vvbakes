@@ -4,6 +4,7 @@
  *   app/icon.png                  – 512px favicon (Next serves + resizes)
  *   app/apple-icon.png            – 180px, cream background (iOS ignores alpha)
  *   public/icon-192.png / -512.png – PWA manifest icons
+ *   public/email-logo.png         – 144px on cream, for the email header
  *   app/opengraph-image.png       – 1200x630 social card
  *
  * Run with: npm run icons
@@ -60,6 +61,16 @@ async function main() {
 			.png()
 			.toFile(await out(join(root, "public", `icon-${size}.png`)));
 	}
+
+	// Email header badge. Mail clients cannot use next/image, so this is sized for
+	// the 72px it is displayed at and flattened onto paper: a transparent PNG picks
+	// up whatever ground a dark-mode client paints behind it, which is rarely cream.
+	await sharp(trimmed)
+		.resize(128, 128, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+		.extend({ top: 8, bottom: 8, left: 8, right: 8, background: PAPER })
+		.flatten({ background: PAPER })
+		.png()
+		.toFile(await out(join(root, "public", "email-logo.png")));
 
 	// Open Graph card: logo centred on paper with the wordmark underneath.
 	const OG_W = 1200;

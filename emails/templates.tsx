@@ -35,6 +35,7 @@ function NewOrderOwnerEmail(ctx: EmailContext) {
 
 	return (
 		<EmailLayout
+			siteUrl={ctx.siteUrl}
 			preview={`${order.reference}, ${formatDateLong(order.pickupDate)}, ${formatMoney(order.totalCents)}`}
 			heading={`New order ${order.reference}`}
 			footerNote="You're getting this because you're listed as the notification email in the admin settings.">
@@ -103,6 +104,7 @@ function OrderReceivedEmail(ctx: EmailContext) {
 
 	return (
 		<EmailLayout
+			siteUrl={ctx.siteUrl}
 			preview={`We've got your order request ${order.reference}`}
 			heading="Thanks, I've got your order request"
 			footerNote={
@@ -163,6 +165,7 @@ function OrderConfirmedEmail(ctx: EmailContext) {
 
 	return (
 		<EmailLayout
+			siteUrl={ctx.siteUrl}
 			preview={`Order ${order.reference} is confirmed`}
 			heading="Your order is confirmed"
 			footerNote={
@@ -240,6 +243,7 @@ function OrderReadyEmail(ctx: EmailContext) {
 
 	return (
 		<EmailLayout
+			siteUrl={ctx.siteUrl}
 			preview={`${order.reference} is ready`}
 			heading={
 				order.fulfilment === "delivery"
@@ -272,6 +276,7 @@ function OrderCancelledEmail(ctx: EmailContext) {
 
 	return (
 		<EmailLayout
+			siteUrl={ctx.siteUrl}
 			preview={`Order ${order.reference} has been cancelled`}
 			heading="Your order has been cancelled">
 			<Paragraph>

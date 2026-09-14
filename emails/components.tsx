@@ -41,11 +41,13 @@ const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, 
 export const styles = { PAPER, PAPER_DEEP, COCOA, COCOA_SOFT, LINE, ROSE, SERIF, SANS };
 
 export function EmailLayout({
+	siteUrl,
 	preview,
 	heading,
 	children,
 	footerNote,
 }: {
+	siteUrl: string;
 	preview: string;
 	heading: string;
 	children: React.ReactNode;
@@ -70,6 +72,18 @@ export function EmailLayout({
 						margin: "0 auto",
 						padding: "8px 24px 32px",
 					}}>
+					{/*
+					 * Decorative: the wordmark underneath is the accessible name, so a
+					 * client that blocks remote images loses nothing but the picture.
+					 */}
+					<Img
+						src={`${siteUrl}/email-logo.png`}
+						width="72"
+						height="72"
+						alt=""
+						style={{ display: "block", margin: "0 0 12px" }}
+					/>
+
 					<Text
 						style={{
 							fontFamily: SERIF,

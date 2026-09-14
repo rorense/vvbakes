@@ -13,7 +13,7 @@ import type { Order, PrivateSettings, SiteSettings } from "./types";
  * Sent over SMTP with nodemailer rather than through an email API, because the
  * shop has no domain of its own yet and every API provider's sandbox sender can
  * only deliver back to the account owner, customer mail would silently vanish.
- * A Gmail app password works today and needs no DNS.
+ * An app password on an ordinary mailbox works today and needs no DNS.
  *
  * Swapping to a provider later means changing `deliver` and nothing else.
  *
@@ -47,6 +47,31 @@ function smtpConfig() {
 	};
 }
 
+/** The domain of an address, given either bare or as `Name <addr>`. */
+function domainOf(address: string): string | null {
+	const angled = address.match(/<([^>]+)>/);
+	const bare = (angled?.[1] ?? address).trim();
+	const at = bare.lastIndexOf("@");
+	return at === -1 ? null : bare.slice(at + 1).toLowerCase();
+}
+
+/**
+ * Yahoo's SMTP rejects, with `550 Request failed; Mailbox unavailable`, any
+ * message carrying a Reply-To on a domain other than the account sending it.
+ * The owner's new-order alert replies to the customer, so under Yahoo it was
+ * every single one of them, and she heard about no orders at all.
+ *
+ * Dropping the header rather than the message is the right trade: the alert is
+ * the thing she needs, and the customer's address is printed in its body
+ * anyway. Same-domain addresses still get a Reply-To, so once the shop sends
+ * from its own domain the customer emails keep theirs.
+ */
+function allowedReplyTo(from: string, replyTo: string | null | undefined): string | undefined {
+	if (!replyTo) return undefined;
+	const sender = domainOf(from);
+	return sender && domainOf(replyTo) === sender ? replyTo : undefined;
+}
+
 async function deliver(options: {
 	to: string;
 	subject: string;
@@ -73,7 +98,7 @@ async function deliver(options: {
 			subject: options.subject,
 			html: options.html,
 			text: options.text,
-			replyTo: options.replyTo ?? undefined,
+			replyTo: allowedReplyTo(config.from, options.replyTo),
 		});
 
 		return { sent: true };

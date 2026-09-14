@@ -93,7 +93,9 @@ const context: EmailContext = {
 	order,
 	settings,
 	privateSettings,
-	siteUrl: "https://vvbakes.example",
+	// The header badge is a real image served out of public/, so previews point at
+	// a running dev server by default. Override with PREVIEW_SITE_URL.
+	siteUrl: process.env.PREVIEW_SITE_URL ?? "http://localhost:3000",
 };
 
 /**
