@@ -98,6 +98,13 @@ export function ProductForm({
 	const [variants, setVariants] = useState<VariantDraft[]>(() => initialVariants(product));
 	const [imagePath, setImagePath] = useState(product?.imagePath ?? "");
 
+	// Whether this product is sold in variants is a question about the form,
+	// not a column. The database still decides it the only way that cannot
+	// drift — by whether any variant rows exist — so there is no flag here to
+	// disagree with reality, only a switch that decides what she is shown.
+	const [sellsVariants, setSellsVariants] = useState(() => (product?.variants.length ?? 0) > 0);
+	const savedVariantCount = product?.variants.length ?? 0;
+
 	const tiersJson = JSON.stringify(
 		tiers
 			.filter((tier) => tier.qty.trim() !== "" && tier.price.trim() !== "")
@@ -106,9 +113,29 @@ export function ProductForm({
 
 	// A half-typed row is not a variant yet. Dropping it here rather than failing
 	// validation means an empty row left behind after "Add" is simply ignored.
-	const filledVariants = variants.filter(
-		(variant) => variant.name.trim() !== "" && variant.price.trim() !== "",
-	);
+	//
+	// Turning the switch off does not throw the rows away, so flicking it back on
+	// in the same sitting brings them back. It does stop them being submitted,
+	// which is what turns the product into a single thing on save.
+	const filledVariants = sellsVariants
+		? variants.filter((variant) => variant.name.trim() !== "" && variant.price.trim() !== "")
+		: [];
+
+	// The product still needs a price of its own: the column is not null, and a
+	// product built out of variants from the start has never had one typed into
+	// it. The cheapest variant stands in, so taking every variant away later
+	// leaves a price that means something rather than a zero. Anything unusable in
+	// the box is ignored rather than submitted, because the box is hidden and she
+	// would have no way to see what the complaint was about.
+	const typedPrice = Number(unitPrice);
+	const typedPriceUsable =
+		unitPrice.trim() !== "" && Number.isFinite(typedPrice) && typedPrice >= 0;
+	const cheapestVariant = filledVariants
+		.map((variant) => Number(variant.price))
+		.filter((price) => Number.isFinite(price) && price >= 0)
+		.sort((a, b) => a - b)[0];
+	const submittedUnitPrice =
+		!sellsVariants || typedPriceUsable ? unitPrice : (cheapestVariant?.toString() ?? "0");
 
 	const variantsJson = JSON.stringify(
 		filledVariants.map((variant) => ({
@@ -226,28 +253,75 @@ export function ProductForm({
 				</div>
 			</AdminCard>
 
+			<AdminCard title="Variants">
+				<div className="flex flex-col gap-5">
+					<Switch
+						checked={sellsVariants}
+						onChange={(event) => setSellsVariants(event.target.checked)}
+						label="This is sold in variants"
+						description="A cake that comes in three flavours, a tin that comes in two sizes. Each one sets its own price, and its own photo, availability and extra allergens."
+					/>
+
+					{sellsVariants ? (
+						<VariantFieldset
+							slug={nameAndSlug.slug || "product"}
+							variantLabel={variantLabel}
+							setVariantLabel={setVariantLabel}
+							variants={variants}
+							setVariants={setVariants}
+							error={errors.variants}
+							labelError={errors.variantLabel}
+						/>
+					) : (
+						<>
+							{/* Unused without variants, but resubmitted so that turning them off
+							    and on again does not quietly rename what the picker asks for. */}
+							<input
+								type="hidden"
+								name="variantLabel"
+								value={variantLabel}
+							/>
+							{savedVariantCount > 0 ? (
+								<p className="border-danger text-danger rounded-md border px-4 py-3 text-sm">
+									Saving now removes the {savedVariantCount}{" "}
+									{savedVariantCount === 1 ? "variant" : "variants"} this product has, and it goes
+									back to the one price below. Orders already placed keep the name they were given.
+								</p>
+							) : null}
+						</>
+					)}
+				</div>
+			</AdminCard>
+
 			<AdminCard title="Price">
 				<div className="grid gap-5 sm:grid-cols-3">
-					<Field
-						label="Price"
-						hint={
-							filledVariants.length > 0
-								? `In dollars. Each ${variantLabel.toLowerCase()} below sets its own price, so this one is only used if you take them all away.`
-								: "In dollars, e.g. 3 or 12.50"
-						}
-						required
-						error={errors.unitPriceCents}>
-						{(props) => (
-							<Input
-								{...props}
-								name="unitPrice"
-								inputMode="decimal"
-								value={unitPrice}
-								onChange={(event) => setUnitPrice(event.target.value)}
-								invalid={Boolean(errors.unitPriceCents)}
-							/>
-						)}
-					</Field>
+					{sellsVariants ? (
+						// Every variant sets its own, so a box here would be a second answer to
+						// a question already asked above. Submitted unseen so the product still
+						// has a price to fall back on if the variants ever go.
+						<input
+							type="hidden"
+							name="unitPrice"
+							value={submittedUnitPrice}
+						/>
+					) : (
+						<Field
+							label="Price"
+							hint="In dollars, e.g. 3 or 12.50"
+							required
+							error={errors.unitPriceCents}>
+							{(props) => (
+								<Input
+									{...props}
+									name="unitPrice"
+									inputMode="decimal"
+									value={unitPrice}
+									onChange={(event) => setUnitPrice(event.target.value)}
+									invalid={Boolean(errors.unitPriceCents)}
+								/>
+							)}
+						</Field>
+					)}
 
 					<Field
 						label="Per"
@@ -305,24 +379,12 @@ export function ProductForm({
 				/>
 
 				<PricePreview
-					unitPrice={unitPrice}
+					unitPrice={submittedUnitPrice}
 					unitLabel={unitLabel}
 					qtyStep={qtyStep}
 					tiers={tiers}
 					variants={filledVariants}
 					variantLabel={variantLabel}
-				/>
-			</AdminCard>
-
-			<AdminCard title="Variants">
-				<VariantFieldset
-					slug={nameAndSlug.slug || "product"}
-					variantLabel={variantLabel}
-					setVariantLabel={setVariantLabel}
-					variants={variants}
-					setVariants={setVariants}
-					error={errors.variants}
-					labelError={errors.variantLabel}
 				/>
 			</AdminCard>
 
@@ -350,12 +412,29 @@ export function ProductForm({
 
 			<AdminCard title="Availability">
 				<div className="flex flex-col gap-5">
-					<Switch
-						name="isAvailable"
-						label="Available to order"
-						description="Turn off to keep it in the shop but stop people ordering it."
-						defaultChecked={product ? product.isAvailable : true}
-					/>
+					{sellsVariants ? (
+						<>
+							{/* Each variant has its own switch, so the product's would be a
+							    second, quieter answer to the same question — and one that
+							    silently outranks every switch above it. Held on instead. */}
+							<input
+								type="hidden"
+								name="isAvailable"
+								value="on"
+							/>
+							<p className="text-cocoa-soft text-sm">
+								Each variant has its own on/sold-out switch, up in Variants. The product drops out
+								of the shop by itself once every one of them is off.
+							</p>
+						</>
+					) : (
+						<Switch
+							name="isAvailable"
+							label="Available to order"
+							description="Turn off to keep it in the shop but stop people ordering it."
+							defaultChecked={product ? product.isAvailable : true}
+						/>
+					)}
 					<Switch
 						name="isFeatured"
 						label="Show on the home page"
@@ -377,10 +456,11 @@ export function ProductForm({
 				</div>
 			</AdminCard>
 
-			<AdminCard title="Allergens">
+			<AdminCard title={sellsVariants ? "Allergens in every variant" : "Allergens"}>
 				<p className="text-cocoa-soft mb-4 text-sm">
-					Tick anything <em>every</em> version of this contains. If one variant has something extra
-					— walnuts in the carrot one — tick that on the variant itself, not here.
+					{sellsVariants
+						? "Tick what every one of them contains. Anything only one of them has — walnuts in the carrot one — goes under Extra allergens on that variant, not here."
+						: "Tick anything this contains. Shown on the product page."}
 				</p>
 				<div className="grid gap-3 sm:grid-cols-3">
 					{ALLERGENS.map((allergen) => (
@@ -546,12 +626,6 @@ function VariantFieldset({
 
 	return (
 		<div className="flex flex-col gap-5">
-			<p className="text-cocoa-soft text-sm">
-				For something sold in more than one version: a cake that comes in three flavours, a tin that
-				comes in two sizes. Each one carries its own price, its own photo if it looks different, and
-				anything extra it contains. Leave this empty for a product that is just one thing.
-			</p>
-
 			<Field
 				label="What the choice is called"
 				hint="Flavour, Size, Filling. Shown above the picker on the product page."
@@ -654,7 +728,7 @@ function VariantFieldset({
 						    the summary says what is ticked without opening it. */}
 						<details className="border-line border-t pt-3">
 							<summary className="text-cocoa-soft cursor-pointer text-xs">
-								Allergens ·{" "}
+								Extra allergens ·{" "}
 								{variant.allergens.length > 0
 									? `also contains ${allergenSentence(variant.allergens)}`
 									: "nothing beyond the product's"}
