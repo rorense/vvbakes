@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { buildPublicCalendar, computeAvailability } from "@/lib/availability";
@@ -21,6 +22,15 @@ import { PublicCalendar } from "@/components/site/PublicCalendar";
 
 // Revalidated on a timer and on demand whenever the admin changes the catalogue.
 export const revalidate = 300;
+
+/**
+ * The home page inherits its title and description from the root layout, but a
+ * canonical has to be declared per page: `alternates` is inherited wholesale in
+ * Next, so a single one on the layout would make every page claim to be "/".
+ */
+export const metadata: Metadata = {
+	alternates: { canonical: "/" },
+};
 
 /** What to mention when asking about a custom cake. */
 const CUSTOM_PROMPTS = [

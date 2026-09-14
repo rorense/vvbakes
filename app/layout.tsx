@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Instrument_Sans } from "next/font/google";
-import { SITE_NAME, SITE_TAGLINE, siteUrl } from "@/lib/constants";
+import { SEARCH_INDEXING, SITE_NAME, SITE_TAGLINE, siteUrl } from "@/lib/constants";
 import { Analytics, SpeedInsights } from "@/components/site/Analytics";
 import "./globals.css";
 
@@ -37,6 +37,9 @@ export const metadata: Metadata = {
 		locale: "en_NZ",
 	},
 	twitter: { card: "summary_large_image" },
+	// Inherited by every page that does not set its own; /admin, /menu and the
+	// order-status pages already declare a stricter one of their own.
+	robots: SEARCH_INDEXING ? undefined : { index: false, follow: false },
 	formatDetection: { telephone: false },
 };
 

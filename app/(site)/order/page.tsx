@@ -17,6 +17,7 @@ export const metadata: Metadata = {
 	title: "Place an order",
 	description:
 		"Ask about a custom cake, or order something from the menu. Pick a day and I'll confirm by email.",
+	alternates: { canonical: "/order" },
 };
 
 export default async function OrderPage({

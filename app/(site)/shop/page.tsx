@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 	title: "Shop",
 	description:
 		"The ready-made half of vvbakes: cupcakes, cookies and Indonesian cakes, baked for the day you collect them. Custom cakes are made to order separately.",
+	alternates: { canonical: "/shop" },
 };
 
 const BAND: Record<Accent, string> = {
