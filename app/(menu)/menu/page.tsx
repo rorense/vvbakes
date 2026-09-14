@@ -13,7 +13,7 @@ import styles from "./menu.module.css";
  */
 const MENU_ITEMS: ReadonlyArray<{ name: string; prices: readonly string[] }> = [
 	{ name: "Cupcakes", prices: ["$3 each", "4 for $12"] },
-	{ name: "Cookies", prices: ["2 for $5"] },
+	{ name: "Cookies", prices: ["$5 / pack"] },
 	{ name: "Brochi", prices: ["$5 / slice"] },
 	{ name: "Wingko", prices: ["$5 / slice"] },
 	{ name: "Pandan Chiffon Cake", prices: ["$3 / slice"] },

@@ -58,7 +58,7 @@ export interface Product {
 	unitPriceCents: number;
 	/** "each", "slice", "box of 6". */
 	unitLabel: string;
-	/** Sold only in multiples of this. Cookies at "2 for $5" have step 2. */
+	/** Sold only in multiples of this. An item sold in pairs has step 2. */
 	qtyStep: number;
 	maxPerOrder: number | null;
 	tiers: PriceTier[];

@@ -255,8 +255,11 @@ nothing to add is no longer turned away with "your order is empty".
 cheapest combination, worked out properly rather than by taking the biggest
 bundle first, which overcharges whenever a smaller bundle has a better rate.
 
-Cookies are the other shape: `$2.50` each with a step of `2`, so the shop
-advertises "2 for $5" and the form only ever offers even numbers.
+A product can also be sold only in multiples: give it a step of `2` and the
+form offers even numbers only, advertising itself as "2 for $5" rather than by a
+single-unit price nobody can buy. Nothing in the seed uses it. Cookies looked
+like that shape at first, but a `$5` pack of two is one unit, not two, and
+saying so reads better on the menu and counts better in the basket.
 
 ### What is private
 
@@ -318,11 +321,12 @@ and never at a customer's address.
 Then, by hand:
 
 **The catalogue.** `/shop` should show three bands with five products, priced
-"$3 each · 4 for $12", "2 for $5", "$5 / slice" and "$3 / slice". Toggle a
+"$3 each · 4 for $12", "$5 / pack", "$5 / slice" and "$3 / slice". Toggle a
 product to sold out in the admin and reload, the badge should appear.
 
-**An order.** Add five cupcakes and two cookies; the total should be exactly
-`$20.00`, and the cupcake line should read `1 x 4 for $12.00 + 1 x $3.00 each`.
+**An order.** Add five cupcakes and two packs of cookies; the total should be
+exactly `$25.00`, and the cupcake line should read
+`1 x 4 for $12.00 + 1 x $3.00 each`.
 Submit it, then check that you got the notification email and the customer got
 the acknowledgement.
 

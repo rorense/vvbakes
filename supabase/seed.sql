@@ -44,7 +44,7 @@ on conflict (slug) do nothing;
 
 -- Prices transcribed exactly from the market menu:
 --   Cupcakes  $3 each / 4 for $12      -> unit 300, tier 4 -> 1200
---   Cookies   2 for $5                 -> unit 250, sold in steps of 2
+--   Cookies   $5 a pack of two         -> unit 500, label 'pack'
 --   Brochi    $5 / slice               -> unit 500, label 'slice'
 --   Wingko    $5 / slice               -> unit 500, label 'slice'
 --   Pandan Chiffon Cake  $3 / slice    -> unit 300, label 'slice'
@@ -60,7 +60,7 @@ insert into products (
 	(
 		'Cookies', 'cookies',
 		(select id from categories where slug = 'cookies'),
-		null, 250, 'each', 2, true, 2
+		'Each pack comes with two cookies.', 500, 'pack', 1, true, 2
 	),
 	(
 		'Brochi', 'brochi',

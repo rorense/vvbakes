@@ -199,7 +199,7 @@ export function ProductForm({
 
 					<Field
 						label="Sold in multiples of"
-						hint="Cookies at 2 for $5 are priced 2.50 each with a step of 2."
+						hint="Leave at 1 unless the item can only be bought in twos, sixes and so on."
 						error={errors.qtyStep}>
 						{(props) => (
 							<Input

@@ -100,11 +100,9 @@ describe("priceRule", () => {
 	});
 
 	it("advertises a stepped item by its step, not its unit price", () => {
-		// Cookies are $2.50 each but only sold in pairs, so "2 for $5" is the
-		// honest headline and "$2.50 each" would be misleading.
-		expect(priceRule(product({ name: "Cookies", unitPriceCents: 250, qtyStep: 2 }))).toBe(
-			"2 for $5",
-		);
+		// An item priced $2.50 but only sold in pairs has no single-unit price
+		// worth printing: "2 for $5" is the honest headline.
+		expect(priceRule(product({ unitPriceCents: 250, qtyStep: 2 }))).toBe("2 for $5");
 	});
 
 	it("keeps cents when a price is not a whole number of dollars", () => {

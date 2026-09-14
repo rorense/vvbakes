@@ -106,9 +106,9 @@ describe("seed data", () => {
 			},
 			{
 				slug: "cookies",
-				unit_price_cents: 250,
-				unit_label: "each",
-				qty_step: 2,
+				unit_price_cents: 500,
+				unit_label: "pack",
+				qty_step: 1,
 			},
 			{
 				slug: "brochi",
@@ -186,9 +186,9 @@ describe("price_for_qty", () => {
 		});
 	});
 
-	it("prices cookies from the unit price they are stepped in", async () => {
-		expect((await price("cookies", 2)).total_cents).toBe(500);
-		expect((await price("cookies", 6)).total_cents).toBe(1500);
+	it("prices cookies by the pack", async () => {
+		expect((await price("cookies", 1)).total_cents).toBe(500);
+		expect((await price("cookies", 3)).total_cents).toBe(1500);
 	});
 
 	it("picks the cheapest combination, not the largest bundle", async () => {
@@ -232,7 +232,7 @@ describe("place_order", () => {
 			pickupDate: await dateIn(7),
 		});
 
-		expect(order.total_cents).toBe(2000);
+		expect(order.total_cents).toBe(2500);
 		expect(order.reference).toMatch(/^VV\d+$/);
 		expect(order.token).toMatch(/^[0-9a-f]{32}$/);
 
@@ -251,8 +251,8 @@ describe("place_order", () => {
 			{
 				product_name: "Cookies",
 				qty: 2,
-				line_total_cents: 500,
-				pricing_note: "2 x $2.50 each",
+				line_total_cents: 1000,
+				pricing_note: "2 x $5.00 pack",
 			},
 			{
 				product_name: "Cupcakes",
@@ -320,13 +320,20 @@ describe("place_order", () => {
 	});
 
 	it("rejects a quantity that does not match the product's step", async () => {
+		// Nothing in the seed is stepped now that cookies are sold by the pack,
+		// so borrow a product and put it back afterwards.
+		const id = await productId("brochi");
+		await db.query("update products set qty_step = 2 where id = $1", [id]);
+
 		const message = await errorOf(async () =>
 			placeOrder({
-				items: [{ product_id: await productId("cookies"), qty: 3 }],
+				items: [{ product_id: id, qty: 3 }],
 				pickupDate: await dateIn(7),
 			}),
 		);
 		expect(message).toContain("QTY_INVALID");
+
+		await db.query("update products set qty_step = 1 where id = $1", [id]);
 	});
 
 	it("rejects an unavailable product", async () => {
@@ -388,7 +395,7 @@ describe("place_order", () => {
 			pickupDate: await dateIn(7),
 			custom: "And a small cake to go with them.",
 		});
-		expect(order.total_cents).toBe(500);
+		expect(order.total_cents).toBe(1000);
 	});
 
 	it("counts a custom cake against the day's capacity like any other order", async () => {
