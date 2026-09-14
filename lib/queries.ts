@@ -90,7 +90,8 @@ export const getCategories = cache(async (): Promise<Category[]> => {
 	return (data ?? []).map(toCategory);
 });
 
-const PRODUCT_SELECT = "*, product_price_tiers (qty, price_cents)";
+const PRODUCT_SELECT =
+	"*, product_price_tiers (qty, price_cents), product_variants (id, name, unit_price_cents, is_available, sort_order)";
 
 const getProducts = cache(async (): Promise<Product[]> => {
 	if (isDemoMode()) return DEMO_PRODUCTS;

@@ -86,6 +86,64 @@ afterAll(async () => {
 	await db?.close();
 });
 
+describe("lib/pricing.ts agrees with price_for_qty on a variant", () => {
+	// A flavour priced away from the product's own price is where the two
+	// implementations could most easily drift: the database starts its dynamic
+	// program from the variant's price while the browser starts from whatever
+	// the form handed it, and the bundle tiers stay the product's in both.
+	const VARIANT_PRICES = [0, 275, 4500, 5500];
+
+	it("prices every flavour the same way the browser does", async () => {
+		await db.query("update products set unit_price_cents = 300, unit_label = $2 where id = $1", [
+			productId,
+			"cake",
+		]);
+		await db.query("delete from product_price_tiers where product_id = $1", [productId]);
+		await db.query(
+			"insert into product_price_tiers (product_id, qty, price_cents) values ($1, 2, 800), ($1, 5, 1800)",
+			[productId],
+		);
+
+		const tiers: PriceTier[] = [
+			{ qty: 2, priceCents: 800 },
+			{ qty: 5, priceCents: 1800 },
+		];
+		const mismatches: string[] = [];
+
+		for (const priceCents of VARIANT_PRICES) {
+			const inserted = await db.query<{ id: string }>(
+				`insert into product_variants (product_id, name, unit_price_cents)
+				 values ($1, $2, $3) returning id`,
+				[productId, `Flavour ${priceCents}`, priceCents],
+			);
+			const variantId = inserted.rows[0]!.id;
+
+			for (let qty = 1; qty <= 20; qty += 1) {
+				const sql = await db.query<{ total_cents: number; note: string }>(
+					"select total_cents, note from price_for_qty($1, $2, $3)",
+					[productId, qty, variantId],
+				);
+				const fromDb = sql.rows[0]!;
+				const fromTs = priceForQty(priceCents, tiers, qty, "cake");
+
+				if (fromDb.total_cents !== fromTs.totalCents) {
+					mismatches.push(
+						`${priceCents}c x ${qty}: database charges ${fromDb.total_cents}, form showed ${fromTs.totalCents}`,
+					);
+				}
+				if (fromDb.note !== fromTs.note) {
+					mismatches.push(`${priceCents}c x ${qty}: note "${fromDb.note}" vs "${fromTs.note}"`);
+				}
+			}
+		}
+
+		expect(mismatches).toEqual([]);
+
+		await db.query("delete from product_variants where product_id = $1", [productId]);
+		await db.query("delete from product_price_tiers where product_id = $1", [productId]);
+	});
+});
+
 describe("lib/pricing.ts agrees with price_for_qty", () => {
 	for (const testCase of CASES) {
 		it(testCase.name, async () => {

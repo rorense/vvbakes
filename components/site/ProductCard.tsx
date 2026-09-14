@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { fallbackAccent, productImageAlt, productImageUrl } from "@/lib/images";
-import { priceRule } from "@/lib/pricing";
+import { isOrderable, priceRule } from "@/lib/pricing";
 import { ALLERGEN_LABELS, type Accent, type Product } from "@/lib/types";
 import { Badge, Chip } from "@/components/ui/Badge";
 
@@ -73,6 +73,7 @@ export function ProductImage({
 
 /** Only rendered for a product that is off; the caller does that check. */
 function AvailabilityBadge({ product }: { product: Product }) {
+	// "Sold out" also covers a product whose every flavour is switched off.
 	return <Badge tone="cocoa">{product.availabilityNote ?? "Sold out"}</Badge>;
 }
 
@@ -109,14 +110,14 @@ export function ProductCard({
 				<div
 					className={cn(
 						"arch-soft bg-paper-deep relative aspect-4/5",
-						!product.isAvailable && "opacity-60 saturate-50",
+						!isOrderable(product) && "opacity-60 saturate-50",
 					)}>
 					<ProductImage
 						product={product}
 						priority={priority}
 						behind={behind}
 					/>
-					{!product.isAvailable ? (
+					{!isOrderable(product) ? (
 						<div className="absolute top-3 left-3">
 							<AvailabilityBadge product={product} />
 						</div>

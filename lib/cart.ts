@@ -19,6 +19,22 @@ import type { Cart, CartLine } from "./types";
 
 const EMPTY: Cart = { v: 1, lines: [] };
 
+/**
+ * What makes a line its own line: the product, and which flavour of it.
+ *
+ * Two flavours of one cake are two lines with their own quantities and their
+ * own prices, so everything that adds, sets or removes has to match on the pair
+ * rather than on the product alone. A product with no variants has one line, as
+ * it always did.
+ */
+export function cartLineKey(productId: string, variantId?: string | null): string {
+	return `${productId}:${variantId ?? ""}`;
+}
+
+function keyOf(line: CartLine): string {
+	return cartLineKey(line.productId, line.variantId);
+}
+
 /** Notifies other hooks in this tab; `storage` only fires in *other* tabs. */
 const CART_EVENT = "vvbakes:cart-changed";
 
@@ -34,9 +50,17 @@ function parse(raw: string | null): Cart {
 		) {
 			return EMPTY;
 		}
+		// `variantId` is left exactly as found, including absent, which is what a
+		// cart saved before variants existed looks like. Whether it still names a
+		// flavour that exists is decided against the live catalogue, not here.
 		const lines = (parsed as Cart).lines.filter(
 			(line): line is CartLine =>
-				typeof line?.productId === "string" && Number.isInteger(line?.qty) && line.qty > 0,
+				typeof line?.productId === "string" &&
+				(line.variantId === undefined ||
+					line.variantId === null ||
+					typeof line.variantId === "string") &&
+				Number.isInteger(line?.qty) &&
+				line.qty > 0,
 		);
 		return { v: 1, lines };
 	} catch {
@@ -72,37 +96,39 @@ export function clearCart(): void {
 }
 
 /** Adds to an existing line rather than duplicating it. */
-function addToCart(productId: string, qty: number): Cart {
+function addToCart(productId: string, qty: number, variantId: string | null): Cart {
 	const cart = readCart();
-	const existing = cart.lines.find((line) => line.productId === productId);
+	const key = cartLineKey(productId, variantId);
+	const existing = cart.lines.find((line) => keyOf(line) === key);
 	const next: Cart = existing
 		? {
 				v: 1,
 				lines: cart.lines.map((line) =>
-					line.productId === productId ? { ...line, qty: line.qty + qty } : line,
+					keyOf(line) === key ? { ...line, qty: line.qty + qty } : line,
 				),
 			}
-		: { v: 1, lines: [...cart.lines, { productId, qty }] };
+		: { v: 1, lines: [...cart.lines, { productId, variantId, qty }] };
 
 	writeCart(next);
 	return next;
 }
 
-function setCartQty(productId: string, qty: number): Cart {
+function setCartQty(productId: string, qty: number, variantId: string | null): Cart {
 	const cart = readCart();
+	const key = cartLineKey(productId, variantId);
 	const next: Cart = {
 		v: 1,
 		lines:
 			qty <= 0
-				? cart.lines.filter((line) => line.productId !== productId)
-				: cart.lines.map((line) => (line.productId === productId ? { ...line, qty } : line)),
+				? cart.lines.filter((line) => keyOf(line) !== key)
+				: cart.lines.map((line) => (keyOf(line) === key ? { ...line, qty } : line)),
 	};
 	writeCart(next);
 	return next;
 }
 
-function removeFromCart(productId: string): Cart {
-	return setCartQty(productId, 0);
+function removeFromCart(productId: string, variantId: string | null): Cart {
+	return setCartQty(productId, 0, variantId);
 }
 
 /**
@@ -159,9 +185,9 @@ const neverReady = () => false;
 export function useCart(): {
 	cart: Cart;
 	ready: boolean;
-	setQty: (productId: string, qty: number) => void;
-	add: (productId: string, qty: number) => void;
-	remove: (productId: string) => void;
+	setQty: (productId: string, qty: number, variantId?: string | null) => void;
+	add: (productId: string, qty: number, variantId?: string | null) => void;
+	remove: (productId: string, variantId?: string | null) => void;
 	clear: () => void;
 } {
 	const cart = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -170,14 +196,14 @@ export function useCart(): {
 	return {
 		cart,
 		ready,
-		setQty: useCallback((productId: string, qty: number) => {
-			setCartQty(productId, qty);
+		setQty: useCallback((productId: string, qty: number, variantId: string | null = null) => {
+			setCartQty(productId, qty, variantId);
 		}, []),
-		add: useCallback((productId: string, qty: number) => {
-			addToCart(productId, qty);
+		add: useCallback((productId: string, qty: number, variantId: string | null = null) => {
+			addToCart(productId, qty, variantId);
 		}, []),
-		remove: useCallback((productId: string) => {
-			removeFromCart(productId);
+		remove: useCallback((productId: string, variantId: string | null = null) => {
+			removeFromCart(productId, variantId);
 		}, []),
 		clear: useCallback(() => {
 			clearCart();

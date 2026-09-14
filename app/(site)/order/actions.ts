@@ -110,7 +110,11 @@ export async function placeOrder(
 	const requestHeaders = await headers();
 
 	const { data, error } = await supabase.rpc("place_order", {
-		p_items: input.items.map((item) => ({ product_id: item.productId, qty: item.qty })),
+		p_items: input.items.map((item) => ({
+			product_id: item.productId,
+			variant_id: item.variantId ?? null,
+			qty: item.qty,
+		})),
 		p_pickup_date: input.pickupDate,
 		p_fulfilment: input.fulfilment,
 		p_customer_name: input.customerName,

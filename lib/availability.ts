@@ -224,6 +224,10 @@ export function orderErrorMessage(raw: string): string {
 		DELIVERY_DISABLED: "Delivery isn't available at the moment. Please choose pickup.",
 		DELIVERY_ADDRESS_REQUIRED: "Please add a delivery address.",
 		PRODUCT_UNAVAILABLE: "Something in your order has just sold out. Please review your order.",
+		VARIANT_UNAVAILABLE:
+			"One of the flavours you chose has just sold out. Please review your order.",
+		VARIANT_REQUIRED: "Something in your order needs a flavour chosen. Please review your order.",
+		VARIANT_NOT_FOUND: "One of the flavours you chose is no longer on the menu. Please review it.",
 		QTY_INVALID: "One of the quantities isn't available. Please review your order.",
 		PRODUCT_NOT_FOUND: "Something in your order is no longer on the menu. Please review it.",
 		SETTINGS_MISSING: "Something went wrong on our end. Please try again shortly.",

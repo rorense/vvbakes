@@ -50,6 +50,11 @@ export function ProductRow({
 					<p className="text-cocoa-soft text-xs">
 						{categoryName ?? "No category"} · {priceLabel}
 						{product.qtyStep > 1 ? ` · sold in ${product.qtyStep}s` : ""}
+						{product.variants.length > 0
+							? ` · ${product.variants.length} ${product.variantLabel.toLowerCase()}${
+									product.variants.length === 1 ? "" : "s"
+								}`
+							: ""}
 					</p>
 				</div>
 

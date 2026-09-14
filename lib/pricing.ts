@@ -7,7 +7,7 @@
  * inside the transaction that writes the order, and that is the price charged.
  * If the two ever disagree, the database is right and this file has a bug.
  */
-import type { PriceTier, Product } from "./types";
+import type { PriceTier, Product, ProductVariant } from "./types";
 
 export interface PricedQuantity {
 	totalCents: number;
@@ -88,9 +88,66 @@ export function priceForQty(
 	return { totalCents: best[qty]!, note: parts.join(" + ") };
 }
 
-/** Convenience wrapper for a whole product. */
-export function priceProduct(product: Product, qty: number): PricedQuantity {
-	return priceForQty(product.unitPriceCents, product.tiers, qty, product.unitLabel);
+/** True when the product is sold as flavours, sizes or some other named choice. */
+export function hasVariants(product: Product): boolean {
+	return product.variants.length > 0;
+}
+
+/** The flavours a customer may actually pick. */
+export function availableVariants(product: Product): ProductVariant[] {
+	return product.variants.filter((variant) => variant.isAvailable);
+}
+
+/** The one a picker should start on, or null when there is nothing to pick. */
+export function defaultVariant(product: Product): ProductVariant | null {
+	return availableVariants(product)[0] ?? null;
+}
+
+/**
+ * True when a customer can actually put this in their basket right now.
+ *
+ * A flavoured product with every flavour switched off is sold out even though
+ * the product itself still says available, and the shop has to say so rather
+ * than offer a picker with nothing in it.
+ */
+export function isOrderable(product: Product): boolean {
+	if (!product.isAvailable) return false;
+	return !hasVariants(product) || availableVariants(product).length > 0;
+}
+
+/**
+ * The variant with this id, or null.
+ *
+ * Deliberately tolerant of an id that no longer matches anything: the cart is
+ * localStorage and can name a flavour the owner deleted last week. Callers
+ * treat null as "this line is stale" and drop it.
+ */
+export function findVariant(product: Product, variantId: string | null | undefined) {
+	if (!variantId) return null;
+	return product.variants.find((variant) => variant.id === variantId) ?? null;
+}
+
+/**
+ * What one unit of this line costs: the variant's price when there is one, the
+ * product's own otherwise.
+ */
+export function unitPriceOf(product: Product, variant: ProductVariant | null): number {
+	return variant ? variant.unitPriceCents : product.unitPriceCents;
+}
+
+/**
+ * Convenience wrapper for a whole product.
+ *
+ * Bundle tiers belong to the product and are applied on top of whichever unit
+ * price is in play, so "4 for $12" means four of *this* flavour. Mixing
+ * flavours inside one bundle is a different promise and nothing here makes it.
+ */
+export function priceProduct(
+	product: Product,
+	qty: number,
+	variant: ProductVariant | null = null,
+): PricedQuantity {
+	return priceForQty(unitPriceOf(product, variant), product.tiers, qty, product.unitLabel);
 }
 
 /**
@@ -99,12 +156,10 @@ export function priceProduct(product: Product, qty: number): PricedQuantity {
  *   plain item        "$5 / slice"
  *   item with tiers   "$3 each · 4 for $12"
  *   stepped item      "2 for $5"        (cookies: sold in pairs, no tier row)
+ *   flavoured item    "$45 – $55 each"  (one price shown when they all match)
  */
 export function priceRule(product: Product): string {
-	const base =
-		product.unitLabel === "each"
-			? `${formatPrice(product.unitPriceCents)} each`
-			: `${formatPrice(product.unitPriceCents)} / ${product.unitLabel}`;
+	const base = priceRange(product);
 
 	if (product.tiers.length > 0) {
 		const tiers = [...product.tiers]
@@ -113,12 +168,37 @@ export function priceRule(product: Product): string {
 		return [base, ...tiers].join(" · ");
 	}
 
-	if (product.qtyStep > 1) {
+	if (product.qtyStep > 1 && !hasVariants(product)) {
 		// A stepped product has no meaningful single-unit price to advertise.
 		return `${product.qtyStep} for ${formatPrice(product.unitPriceCents * product.qtyStep)}`;
 	}
 
 	return base;
+}
+
+/**
+ * The price half of `priceRule`, before any bundles are named.
+ *
+ * A product whose flavours are all the same price reads as one price, because
+ * that is what it is; only a genuine spread is worth two numbers and a dash.
+ * Sold-out flavours are left out: quoting a range a customer cannot buy either
+ * end of is worse than quoting nothing.
+ */
+export function priceRange(product: Product): string {
+	const suffix = product.unitLabel === "each" ? "each" : `/ ${product.unitLabel}`;
+
+	if (!hasVariants(product)) {
+		return `${formatPrice(product.unitPriceCents)} ${suffix}`;
+	}
+
+	const choices = availableVariants(product);
+	const prices = (choices.length > 0 ? choices : product.variants).map((v) => v.unitPriceCents);
+	const low = Math.min(...prices);
+	const high = Math.max(...prices);
+
+	return low === high
+		? `${formatPrice(low)} ${suffix}`
+		: `${formatPrice(low)} – ${formatPrice(high)} ${suffix}`;
 }
 
 /** The smallest quantity a customer can put in their cart. */

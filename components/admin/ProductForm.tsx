@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { saveProduct } from "@/app/admin/(dashboard)/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, succeeded } from "@/lib/action-state";
+import { cn } from "@/lib/cn";
 import { formatPrice, priceForQty } from "@/lib/pricing";
 import { useSlugField } from "@/lib/use-slug-field";
 import { ALLERGEN_LABELS, ALLERGENS, type Category, type Product } from "@/lib/types";
@@ -27,11 +28,34 @@ interface TierDraft {
 	price: string;
 }
 
+/**
+ * A flavour being edited. `id` is the database row's, and empty for one the
+ * owner has just added; carrying it through the form is what lets the save
+ * update the existing row instead of replacing it. See `saveVariants`.
+ */
+interface VariantDraft {
+	key: string;
+	id: string;
+	name: string;
+	price: string;
+	isAvailable: boolean;
+}
+
 function initialTiers(product: Product | null): TierDraft[] {
 	return (product?.tiers ?? []).map((tier, index) => ({
 		key: `tier-${index}`,
 		qty: String(tier.qty),
 		price: (tier.priceCents / 100).toString(),
+	}));
+}
+
+function initialVariants(product: Product | null): VariantDraft[] {
+	return (product?.variants ?? []).map((variant, index) => ({
+		key: `variant-${index}`,
+		id: variant.id,
+		name: variant.name,
+		price: (variant.unitPriceCents / 100).toString(),
+		isAvailable: variant.isAvailable,
 	}));
 }
 
@@ -54,12 +78,29 @@ export function ProductForm({
 	const [unitLabel, setUnitLabel] = useState(product?.unitLabel ?? "each");
 	const [qtyStep, setQtyStep] = useState(String(product?.qtyStep ?? 1));
 	const [tiers, setTiers] = useState<TierDraft[]>(() => initialTiers(product));
+	const [variantLabel, setVariantLabel] = useState(product?.variantLabel ?? "Flavour");
+	const [variants, setVariants] = useState<VariantDraft[]>(() => initialVariants(product));
 	const [imagePath, setImagePath] = useState(product?.imagePath ?? "");
 
 	const tiersJson = JSON.stringify(
 		tiers
 			.filter((tier) => tier.qty.trim() !== "" && tier.price.trim() !== "")
 			.map((tier) => ({ qty: tier.qty, priceCents: tier.price })),
+	);
+
+	// A half-typed row is not a flavour yet. Dropping it here rather than failing
+	// validation means an empty row left behind after "Add" is simply ignored.
+	const filledVariants = variants.filter(
+		(variant) => variant.name.trim() !== "" && variant.price.trim() !== "",
+	);
+
+	const variantsJson = JSON.stringify(
+		filledVariants.map((variant) => ({
+			id: variant.id || undefined,
+			name: variant.name,
+			unitPriceCents: variant.price,
+			isAvailable: variant.isAvailable,
+		})),
 	);
 
 	return (
@@ -77,6 +118,11 @@ export function ProductForm({
 				type="hidden"
 				name="tiers"
 				value={tiersJson}
+			/>
+			<input
+				type="hidden"
+				name="variants"
+				value={variantsJson}
 			/>
 			<input
 				type="hidden"
@@ -166,7 +212,11 @@ export function ProductForm({
 				<div className="grid gap-5 sm:grid-cols-3">
 					<Field
 						label="Price"
-						hint="In dollars, e.g. 3 or 12.50"
+						hint={
+							filledVariants.length > 0
+								? `In dollars. Each ${variantLabel.toLowerCase()} below sets its own price, so this one is only used if you take them all away.`
+								: "In dollars, e.g. 3 or 12.50"
+						}
 						required
 						error={errors.unitPriceCents}>
 						{(props) => (
@@ -241,6 +291,19 @@ export function ProductForm({
 					unitLabel={unitLabel}
 					qtyStep={qtyStep}
 					tiers={tiers}
+					variants={filledVariants}
+					variantLabel={variantLabel}
+				/>
+			</AdminCard>
+
+			<AdminCard title={`${variantLabel}s`}>
+				<VariantFieldset
+					variantLabel={variantLabel}
+					setVariantLabel={setVariantLabel}
+					variants={variants}
+					setVariants={setVariants}
+					error={errors.variants}
+					labelError={errors.variantLabel}
 				/>
 			</AdminCard>
 
@@ -406,26 +469,190 @@ function TierFieldset({
 }
 
 /**
+ * Repeatable flavours, sizes or fillings, submitted as one JSON field.
+ *
+ * Adding one turns the product into something a customer chooses from; removing
+ * the last one turns it back into a single thing at the price above. There is
+ * no switch to forget to flick.
+ *
+ * The hidden `id` on each row is the existing database row's, and is why this
+ * cannot be a plain list of names and prices: it is what a save matches on, so
+ * renaming a flavour edits the row an old order points at rather than replacing
+ * it with a new one.
+ */
+function VariantFieldset({
+	variantLabel,
+	setVariantLabel,
+	variants,
+	setVariants,
+	error,
+	labelError,
+}: {
+	variantLabel: string;
+	setVariantLabel: (next: string) => void;
+	variants: VariantDraft[];
+	setVariants: (next: VariantDraft[]) => void;
+	error?: string;
+	labelError?: string;
+}) {
+	const noun = (variantLabel || "Flavour").toLowerCase();
+
+	const update = (index: number, patch: Partial<VariantDraft>) => {
+		setVariants(variants.map((variant, i) => (i === index ? { ...variant, ...patch } : variant)));
+	};
+
+	const move = (index: number, direction: -1 | 1) => {
+		const to = index + direction;
+		if (to < 0 || to >= variants.length) return;
+		const next = [...variants];
+		[next[index], next[to]] = [next[to]!, next[index]!];
+		setVariants(next);
+	};
+
+	return (
+		<div className="flex flex-col gap-5">
+			<p className="text-cocoa-soft text-sm">
+				For something sold in more than one version: a cake that comes in three flavours, a tin that
+				comes in two sizes. Each one carries its own price. Leave this empty for a product that is
+				just one thing.
+			</p>
+
+			<Field
+				label="What the choice is called"
+				hint="Flavour, Size, Filling. Shown above the picker on the product page."
+				required
+				error={labelError}
+				className="sm:max-w-xs">
+				{(props) => (
+					<Input
+						{...props}
+						name="variantLabel"
+						value={variantLabel}
+						onChange={(event) => setVariantLabel(event.target.value)}
+						invalid={Boolean(labelError)}
+					/>
+				)}
+			</Field>
+
+			<fieldset className="flex flex-col gap-3">
+				<legend className="text-sm font-medium">{variantLabel || "Flavour"}s</legend>
+
+				{variants.map((variant, index) => (
+					<div
+						key={variant.key}
+						className="border-line flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-end">
+						<label className="flex flex-[2] flex-col gap-1">
+							<span className="text-cocoa-soft text-xs">Name</span>
+							<input
+								className="border-line bg-paper focus-visible:border-cocoa w-full rounded-md border px-3 py-2 text-base"
+								value={variant.name}
+								placeholder={index === 0 ? "e.g. Chocolate" : ""}
+								onChange={(event) => update(index, { name: event.target.value })}
+							/>
+						</label>
+
+						<label className="flex flex-1 flex-col gap-1">
+							<span className="text-cocoa-soft text-xs">Price ($)</span>
+							<input
+								inputMode="decimal"
+								className="border-line bg-paper focus-visible:border-cocoa w-full rounded-md border px-3 py-2 text-base"
+								value={variant.price}
+								onChange={(event) => update(index, { price: event.target.value })}
+							/>
+						</label>
+
+						<div className="flex items-center gap-2">
+							{/* One flavour can sell out without the rest of the product
+							    going with it, so availability lives on the row. */}
+							<button
+								type="button"
+								aria-pressed={variant.isAvailable}
+								onClick={() => update(index, { isAvailable: !variant.isAvailable })}
+								className={cn(
+									"rounded-pill min-h-11 border px-3 text-sm font-medium",
+									variant.isAvailable
+										? "bg-mint border-transparent"
+										: "border-line text-cocoa-soft",
+								)}>
+								{variant.isAvailable ? "On" : "Sold out"}
+							</button>
+
+							<div className="flex">
+								<button
+									type="button"
+									onClick={() => move(index, -1)}
+									disabled={index === 0}
+									aria-label={`Move ${variant.name || noun} up`}
+									className="border-line hover:border-cocoa min-h-11 rounded-l-md border px-2.5 text-sm disabled:opacity-40">
+									↑
+								</button>
+								<button
+									type="button"
+									onClick={() => move(index, 1)}
+									disabled={index === variants.length - 1}
+									aria-label={`Move ${variant.name || noun} down`}
+									className="border-line hover:border-cocoa -ml-px min-h-11 rounded-r-md border px-2.5 text-sm disabled:opacity-40">
+									↓
+								</button>
+							</div>
+
+							<button
+								type="button"
+								onClick={() => setVariants(variants.filter((_, i) => i !== index))}
+								className="border-line hover:border-danger hover:text-danger min-h-11 rounded-md border px-3 text-sm">
+								Remove
+							</button>
+						</div>
+					</div>
+				))}
+
+				{error ? <p className="text-danger text-xs font-medium">{error}</p> : null}
+
+				{variants.length < 20 ? (
+					<button
+						type="button"
+						onClick={() =>
+							setVariants([
+								...variants,
+								{ key: `variant-${Date.now()}`, id: "", name: "", price: "", isAvailable: true },
+							])
+						}
+						className="border-line hover:border-cocoa rounded-pill w-fit border px-4 py-2 text-sm font-medium">
+						Add {variants.length === 0 ? `a ${noun}` : `another ${noun}`}
+					</button>
+				) : null}
+			</fieldset>
+		</div>
+	);
+}
+
+/**
  * Shows what a customer would actually be charged for a few quantities.
  *
  * Bundle pricing is easy to get wrong by a couple of dollars, and the owner
  * should see the answer before saving rather than discovering it on an order.
+ *
+ * With flavours in play it shows one block per flavour, because that is where
+ * the surprise lives: a bundle is an outright price for N of a line, so the
+ * same "4 for $12" is a bigger discount on the expensive flavour than on the
+ * cheap one. Better seen here than worked out from an order.
  */
 function PricePreview({
 	unitPrice,
 	unitLabel,
 	qtyStep,
 	tiers,
+	variants,
+	variantLabel,
 }: {
 	unitPrice: string;
 	unitLabel: string;
 	qtyStep: string;
 	tiers: TierDraft[];
+	variants: VariantDraft[];
+	variantLabel: string;
 }) {
-	const cents = Math.round(Number(unitPrice) * 100);
 	const step = Math.max(1, Math.round(Number(qtyStep) || 1));
-
-	if (!Number.isFinite(cents) || cents < 0 || unitPrice.trim() === "") return null;
 
 	const parsedTiers = tiers
 		.map((tier) => ({
@@ -440,31 +667,55 @@ function PricePreview({
 				tier.priceCents >= 0,
 		);
 
+	// One priced column per flavour, or a single unnamed one for a plain product.
+	const columns =
+		variants.length > 0
+			? variants.map((variant) => ({
+					name: variant.name,
+					cents: Math.round(Number(variant.price) * 100),
+					soldOut: !variant.isAvailable,
+				}))
+			: [{ name: null, cents: Math.round(Number(unitPrice) * 100), soldOut: false }];
+
+	const priceable = columns.filter((column) => Number.isFinite(column.cents) && column.cents >= 0);
+	if (priceable.length === 0) return null;
+
 	const quantities = [...new Set([step, step * 2, step * 4, step * 5])].slice(0, 4);
 
 	return (
-		<div className="border-line mt-6 rounded-md border p-4">
-			<p className="text-cocoa-soft text-2xs mb-3 font-medium tracking-widest uppercase">
-				What customers pay
-			</p>
-			<ul className="flex flex-col gap-1.5">
-				{quantities.map((qty) => {
-					const priced = priceForQty(cents, parsedTiers, qty, unitLabel || "each");
-					return (
-						<li
-							key={qty}
-							className="flex items-baseline justify-between gap-4 text-sm">
-							<span className="text-cocoa-soft">
-								{qty} × {unitLabel || "each"}
-							</span>
-							<span className="flex items-baseline gap-3">
-								<span className="text-cocoa-soft text-xs">{priced.note}</span>
-								<span className="font-medium">{formatPrice(priced.totalCents)}</span>
-							</span>
-						</li>
-					);
-				})}
-			</ul>
+		<div className="border-line mt-6 flex flex-col gap-5 rounded-md border p-4">
+			{priceable.map((column, index) => (
+				<div key={column.name ?? index}>
+					<p className="text-cocoa-soft text-2xs mb-3 font-medium tracking-widest uppercase">
+						{column.name
+							? `${column.name}${column.soldOut ? " — sold out" : ""}`
+							: "What customers pay"}
+					</p>
+					<ul className="flex flex-col gap-1.5">
+						{quantities.map((qty) => {
+							const priced = priceForQty(column.cents, parsedTiers, qty, unitLabel || "each");
+							return (
+								<li
+									key={qty}
+									className="flex items-baseline justify-between gap-4 text-sm">
+									<span className="text-cocoa-soft">
+										{qty} × {unitLabel || "each"}
+									</span>
+									<span className="flex items-baseline gap-3">
+										<span className="text-cocoa-soft text-xs">{priced.note}</span>
+										<span className="font-medium">{formatPrice(priced.totalCents)}</span>
+									</span>
+								</li>
+							);
+						})}
+					</ul>
+				</div>
+			))}
+			{variants.length > 0 ? (
+				<p className="text-cocoa-soft text-xs">
+					One {variantLabel.toLowerCase()} per line. A bundle price buys that many of the same one.
+				</p>
+			) : null}
 		</div>
 	);
 }

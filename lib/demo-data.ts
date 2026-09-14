@@ -51,6 +51,8 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		qtyStep: 1,
 		maxPerOrder: null,
 		tiers: [],
+		variantLabel: "Flavour",
+		variants: [],
 		imagePath: null,
 		imageAlt: null,
 		isAvailable: true,

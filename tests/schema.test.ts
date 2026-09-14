@@ -51,7 +51,7 @@ async function dateIn(days: number): Promise<string> {
 }
 
 type PlaceArgs = {
-	items: Array<{ product_id: string; qty: number }>;
+	items: Array<{ product_id: string; variant_id?: string; qty: number }>;
 	pickupDate: string;
 	fulfilment?: "pickup" | "delivery";
 	name?: string;
@@ -737,6 +737,310 @@ describe("place_order", () => {
 		const { refs, tokens, total } = result.rows[0]!;
 		expect(refs).toBe(total);
 		expect(tokens).toBe(total);
+	});
+});
+
+describe("variants", () => {
+	let cakeId: string;
+	let chocolate: string;
+	let carrot: string;
+	let redVelvet: string;
+
+	/** The id of one of the cake's flavours, by name. */
+	async function flavour(name: string): Promise<string> {
+		const result = await db.query<{ id: string }>(
+			"select id from product_variants where product_id = $1 and name = $2",
+			[cakeId, name],
+		);
+		return result.rows[0]!.id;
+	}
+
+	beforeAll(async () => {
+		await openEveryDay(50);
+
+		const created = await db.query<{ id: string }>(
+			`insert into products (name, slug, unit_price_cents, unit_label, variant_label, sort_order)
+			 values ('Celebration Cake', 'celebration-cake', 4500, 'cake', 'Flavour', 90)
+			 returning id`,
+		);
+		cakeId = created.rows[0]!.id;
+
+		await db.query(
+			`insert into product_variants (product_id, name, unit_price_cents, sort_order) values
+				($1, 'Chocolate', 4500, 0),
+				($1, 'Carrot & walnut', 5000, 1),
+				($1, 'Red velvet', 5500, 2)`,
+			[cakeId],
+		);
+
+		chocolate = await flavour("Chocolate");
+		carrot = await flavour("Carrot & walnut");
+		redVelvet = await flavour("Red velvet");
+	});
+
+	it("charges the flavour's own price, not the product's", async () => {
+		const result = await db.query<{ total_cents: number; note: string }>(
+			"select total_cents, note from price_for_qty($1, $2, $3)",
+			[cakeId, 1, redVelvet],
+		);
+		expect(result.rows[0]).toEqual({ total_cents: 5500, note: "1 x $55.00 cake" });
+	});
+
+	it("falls back to the product's own price when no flavour is named", async () => {
+		const result = await db.query<{ total_cents: number }>(
+			"select total_cents from price_for_qty($1, $2)",
+			[cakeId, 1],
+		);
+		expect(result.rows[0]!.total_cents).toBe(4500);
+	});
+
+	it("refuses to price a flavour belonging to another product", async () => {
+		const message = await errorOf(async () =>
+			db.query("select total_cents from price_for_qty($1, $2, $3)", [
+				await productId("cupcakes"),
+				1,
+				chocolate,
+			]),
+		);
+		expect(message).toContain("VARIANT_NOT_FOUND");
+	});
+
+	it("snapshots the flavour onto the order line", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cakeId, variant_id: carrot, qty: 1 }],
+			pickupDate: await dateIn(7),
+		});
+
+		expect(order.total_cents).toBe(5000);
+
+		const items = await db.query<{
+			product_name: string;
+			variant_name: string;
+			product_variant_id: string;
+			line_total_cents: number;
+			pricing_note: string;
+		}>(
+			`select product_name, variant_name, product_variant_id, line_total_cents, pricing_note
+			 from order_items where order_id = $1`,
+			[order.id],
+		);
+
+		expect(items.rows).toEqual([
+			{
+				product_name: "Celebration Cake",
+				variant_name: "Carrot & walnut",
+				product_variant_id: carrot,
+				line_total_cents: 5000,
+				pricing_note: "1 x $50.00 cake",
+			},
+		]);
+	});
+
+	it("keeps two flavours of one product as two lines", async () => {
+		const order = await placeOrder({
+			items: [
+				{ product_id: cakeId, variant_id: chocolate, qty: 1 },
+				{ product_id: cakeId, variant_id: redVelvet, qty: 1 },
+			],
+			pickupDate: await dateIn(7),
+		});
+
+		expect(order.total_cents).toBe(10_000);
+
+		const items = await db.query<{ variant_name: string; line_total_cents: number }>(
+			`select variant_name, line_total_cents from order_items
+			 where order_id = $1 order by variant_name`,
+			[order.id],
+		);
+		expect(items.rows).toEqual([
+			{ variant_name: "Chocolate", line_total_cents: 4500 },
+			{ variant_name: "Red velvet", line_total_cents: 5500 },
+		]);
+	});
+
+	it("leaves a plain product's line without a flavour beside a flavoured one", async () => {
+		// The lines are written in one loop, so a flavoured line that ran first
+		// must not leave its name behind on the plain line that follows.
+		const order = await placeOrder({
+			items: [
+				{ product_id: cakeId, variant_id: chocolate, qty: 1 },
+				{ product_id: await productId("brochi"), qty: 1 },
+			],
+			pickupDate: await dateIn(7),
+		});
+
+		const items = await db.query<{ product_name: string; variant_name: string | null }>(
+			`select product_name, variant_name from order_items
+			 where order_id = $1 order by product_name`,
+			[order.id],
+		);
+		expect(items.rows).toEqual([
+			{ product_name: "Brochi", variant_name: null },
+			{ product_name: "Celebration Cake", variant_name: "Chocolate" },
+		]);
+	});
+
+	it("merges a flavour listed twice into one line", async () => {
+		const order = await placeOrder({
+			items: [
+				{ product_id: cakeId, variant_id: chocolate, qty: 1 },
+				{ product_id: cakeId, variant_id: chocolate, qty: 1 },
+			],
+			pickupDate: await dateIn(7),
+		});
+
+		const items = await db.query<{ qty: number; line_total_cents: number }>(
+			"select qty, line_total_cents from order_items where order_id = $1",
+			[order.id],
+		);
+		expect(items.rows).toEqual([{ qty: 2, line_total_cents: 9000 }]);
+	});
+
+	it("counts max_per_order across every flavour, not one at a time", async () => {
+		await db.query("update products set max_per_order = 2 where id = $1", [cakeId]);
+
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [
+					{ product_id: cakeId, variant_id: chocolate, qty: 2 },
+					{ product_id: cakeId, variant_id: carrot, qty: 2 },
+				],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("QTY_INVALID");
+
+		await db.query("update products set max_per_order = null where id = $1", [cakeId]);
+	});
+
+	it("refuses a flavoured product ordered without a flavour", async () => {
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: cakeId, qty: 1 }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("VARIANT_REQUIRED");
+	});
+
+	it("refuses a flavour that has sold out", async () => {
+		await db.query("update product_variants set is_available = false where id = $1", [chocolate]);
+
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: cakeId, variant_id: chocolate, qty: 1 }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("VARIANT_UNAVAILABLE");
+
+		await db.query("update product_variants set is_available = true where id = $1", [chocolate]);
+	});
+
+	it("refuses a flavour that belongs to a different product", async () => {
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: await productId("cupcakes"), variant_id: chocolate, qty: 1 }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("VARIANT_UNAVAILABLE");
+	});
+
+	it("applies a bundle price to the flavour's own price", async () => {
+		await db.query(
+			"insert into product_price_tiers (product_id, qty, price_cents) values ($1, 2, 8000)",
+			[cakeId],
+		);
+
+		const order = await placeOrder({
+			items: [{ product_id: cakeId, variant_id: redVelvet, qty: 2 }],
+			pickupDate: await dateIn(7),
+		});
+
+		// Two red velvets at $55 would be $110; the bundle is an outright price
+		// for two of one line, whichever line that is.
+		expect(order.total_cents).toBe(8000);
+
+		const items = await db.query<{ pricing_note: string }>(
+			"select pricing_note from order_items where order_id = $1",
+			[order.id],
+		);
+		expect(items.rows[0]!.pricing_note).toBe("1 x 2 for $80.00");
+
+		await db.query("delete from product_price_tiers where product_id = $1", [cakeId]);
+	});
+
+	it("keeps the flavour's name on an order after the flavour is deleted", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cakeId, variant_id: carrot, qty: 1 }],
+			pickupDate: await dateIn(7),
+		});
+
+		await db.query("delete from product_variants where id = $1", [carrot]);
+
+		const items = await db.query<{ variant_name: string; product_variant_id: string | null }>(
+			"select variant_name, product_variant_id from order_items where order_id = $1",
+			[order.id],
+		);
+		expect(items.rows[0]).toEqual({
+			variant_name: "Carrot & walnut",
+			product_variant_id: null,
+		});
+
+		// Put it back for anything that runs after this.
+		await db.query(
+			`insert into product_variants (product_id, name, unit_price_cents, sort_order)
+			 values ($1, 'Carrot & walnut', 5000, 1)`,
+			[cakeId],
+		);
+		carrot = await flavour("Carrot & walnut");
+	});
+
+	it("takes every flavour with the product when the product is deleted", async () => {
+		const doomed = await db.query<{ id: string }>(
+			`insert into products (name, slug, unit_price_cents) values ('Doomed', 'doomed', 100)
+			 returning id`,
+		);
+		const id = doomed.rows[0]!.id;
+		await db.query(
+			"insert into product_variants (product_id, name, unit_price_cents) values ($1, 'Only', 100)",
+			[id],
+		);
+
+		await db.query("delete from products where id = $1", [id]);
+
+		const left = await db.query("select id from product_variants where product_id = $1", [id]);
+		expect(left.rows).toEqual([]);
+	});
+
+	it("refuses two flavours of one product with the same name", async () => {
+		const message = await errorOf(async () =>
+			db.query(
+				"insert into product_variants (product_id, name, unit_price_cents) values ($1, 'Chocolate', 100)",
+				[cakeId],
+			),
+		);
+		expect(message).toContain("product_variants_product_id_name_key");
+	});
+
+	it("shows anonymous visitors the flavours but lets them change nothing", async () => {
+		await db.as("anon", null, async () => {
+			const rows = await db.query("select id from product_variants where product_id = $1", [
+				cakeId,
+			]);
+			expect(rows.rows.length).toBeGreaterThan(0);
+
+			await db.query("update product_variants set unit_price_cents = 1 where product_id = $1", [
+				cakeId,
+			]);
+		});
+
+		const after = await db.query<{ unit_price_cents: number }>(
+			"select unit_price_cents from product_variants where id = $1",
+			[chocolate],
+		);
+		expect(after.rows[0]!.unit_price_cents).toBe(4500);
 	});
 });
 

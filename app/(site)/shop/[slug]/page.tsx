@@ -117,16 +117,34 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 						<div className="flex flex-col gap-2">
 							<SectionLabel as="h2">Price</SectionLabel>
 							<HairlineList as="dl">
-								<HairlineRow as="div">
-									<dt className="text-sm">
-										{product.qtyStep > 1 ? `Per ${product.qtyStep}` : `Per ${product.unitLabel}`}
-									</dt>
-									<dd className="font-display text-lg italic">
-										{product.qtyStep > 1
-											? formatPrice(product.unitPriceCents * product.qtyStep)
-											: formatPrice(product.unitPriceCents)}
-									</dd>
-								</HairlineRow>
+								{product.variants.length > 0 ? (
+									// One row per flavour, because the price is the thing that differs
+									// between them and a single "from $45" hides it.
+									product.variants.map((variant) => (
+										<HairlineRow
+											key={variant.id}
+											as="div">
+											<dt className="text-sm">
+												{variant.name}
+												{variant.isAvailable ? "" : " — sold out"}
+											</dt>
+											<dd className="font-display text-lg italic">
+												{formatPrice(variant.unitPriceCents)}
+											</dd>
+										</HairlineRow>
+									))
+								) : (
+									<HairlineRow as="div">
+										<dt className="text-sm">
+											{product.qtyStep > 1 ? `Per ${product.qtyStep}` : `Per ${product.unitLabel}`}
+										</dt>
+										<dd className="font-display text-lg italic">
+											{product.qtyStep > 1
+												? formatPrice(product.unitPriceCents * product.qtyStep)
+												: formatPrice(product.unitPriceCents)}
+										</dd>
+									</HairlineRow>
+								)}
 								{product.tiers.map((tier) => (
 									<HairlineRow
 										key={tier.qty}

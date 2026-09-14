@@ -203,6 +203,11 @@ export function OrderItemsTable({
 						<Text style={{ fontSize: "15px", fontWeight: 600, margin: 0 }}>
 							{item.qty} &times; {item.productName}
 						</Text>
+						{item.variantName ? (
+							<Text style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
+								{item.variantName}
+							</Text>
+						) : null}
 						{item.pricingNote ? (
 							<Text style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
 								{item.pricingNote}

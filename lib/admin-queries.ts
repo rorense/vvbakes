@@ -45,7 +45,8 @@ import type {
  * still say "new". See the comment on it below.
  */
 
-const PRODUCT_SELECT = "*, product_price_tiers (qty, price_cents)";
+const PRODUCT_SELECT =
+	"*, product_price_tiers (qty, price_cents), product_variants (id, name, unit_price_cents, is_available, sort_order)";
 
 export const adminProducts = cache(async (): Promise<Product[]> => {
 	const supabase = await createClient();

@@ -59,6 +59,13 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		return fail("The bundle prices couldn't be read. Please try again.");
 	}
 
+	let variants: unknown = [];
+	try {
+		variants = JSON.parse(String(formData.get("variants") ?? "[]"));
+	} catch {
+		return fail("The flavours couldn't be read. Please try again.");
+	}
+
 	const parsed = productSchema.safeParse({
 		id: formData.get("id") || undefined,
 		name: formData.get("name") ?? "",
@@ -77,6 +84,8 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		allergens: formData.getAll("allergens").map(String),
 		sortOrder: formData.get("sortOrder") ?? 0,
 		tiers,
+		variantLabel: formData.get("variantLabel") ?? "Flavour",
+		variants,
 	});
 
 	if (!parsed.success) {
@@ -103,6 +112,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		availability_note: input.availabilityNote,
 		allergens: input.allergens,
 		sort_order: input.sortOrder,
+		variant_label: input.variantLabel,
 	};
 
 	let productId = input.id;
@@ -130,9 +140,67 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		if (error) return fail("The product saved, but its bundle prices didn't. Please try again.");
 	}
 
+	const variantError = await saveVariants(supabase, productId!, input.variants, input.variantLabel);
+	if (variantError) return fail(variantError);
+
 	revalidateCatalogue();
 	revalidatePath("/admin/products");
 	return ok();
+}
+
+/**
+ * Brings the product's variants into line with what the form submitted.
+ *
+ * Not replaced wholesale the way bundle prices are, because a variant has an
+ * identity that outlives the form: `order_items` points at the row it was
+ * ordered from. Deleting and re-inserting would give every flavour a new id on
+ * every save and quietly null out that pointer on every past order. So rows the
+ * form still names are updated in place, rows it dropped are deleted, and only
+ * genuinely new flavours are inserted.
+ *
+ * Returns a message on failure, or null when it worked.
+ */
+async function saveVariants(
+	supabase: Awaited<ReturnType<typeof createClient>>,
+	productId: string,
+	variants: Array<{ id?: string; name: string; unitPriceCents: number; isAvailable: boolean }>,
+	variantLabel: string,
+): Promise<string | null> {
+	const keep = variants.map((variant) => variant.id).filter((id): id is string => Boolean(id));
+
+	const remove = supabase.from("product_variants").delete().eq("product_id", productId);
+	// `.not("id", "in", "()")` is not valid PostgREST, so the two cases differ.
+	const { error: deleteError } =
+		keep.length > 0 ? await remove.not("id", "in", `(${keep.join(",")})`) : await remove;
+
+	if (deleteError) {
+		return "The product saved, but its flavours didn't. Please try again.";
+	}
+
+	// The order the owner put them in is the order they appear in the picker.
+	for (const [index, variant] of variants.entries()) {
+		const row = {
+			product_id: productId,
+			name: variant.name,
+			unit_price_cents: variant.unitPriceCents,
+			is_available: variant.isAvailable,
+			sort_order: index,
+		};
+
+		const { error } = variant.id
+			? await supabase.from("product_variants").update(row).eq("id", variant.id)
+			: await supabase.from("product_variants").insert(row);
+
+		if (error) {
+			// Also what a straight swap of two names looks like, since the rows are
+			// written one at a time and the halfway state has a duplicate in it.
+			return error.message.includes("product_variants_product_id_name_key")
+				? `Two of those ${variantLabel.toLowerCase()}s clashed on a name. Rename one and save again.`
+				: "The product saved, but its flavours didn't. Please try again.";
+		}
+	}
+
+	return null;
 }
 
 export async function toggleProductFlag(

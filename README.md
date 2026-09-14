@@ -277,6 +277,36 @@ single-unit price nobody can buy. Nothing in the seed uses it. Cookies looked
 like that shape at first, but a `$5` pack of two is one unit, not two, and
 saying so reads better on the menu and counts better in the basket.
 
+### Flavours, sizes and other variants
+
+A cake is not one thing. It is chocolate, or carrot, or red velvet, and those
+are not the same price. Add them under **Flavours** on the product form: each
+one is a name and a price of its own, and what the choice is *called* is a field
+too, so a cake asks for a flavour and a tin asks for a size.
+
+The product keeps everything else: one photo, one description, one set of
+allergens, one place in the shop. Adding the first variant turns the product
+into something a customer picks from; removing the last one turns it back into a
+single item at the price above. There is no switch to forget.
+
+A few things worth knowing:
+
+- **Each flavour can sell out on its own.** A product with every flavour off
+  reads as sold out, and the shop card says so.
+- **"Most per order" counts the product, not the flavour.** A maximum of four
+  means four cakes, not four of each.
+- **A bundle price buys that many of one flavour.** "4 for $12" is four
+  chocolate, not a mixed box, so it is a bigger discount on a dearer flavour
+  than on a cheaper one. The admin's price preview shows the answer per flavour
+  before you save, which is the point of it.
+- **Orders keep the flavour they named.** `order_items` snapshots the name the
+  same way it snapshots the product's, so renaming, repricing or deleting a
+  flavour never rewrites an order that has already been placed.
+
+The stand-in catalogue used without a database has no variants in it, because it
+mirrors `supabase/seed.sql` and the seed is a straight transcription of the
+printed market menu. Add one in `/admin` to see the picker.
+
 ### What is private
 
 `orders` has no row-level-security policy for anonymous visitors, and no insert

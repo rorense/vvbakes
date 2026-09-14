@@ -39,6 +39,7 @@ type ProductRow = {
 	unit_label: string;
 	qty_step: number;
 	max_per_order: number | null;
+	variant_label: string;
 	image_path: string | null;
 	image_alt: string | null;
 	is_available: boolean;
@@ -55,6 +56,17 @@ type ProductPriceTierRow = {
 	product_id: string;
 	qty: number;
 	price_cents: number;
+};
+
+type ProductVariantRow = {
+	id: string;
+	product_id: string;
+	name: string;
+	unit_price_cents: number;
+	is_available: boolean;
+	sort_order: number;
+	created_at: string;
+	updated_at: string;
 };
 
 type SiteSettingsRow = {
@@ -139,7 +151,9 @@ type OrderItemRow = {
 	id: string;
 	order_id: string;
 	product_id: string | null;
+	product_variant_id: string | null;
 	product_name: string;
+	variant_name: string | null;
 	unit_label: string;
 	qty: number;
 	line_total_cents: number;
@@ -201,6 +215,20 @@ export type Database = {
 				Relationships: [
 					{
 						foreignKeyName: "product_price_tiers_product_id_fkey";
+						columns: ["product_id"];
+						isOneToOne: false;
+						referencedRelation: "products";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			product_variants: {
+				Row: ProductVariantRow;
+				Insert: Writable<ProductVariantRow, "product_id" | "name" | "unit_price_cents">;
+				Update: Partial<ProductVariantRow>;
+				Relationships: [
+					{
+						foreignKeyName: "product_variants_product_id_fkey";
 						columns: ["product_id"];
 						isOneToOne: false;
 						referencedRelation: "products";
@@ -274,7 +302,7 @@ export type Database = {
 				Returns: boolean;
 			};
 			price_for_qty: {
-				Args: { p_product_id: string; p_qty: number };
+				Args: { p_product_id: string; p_qty: number; p_variant_id?: string | null };
 				Returns: Array<{ total_cents: number; note: string | null }>;
 			};
 			order_counts_between: {

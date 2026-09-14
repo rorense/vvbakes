@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { formatPrice, isValidQty, priceForQty, priceRule, stepQty } from "./pricing";
-import type { PriceTier, Product } from "./types";
+import {
+	defaultVariant,
+	findVariant,
+	formatPrice,
+	isOrderable,
+	isValidQty,
+	priceForQty,
+	priceProduct,
+	priceRule,
+	stepQty,
+} from "./pricing";
+import type { PriceTier, Product, ProductVariant } from "./types";
 
 function product(overrides: Partial<Product> = {}): Product {
 	return {
@@ -14,6 +24,8 @@ function product(overrides: Partial<Product> = {}): Product {
 		qtyStep: 1,
 		maxPerOrder: null,
 		tiers: [],
+		variantLabel: "Flavour",
+		variants: [],
 		imagePath: null,
 		imageAlt: null,
 		isAvailable: true,
@@ -151,5 +163,116 @@ describe("isValidQty", () => {
 		const p = product({ maxPerOrder: 4 });
 		expect(isValidQty(p, 4)).toBe(true);
 		expect(isValidQty(p, 5)).toBe(false);
+	});
+});
+
+function variant(
+	overrides: Partial<ProductVariant> & Pick<ProductVariant, "name">,
+): ProductVariant {
+	return {
+		id: `variant-${overrides.name.toLowerCase()}`,
+		unitPriceCents: 4500,
+		isAvailable: true,
+		sortOrder: 0,
+		...overrides,
+	};
+}
+
+/** A cake in three flavours at three prices, the shape variants exist for. */
+const CAKE_FLAVOURS: ProductVariant[] = [
+	variant({ name: "Chocolate", unitPriceCents: 4500, sortOrder: 0 }),
+	variant({ name: "Carrot", unitPriceCents: 5000, sortOrder: 1 }),
+	variant({ name: "Red velvet", unitPriceCents: 5500, sortOrder: 2 }),
+];
+
+describe("variants", () => {
+	it("prices a line at the chosen flavour's price, not the product's", () => {
+		const p = product({ unitPriceCents: 300, unitLabel: "cake", variants: CAKE_FLAVOURS });
+		expect(priceProduct(p, 1, CAKE_FLAVOURS[2]).totalCents).toBe(5500);
+	});
+
+	it("falls back to the product's own price when nothing is chosen", () => {
+		const p = product({ unitPriceCents: 300, variants: CAKE_FLAVOURS });
+		expect(priceProduct(p, 1).totalCents).toBe(300);
+	});
+
+	it("applies the product's bundle price to the flavour's own price", () => {
+		// The bundle is an outright price for two of one line, so it is a bigger
+		// saving on the dearer flavour. Worth pinning down: it is the part of this
+		// the admin's price preview exists to show.
+		const p = product({
+			unitLabel: "cake",
+			tiers: [{ qty: 2, priceCents: 8000 }],
+			variants: CAKE_FLAVOURS,
+		});
+		expect(priceProduct(p, 2, CAKE_FLAVOURS[0]).totalCents).toBe(8000);
+		expect(priceProduct(p, 2, CAKE_FLAVOURS[2]).totalCents).toBe(8000);
+	});
+
+	it("shows one price when every flavour costs the same", () => {
+		const p = product({
+			unitLabel: "cake",
+			variants: [
+				variant({ name: "Chocolate", unitPriceCents: 4500 }),
+				variant({ name: "Vanilla", unitPriceCents: 4500 }),
+			],
+		});
+		expect(priceRule(p)).toBe("$45 / cake");
+	});
+
+	it("shows a range when they do not", () => {
+		const p = product({ unitLabel: "cake", variants: CAKE_FLAVOURS });
+		expect(priceRule(p)).toBe("$45 – $55 / cake");
+	});
+
+	it("quotes a range a customer can actually buy", () => {
+		// The dearest flavour is off, so quoting up to $55 would be advertising a
+		// price nothing on the page is sold at.
+		const p = product({
+			unitLabel: "cake",
+			variants: [
+				...CAKE_FLAVOURS.slice(0, 2),
+				variant({ name: "Red velvet", unitPriceCents: 5500, isAvailable: false }),
+			],
+		});
+		expect(priceRule(p)).toBe("$45 – $50 / cake");
+	});
+
+	it("finds a flavour by id and shrugs off one that has gone", () => {
+		const p = product({ variants: CAKE_FLAVOURS });
+		expect(findVariant(p, CAKE_FLAVOURS[1]!.id)?.name).toBe("Carrot");
+		expect(findVariant(p, "variant-that-was-deleted")).toBeNull();
+		expect(findVariant(p, null)).toBeNull();
+		expect(findVariant(p, undefined)).toBeNull();
+	});
+
+	it("starts a picker on the first flavour still on sale", () => {
+		const p = product({
+			variants: [
+				variant({ name: "Chocolate", isAvailable: false, sortOrder: 0 }),
+				variant({ name: "Carrot", sortOrder: 1 }),
+			],
+		});
+		expect(defaultVariant(p)?.name).toBe("Carrot");
+	});
+
+	it("counts a product with every flavour sold out as sold out", () => {
+		const allOff = product({
+			variants: CAKE_FLAVOURS.map((v) => ({ ...v, isAvailable: false })),
+		});
+		expect(isOrderable(allOff)).toBe(false);
+		expect(defaultVariant(allOff)).toBeNull();
+
+		expect(isOrderable(product({ variants: CAKE_FLAVOURS }))).toBe(true);
+		expect(isOrderable(product({ isAvailable: false, variants: CAKE_FLAVOURS }))).toBe(false);
+		expect(isOrderable(product())).toBe(true);
+	});
+
+	it("leaves a flavoured product's headline as a price, not a step", () => {
+		// A stepped product normally advertises "2 for $5" because its single-unit
+		// price means nothing. With flavours the per-flavour price is the thing
+		// the customer is choosing between, so that is what has to be shown.
+		const p = product({ unitPriceCents: 250, qtyStep: 2, variants: CAKE_FLAVOURS });
+		expect(priceRule(p)).toBe("$45 – $55 each");
 	});
 });

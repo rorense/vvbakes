@@ -103,6 +103,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 									<span className="font-medium">
 										{item.qty} &times; {item.productName}
 									</span>
+									{item.variantName ? (
+										<span className="text-cocoa-soft text-xs">{item.variantName}</span>
+									) : null}
 									{item.pricingNote ? (
 										<span className="text-cocoa-soft text-xs">{item.pricingNote}</span>
 									) : null}

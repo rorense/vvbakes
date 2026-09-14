@@ -41,6 +41,20 @@ export interface PriceTier {
 	priceCents: number;
 }
 
+/**
+ * One version of a product, with a price of its own: a flavour, a size, a
+ * filling. The product owns everything else, the photo and the description and
+ * the allergens; a variant is a name and a price.
+ */
+export interface ProductVariant {
+	id: string;
+	name: string;
+	unitPriceCents: number;
+	/** One flavour can sell out without taking the rest of the product with it. */
+	isAvailable: boolean;
+	sortOrder: number;
+}
+
 export interface Category {
 	id: string;
 	name: string;
@@ -62,6 +76,10 @@ export interface Product {
 	qtyStep: number;
 	maxPerOrder: number | null;
 	tiers: PriceTier[];
+	/** What this product calls its variants: "Flavour", "Size", "Filling". */
+	variantLabel: string;
+	/** Empty for a product sold as one thing. */
+	variants: ProductVariant[];
 	/** Object path inside the product-images bucket, not a URL. */
 	imagePath: string | null;
 	imageAlt: string | null;
@@ -203,6 +221,12 @@ export interface PublicCalendarMonth {
 
 export interface CartLine {
 	productId: string;
+	/**
+	 * Which variant, for a product that has them. Null means the product itself,
+	 * and so does the field being absent, which is what a cart saved before
+	 * variants existed looks like.
+	 */
+	variantId?: string | null;
 	qty: number;
 }
 
@@ -214,7 +238,10 @@ export interface Cart {
 export interface OrderItem {
 	id: string;
 	productId: string | null;
+	productVariantId: string | null;
 	productName: string;
+	/** The flavour as it was named when the order was placed. */
+	variantName: string | null;
 	unitLabel: string;
 	qty: number;
 	lineTotalCents: number;

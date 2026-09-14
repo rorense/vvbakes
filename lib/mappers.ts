@@ -17,6 +17,7 @@ import {
 	type PriceTier,
 	type PrivateSettings,
 	type Product,
+	type ProductVariant,
 	type SiteSettings,
 	type Weekday,
 } from "./types";
@@ -25,6 +26,7 @@ type Tables = Database["public"]["Tables"];
 type CategoryRow = Tables["categories"]["Row"];
 type ProductRow = Tables["products"]["Row"];
 type TierRow = Tables["product_price_tiers"]["Row"];
+type VariantRow = Tables["product_variants"]["Row"];
 type SettingsRow = Tables["site_settings"]["Row"];
 type PrivateRow = Tables["site_settings_private"]["Row"];
 type RuleRow = Tables["availability_rules"]["Row"];
@@ -59,9 +61,25 @@ function toPriceTier(row: Pick<TierRow, "qty" | "price_cents">): PriceTier {
 	return { qty: row.qty, priceCents: row.price_cents };
 }
 
+type VariantColumns = Pick<
+	VariantRow,
+	"id" | "name" | "unit_price_cents" | "is_available" | "sort_order"
+>;
+
+function toProductVariant(row: VariantColumns): ProductVariant {
+	return {
+		id: row.id,
+		name: row.name,
+		unitPriceCents: row.unit_price_cents,
+		isAvailable: row.is_available,
+		sortOrder: row.sort_order,
+	};
+}
+
 export function toProduct(
 	row: ProductRow & {
 		product_price_tiers?: Array<Pick<TierRow, "qty" | "price_cents">> | null;
+		product_variants?: VariantColumns[] | null;
 	},
 ): Product {
 	return {
@@ -75,6 +93,12 @@ export function toProduct(
 		qtyStep: row.qty_step,
 		maxPerOrder: row.max_per_order,
 		tiers: (row.product_price_tiers ?? []).map(toPriceTier).sort((a, b) => a.qty - b.qty),
+		variantLabel: row.variant_label,
+		variants: (row.product_variants ?? [])
+			.map(toProductVariant)
+			// Embedded rows arrive in whatever order PostgREST felt like. The owner
+			// put these in an order and the page has to keep it.
+			.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
 		imagePath: row.image_path,
 		imageAlt: row.image_alt,
 		isAvailable: row.is_available,
@@ -138,7 +162,9 @@ function toOrderItem(row: OrderItemRow): OrderItem {
 	return {
 		id: row.id,
 		productId: row.product_id,
+		productVariantId: row.product_variant_id,
 		productName: row.product_name,
+		variantName: row.variant_name,
 		unitLabel: row.unit_label,
 		qty: row.qty,
 		lineTotalCents: row.line_total_cents,
@@ -176,7 +202,13 @@ export function toOrder(row: OrderRow & { order_items?: OrderItemRow[] | null })
 		cancelledAt: row.cancelled_at,
 		items: (row.order_items ?? [])
 			.map(toOrderItem)
-			.sort((a, b) => a.productName.localeCompare(b.productName)),
+			// Flavours of one product sit together, in name order, rather than
+			// scattering three lines of the same cake through the list.
+			.sort(
+				(a, b) =>
+					a.productName.localeCompare(b.productName) ||
+					(a.variantName ?? "").localeCompare(b.variantName ?? ""),
+			),
 	};
 }
 

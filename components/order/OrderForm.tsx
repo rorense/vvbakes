@@ -8,7 +8,14 @@ import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state
 import { clearCart, useCart } from "@/lib/cart";
 import { cn } from "@/lib/cn";
 import { formatDateShort, type IsoDate } from "@/lib/dates";
-import { formatMoney, isValidQty, minQty, priceProduct } from "@/lib/pricing";
+import {
+	findVariant,
+	formatMoney,
+	hasVariants,
+	isValidQty,
+	minQty,
+	priceProduct,
+} from "@/lib/pricing";
 import type { PickableDate, Product, PublicCalendarMonth, SiteSettings } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Textarea } from "@/components/ui/Form";
@@ -81,7 +88,9 @@ export function OrderForm({
 	const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
 	// Cart lines resolved against the live catalogue. A product that has since
-	// been deleted or sold out drops out here rather than failing on submit.
+	// been deleted or sold out drops out here rather than failing on submit, and
+	// so does a flavour that has: the basket outlives the menu it was filled
+	// from, and the two have to be reconciled somewhere.
 	const lines = useMemo(
 		() =>
 			cart.lines
@@ -89,7 +98,24 @@ export function OrderForm({
 					const product = byId.get(line.productId);
 					if (!product || !product.isAvailable) return null;
 					if (!isValidQty(product, line.qty)) return null;
-					return { product, qty: line.qty, ...priceProduct(product, line.qty) };
+
+					const variant = findVariant(product, line.variantId);
+					// A flavoured product needs one that still exists and is still on
+					// sale. A plain one is checked against the id the cart actually
+					// holds, not against `variant`, which is null either way: a saved
+					// line naming a flavour the owner has since removed altogether
+					// would otherwise sail through here and be refused on submit.
+					if (hasVariants(product) ? !variant?.isAvailable : Boolean(line.variantId)) {
+						return null;
+					}
+
+					return {
+						key: `${product.id}:${variant?.id ?? ""}`,
+						product,
+						variant,
+						qty: line.qty,
+						...priceProduct(product, line.qty, variant),
+					};
 				})
 				.filter((line): line is NonNullable<typeof line> => line !== null),
 		[cart.lines, byId],
@@ -135,7 +161,13 @@ export function OrderForm({
 			<input
 				type="hidden"
 				name="items"
-				value={JSON.stringify(lines.map((line) => ({ productId: line.product.id, qty: line.qty })))}
+				value={JSON.stringify(
+					lines.map((line) => ({
+						productId: line.product.id,
+						variantId: line.variant?.id ?? null,
+						qty: line.qty,
+					})),
+				)}
 			/>
 			<input
 				type="hidden"
@@ -193,7 +225,7 @@ export function OrderForm({
 				<HairlineList className={isCustomOnly ? "hidden" : undefined}>
 					{lines.map((line) => (
 						<HairlineRow
-							key={line.product.id}
+							key={line.key}
 							align="center"
 							className="flex-col gap-3 sm:flex-row sm:gap-4">
 							<div className="flex w-full min-w-0 flex-1 items-start gap-4">
@@ -209,10 +241,13 @@ export function OrderForm({
 										className="font-medium hover:underline">
 										{line.product.name}
 									</Link>
+									{line.variant ? (
+										<p className="text-cocoa-soft text-xs">{line.variant.name}</p>
+									) : null}
 									<p className="text-cocoa-soft text-xs">{line.note}</p>
 									<button
 										type="button"
-										onClick={() => remove(line.product.id)}
+										onClick={() => remove(line.product.id, line.variant?.id ?? null)}
 										className="text-cocoa-soft hover:text-cocoa w-fit text-xs underline underline-offset-2">
 										Remove
 									</button>
@@ -228,9 +263,15 @@ export function OrderForm({
 									min={minQty(line.product)}
 									max={line.product.maxPerOrder}
 									step={line.product.qtyStep}
-									label={line.product.name}
+									label={
+										line.variant ? `${line.product.name}, ${line.variant.name}` : line.product.name
+									}
 									onChange={(next) =>
-										setQty(line.product.id, next < minQty(line.product) ? 0 : next)
+										setQty(
+											line.product.id,
+											next < minQty(line.product) ? 0 : next,
+											line.variant?.id ?? null,
+										)
 									}
 								/>
 								<p className="font-display w-16 text-right text-lg">

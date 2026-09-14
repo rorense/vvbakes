@@ -67,6 +67,9 @@ const optionalText = (max: number) =>
 
 const orderItemSchema = z.object({
 	productId: z.string().uuid(),
+	// Absent for a product sold as one thing. Which flavours exist, and whether
+	// this one is still on sale, is the database's call inside place_order.
+	variantId: z.string().uuid().nullable().optional(),
 	qty: z.number().int().min(1).max(200),
 });
 
@@ -111,6 +114,20 @@ const priceTierSchema = z.object({
 	priceCents: dollars,
 });
 
+/**
+ * One flavour, size or filling.
+ *
+ * The id is the existing row's, when there is one. It is what stops a save
+ * re-creating every variant under new ids and cutting past orders loose from
+ * the flavour they named.
+ */
+const productVariantSchema = z.object({
+	id: z.string().uuid().optional(),
+	name: z.string().trim().min(1, "Give this one a name").max(60),
+	unitPriceCents: dollars,
+	isAvailable: z.boolean(),
+});
+
 export const productSchema = z
 	.object({
 		id: z.string().uuid().optional(),
@@ -144,6 +161,8 @@ export const productSchema = z
 		allergens: z.array(z.enum(ALLERGENS)),
 		sortOrder: z.coerce.number().int().min(0).max(9999),
 		tiers: z.array(priceTierSchema).max(6),
+		variantLabel: z.string().trim().min(1, "e.g. Flavour, Size").max(30),
+		variants: z.array(productVariantSchema).max(20),
 	})
 	.refine((value) => value.maxPerOrder === null || value.maxPerOrder % value.qtyStep === 0, {
 		message: "The maximum has to be a multiple of the step size",
@@ -152,7 +171,17 @@ export const productSchema = z
 	.refine((value) => new Set(value.tiers.map((tier) => tier.qty)).size === value.tiers.length, {
 		message: "Two bundles have the same quantity",
 		path: ["tiers"],
-	});
+	})
+	.refine(
+		(value) => {
+			// Case-folded, because "Vanilla" and "vanilla" are one flavour to a
+			// customer reading the picker even though the unique index would let
+			// both through.
+			const names = value.variants.map((variant) => variant.name.toLowerCase());
+			return new Set(names).size === names.length;
+		},
+		{ message: "Two of these have the same name", path: ["variants"] },
+	);
 
 // --- admin: categories ------------------------------------------------------
 

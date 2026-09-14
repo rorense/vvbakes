@@ -109,6 +109,9 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
 										<span className="font-medium">
 											{item.qty} &times; {item.productName}
 										</span>
+										{item.variantName ? (
+											<span className="text-cocoa-soft text-xs">{item.variantName}</span>
+										) : null}
 										{item.pricingNote ? (
 											<span className="text-cocoa-soft text-xs">{item.pricingNote}</span>
 										) : null}
