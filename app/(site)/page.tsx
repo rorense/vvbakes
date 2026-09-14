@@ -17,7 +17,7 @@ import { Marquee } from "@/components/ui/Marquee";
 import { ArchFrame } from "@/components/ui/ArchFrame";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Sticker } from "@/components/ui/Sticker";
-import { ProductCard, ProductImage } from "@/components/site/ProductCard";
+import { ProductCard } from "@/components/site/ProductCard";
 import { PublicCalendar } from "@/components/site/PublicCalendar";
 
 // Revalidated on a timer and on demand whenever the admin changes the catalogue.
@@ -92,7 +92,7 @@ export default async function HomePage() {
 	return (
 		<>
 			{/* Hero. A 12-column editorial split rather than a centred banner: the
-			    headline holds the left, one photo holds the right, and a single
+			    headline holds the left, the logo holds the right, and a single
 			    tilted sticker overlaps the two. */}
 			<Section
 				tone="paper"
@@ -142,26 +142,20 @@ export default async function HomePage() {
 
 						<div className="relative lg:col-span-5">
 							<ArchFrame
-								tone="blush"
+								tone="mint"
 								className="aspect-4/5 w-full">
-								{featured[0] ? (
-									<ProductImage
-										product={featured[0]}
+								<div className="flex h-full items-center justify-center p-8">
+									<Image
+										src="/logo.png"
+										alt=""
+										aria-hidden="true"
+										width={800}
+										height={800}
 										sizes="(min-width: 1024px) 40vw, 100vw"
+										className="w-full max-w-72"
 										priority
 									/>
-								) : (
-									<div className="grid h-full place-content-center">
-										<Image
-											src="/logo.png"
-											alt=""
-											aria-hidden="true"
-											width={800}
-											height={800}
-											className="w-40 opacity-70"
-										/>
-									</div>
-								)}
+								</div>
 							</ArchFrame>
 
 							<div className="absolute -bottom-6 -left-4 sm:-left-8">
