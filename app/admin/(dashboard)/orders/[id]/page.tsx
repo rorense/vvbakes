@@ -34,7 +34,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 
 	if (!order) notFound();
 
-	const failedEmails = events.filter((event) => event.type === "email_failed");
+	// Three different problems, one conclusion: do not assume this customer has
+	// been told anything. A send refused by Resend, a message that bounced after
+	// it was accepted, and a recipient who marked it as spam.
+	const emailProblem = events.find((event) => event.type in EMAIL_PROBLEM_HEADLINES);
 	const hasInspiration = order.inspirationImagePaths.length > 0 || Boolean(order.inspirationUrl);
 
 	return (
@@ -55,15 +58,11 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 			/>
 
 			<div className="flex flex-col gap-6">
-				{failedEmails.length > 0 ? (
+				{emailProblem ? (
 					<div className="border-danger bg-danger-tint text-danger rounded-lg border p-4 text-sm">
-						<p className="font-medium">An email to this customer didn&rsquo;t send.</p>
-						<p className="mt-1">
-							{String(failedEmails[0]!.data.error ?? failedEmails[0]!.data.skipped ?? "")}
-						</p>
-						<p className="mt-1">
-							You can resend it below, or contact them at {order.customerEmail}.
-						</p>
+						<p className="font-medium">{EMAIL_PROBLEM_HEADLINES[emailProblem.type]}</p>
+						<p className="mt-1">{describeEvent(emailProblem.type, emailProblem.data)}</p>
+						<p className="mt-1">{EMAIL_PROBLEM_ADVICE[emailProblem.type]?.(order.customerEmail)}</p>
 					</div>
 				) : null}
 
@@ -223,6 +222,26 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 	);
 }
 
+/**
+ * The banner above the order, for the three events that mean the customer may
+ * be sitting there having heard nothing. Keyed loosely, like describeEvent, so
+ * an event type the build has not caught up with simply does not match.
+ */
+const EMAIL_PROBLEM_HEADLINES: Record<string, string> = {
+	email_failed: "An email to this customer didn’t send.",
+	email_bounced: "An email to this customer bounced.",
+	email_complained: "This customer marked an email as spam.",
+};
+
+const EMAIL_PROBLEM_ADVICE: Record<string, (email: string) => string> = {
+	email_failed: (email) => `You can resend it below, or contact them at ${email}.`,
+	// Resending goes to the same address and bounces again. The address is the
+	// thing to fix, and only she can, by asking them.
+	email_bounced: (email) => `${email} would not take it. Check the address before resending.`,
+	email_complained: () =>
+		"Nothing to do for this order. Worth knowing, because enough of these stop the shop’s mail reaching anyone.",
+};
+
 function describeEvent(type: string, data: Record<string, unknown>): string {
 	switch (type) {
 		case "created":
@@ -237,6 +256,10 @@ function describeEvent(type: string, data: Record<string, unknown>): string {
 			return `The ${String(data.template)} email failed: ${String(
 				data.error ?? data.skipped ?? "unknown reason",
 			)}`;
+		case "email_bounced":
+			return `The ${String(data.template)} email bounced: ${String(data.reason ?? "no reason given")}`;
+		case "email_complained":
+			return `${String(data.to)} marked the ${String(data.template)} email as spam`;
 		default:
 			return type;
 	}

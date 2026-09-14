@@ -926,3 +926,51 @@ describe("reordering", () => {
 		expect(after.rows.map((row) => row.id)).toEqual(reversed);
 	});
 });
+
+/**
+ * A bounce arrives minutes after the send, by webhook, and the only thing tying
+ * the two together is Resend's id for the message. The check constraint on
+ * `type` is what stops that route quietly writing rows the admin has no way to
+ * render, so it has to know about the kinds the route actually writes.
+ */
+describe("the email delivery trail", () => {
+	async function anOrder() {
+		const cupcakes = await productId("cupcakes");
+		return placeOrder({ items: [{ product_id: cupcakes, qty: 1 }], pickupDate: await dateIn(7) });
+	}
+
+	const recordEvent = (orderId: string, type: string) =>
+		errorOf(() =>
+			db.query("insert into order_events (order_id, type, data) values ($1, $2, $3)", [
+				orderId,
+				type,
+				JSON.stringify({ emailId: "re_0123456789", template: "order-confirmed" }),
+			]),
+		);
+
+	it.each(["email_sent", "email_failed", "email_bounced", "email_complained"])(
+		"records a %s event",
+		async (type) => {
+			const order = await anOrder();
+			expect(await recordEvent(order.id, type)).toBeNull();
+		},
+	);
+
+	it("refuses a kind of event nothing knows how to render", async () => {
+		const order = await anOrder();
+		expect(await recordEvent(order.id, "email_opened")).toContain("order_events_type_check");
+	});
+
+	it("finds the send a bounce belongs to by the message id alone", async () => {
+		const order = await anOrder();
+		await recordEvent(order.id, "email_sent");
+
+		// The lookup the webhook route makes, with nothing to go on but the id.
+		const found = await db.query<{ order_id: string }>(
+			"select order_id from order_events where type = 'email_sent' and data->>'emailId' = $1",
+			["re_0123456789"],
+		);
+
+		expect(found.rows.map((row) => row.order_id)).toContain(order.id);
+	});
+});

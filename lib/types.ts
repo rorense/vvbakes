@@ -260,7 +260,14 @@ export type OrderSummary = Omit<Order, "items"> & { itemCount: number };
 
 export interface OrderEvent {
 	id: number;
-	type: "created" | "status_changed" | "email_sent" | "email_failed" | "note";
+	type:
+		| "created"
+		| "status_changed"
+		| "email_sent"
+		| "email_failed"
+		| "email_bounced"
+		| "email_complained"
+		| "note";
 	data: Record<string, unknown>;
 	createdAt: string;
 }

@@ -109,25 +109,36 @@ The site sends five emails: one to you when an order arrives, and four to the
 customer as their order moves along. They go out through
 [Resend](https://resend.com), from an address on a domain you own.
 
-1. Add the domain at **Resend → Domains**. Prefer a subdomain, `send.yourdomain`
-   rather than the bare one: it leaves the apex MX record alone, so a real
-   mailbox on the domain can be added later without the two arrangements
-   arguing over the same record.
-2. Copy the DKIM, SPF and MX records it gives you into your DNS. On Cloudflare
-   every one of them has to be **DNS only**, the grey cloud, never proxied.
-   Wait for the domain to read **Verified**.
-3. Create an API key under **Resend → API Keys**. Sending permission is enough.
+1. Add the bare domain at **Resend → Domains**. There is no need to verify a
+   subdomain to keep the apex MX record free: Resend puts SPF and its bounce MX
+   on a `send.` subdomain of its own accord, and only DKIM lands on the apex. So
+   a real mailbox can still be added to the domain later.
+2. Copy the records it gives you into your DNS. On Cloudflare every one of them
+   has to be **DNS only**, the grey cloud, never proxied. Wait for the domain to
+   read **Verified**.
+3. Create an API key under **Resend → API Keys**. Sending permission is enough,
+   and a full-access key can read the contents of everything you have ever sent.
 4. Put both in `.env.local`:
 
    ```
    RESEND_API_KEY="re_..."
-   EMAIL_FROM="vvbakes <orders@send.yourdomain>"
+   EMAIL_FROM="vvbakes <orders@yourdomain>"
    ```
 
-   `EMAIL_FROM` has to sit on the domain you verified. Verifying
-   `send.yourdomain` does not let you send as `orders@yourdomain`.
+   `EMAIL_FROM` has to sit on the domain you verified.
 
-5. In the admin, under **Settings → Getting in touch**, set **Send new orders
+5. Under **Resend → Webhooks**, point a webhook at
+   `https://yourdomain/api/webhooks/resend` and subscribe it to
+   **email.bounced** and **email.complained**. Put the signing secret it shows
+   you in `RESEND_WEBHOOK_SECRET`, in `.env.local` and on the deployment.
+
+   Without this a bounce goes nowhere. `deliver` can only report that Resend
+   accepted the message; whether it arrived is decided minutes later, so a
+   customer who mistyped their address would leave "Sent the order-confirmed
+   email" in the trail and never hear anything. With it, the refusal is recorded
+   against the order and the admin says so in red at the top of the page.
+
+6. In the admin, under **Settings → Getting in touch**, set **Send new orders
    to**, which is where you get told about a new order, and **Contact email**,
    which is where a customer's reply lands.
 
@@ -135,6 +146,11 @@ That second address does not have to be on the domain. Reply-To is not signed
 and nothing checks it, so it can be an ordinary Gmail or Yahoo mailbox she
 already reads; only the From address has to be one Resend has verified. Resend's
 free tier is far more than this shop needs.
+
+Resend does not create a DMARC record for you. It is worth adding one as
+`_dmarc` TXT, starting at `v=DMARC1; p=none; rua=mailto:you@example.com`, which
+changes nothing about how mail is treated but starts the reports coming. Tighten
+to `p=quarantine` once those look clean.
 
 ### 5. Deploy
 
