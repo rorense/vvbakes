@@ -302,6 +302,19 @@ npm run typecheck
 npm run build
 ```
 
+Email is the one thing none of those can prove, because it leaves the machine.
+
+```bash
+npm run emails:test -- you@example.com
+```
+
+That sends the customer's confirmation and the owner's new-order alert to an
+address you name, through the real templates and the real sending setup. Check
+that both arrive in the inbox rather than spam, that the header badge loads, and
+that Reply on each goes where it should: the confirmation to the contact email,
+the alert to the customer. Worth running after any change to how mail is sent,
+and never at a customer's address.
+
 Then, by hand:
 
 **The catalogue.** `/shop` should show three bands with five products, priced

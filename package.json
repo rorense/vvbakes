@@ -17,6 +17,7 @@
 		"db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > lib/supabase/database.types.ts",
 		"check": "node scripts/check-setup.mjs",
 		"emails:preview": "tsx scripts/preview-emails.mts",
+		"emails:test": "tsx scripts/send-test-email.mts",
 		"make-admin": "node scripts/make-admin.mjs"
 	},
 	"dependencies": {
