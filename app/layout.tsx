@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Instrument_Sans } from "next/font/google";
 import { SITE_NAME, SITE_TAGLINE, siteUrl } from "@/lib/constants";
+import { Analytics, SpeedInsights } from "@/components/site/Analytics";
 import "./globals.css";
 
 /**
@@ -49,7 +50,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 		<html
 			lang="en-NZ"
 			className={`${fraunces.variable} ${instrumentSans.variable}`}>
-			<body>{children}</body>
+			<body>
+				{children}
+				<Analytics />
+				<SpeedInsights />
+			</body>
 		</html>
 	);
 }

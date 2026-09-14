@@ -152,6 +152,20 @@ are.
 Supabase project pauses after seven days without activity, which would take the
 shop offline without warning; one read a day prevents that.
 
+Visitor numbers come from Vercel Web Analytics and real-world load times from
+Speed Insights, each switched on per project from its own tab in the
+dashboard. Both are cookie-free, so there is still no consent banner to add.
+Speed Insights earns its place on this site in particular: the visitors are on
+mobile data in New Zealand and the server is in Seoul, which is exactly what a
+desktop test on fibre will never show you.
+
+`components/site/Analytics.tsx` mounts both, and `lib/analytics.ts` rewrites
+the path before either one sends anything: an order-status visit is reported as
+`/order/[token]` rather than with the real token, and `/admin` is dropped
+altogether. So the dashboards can say how many people opened an order and how
+fast that page felt, without recording which order it was, and the owner
+clicking around her own back office is not counted as traffic.
+
 ### Where things run
 
 `vercel.json` pins the server functions to `icn1` (Seoul) because that is where
@@ -279,7 +293,8 @@ Start with `npm run check`, which covers the whole setup: keys, tables, seed
 data, the owner account, the security boundary, storage and email. Then:
 
 ```bash
-npm test          # migrations, RLS policies, pricing, availability. 133 tests
+npm test          # migrations, RLS policies, pricing, availability,
+                  # analytics redaction. 153 tests
 npm run typecheck
 npm run build
 ```

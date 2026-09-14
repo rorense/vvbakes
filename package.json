@@ -23,6 +23,8 @@
 		"@date-fns/tz": "^1.5.0",
 		"@supabase/ssr": "^0.12.7",
 		"@supabase/supabase-js": "^2.116.0",
+		"@vercel/analytics": "^2.0.1",
+		"@vercel/speed-insights": "^2.0.0",
 		"browser-image-compression": "^2.0.2",
 		"next": "^16.3.4",
 		"nodemailer": "^10.0.3",
