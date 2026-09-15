@@ -2,7 +2,6 @@ import { Fragment } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { allergenSentence, extraAllergens } from "@/lib/allergens";
 import { SITE_NAME, siteUrl } from "@/lib/constants";
 import { formatPrice, priceRule } from "@/lib/pricing";
 import { getCategories, getProductBySlug, getProductSlugs, getSettings } from "@/lib/queries";
@@ -144,63 +143,44 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 								) : null}
 							</div>
 
-							<div className="flex flex-col gap-2">
-								<SectionLabel as="h2">Price</SectionLabel>
-								<HairlineList as="dl">
-									{product.variants.length > 0 ? (
-										// One row per flavour, because the price is the thing that differs
-										// between them and a single "from $45" hides it.
-										product.variants.map((variant) => {
-											// Only what this flavour adds. Repeating the three
-											// allergens every flavour shares, on every row, would
-											// bury the one that actually differs between them.
-											const extra = extraAllergens(product, variant);
-
-											return (
-												<HairlineRow
-													key={variant.id}
-													as="div">
-													<dt className="text-sm">
-														{variant.name}
-														{variant.isAvailable ? "" : " — sold out"}
-														{extra.length > 0 ? (
-															<span className="text-cocoa-soft mt-0.5 block text-xs">
-																Also contains {allergenSentence(extra)}
-															</span>
-														) : null}
-													</dt>
-													<dd className="font-display text-lg italic">
-														{formatPrice(variant.unitPriceCents)}
-													</dd>
-												</HairlineRow>
-											);
-										})
-									) : (
-										<HairlineRow as="div">
-											<dt className="text-sm">
-												{product.qtyStep > 1
-													? `Per ${product.qtyStep}`
-													: `Per ${product.unitLabel}`}
-											</dt>
-											<dd className="font-display text-lg italic">
-												{product.qtyStep > 1
-													? formatPrice(product.unitPriceCents * product.qtyStep)
-													: formatPrice(product.unitPriceCents)}
-											</dd>
-										</HairlineRow>
-									)}
-									{product.tiers.map((tier) => (
-										<HairlineRow
-											key={tier.qty}
-											as="div">
-											<dt className="text-sm">{tier.qty} together</dt>
-											<dd className="font-display text-lg italic">
-												{formatPrice(tier.priceCents)}
-											</dd>
-										</HairlineRow>
-									))}
-								</HairlineList>
-							</div>
+							{/* The price table says what the pickers below do not.
+							    A flavoured product prices itself as the customer chooses:
+							    the pills and the running total under them move together, so
+							    a table repeating "$45" once per flavour was a second answer
+							    to a question already answered. What is left is the plain
+							    per-unit price, which nothing else states, and the bundles,
+							    which the pickers never mention. */}
+							{product.variants.length === 0 || product.tiers.length > 0 ? (
+								<div className="flex flex-col gap-2">
+									<SectionLabel as="h2">Price</SectionLabel>
+									<HairlineList as="dl">
+										{product.variants.length === 0 ? (
+											<HairlineRow as="div">
+												<dt className="text-sm">
+													{product.qtyStep > 1
+														? `Per ${product.qtyStep}`
+														: `Per ${product.unitLabel}`}
+												</dt>
+												<dd className="font-display text-lg italic">
+													{product.qtyStep > 1
+														? formatPrice(product.unitPriceCents * product.qtyStep)
+														: formatPrice(product.unitPriceCents)}
+												</dd>
+											</HairlineRow>
+										) : null}
+										{product.tiers.map((tier) => (
+											<HairlineRow
+												key={tier.qty}
+												as="div">
+												<dt className="text-sm">{tier.qty} together</dt>
+												<dd className="font-display text-lg italic">
+													{formatPrice(tier.priceCents)}
+												</dd>
+											</HairlineRow>
+										))}
+									</HairlineList>
+								</div>
+							) : null}
 
 							<AddToOrder product={product} />
 

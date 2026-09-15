@@ -157,11 +157,18 @@ export function priceProduct(
  *   item with tiers   "$3 each · 4 for $12"
  *   stepped item      "2 for $5"        (cookies: sold in pairs, no tier row)
  *   flavoured item    "$45 – $55 each"  (one price shown when they all match)
+ *
+ * Pass `bundles: false` where the line has room for one price only, as a card
+ * in a four-up grid does. The bundles are still priced and still applied; the
+ * product page is where they are named.
  */
-export function priceRule(product: Product): string {
+export function priceRule(
+	product: Product,
+	{ bundles = true }: { bundles?: boolean } = {},
+): string {
 	const base = priceRange(product);
 
-	if (product.tiers.length > 0) {
+	if (bundles && product.tiers.length > 0) {
 		const tiers = [...product.tiers]
 			.sort((a, b) => a.qty - b.qty)
 			.map((tier) => `${tier.qty} for ${formatPrice(tier.priceCents)}`);

@@ -111,6 +111,10 @@ describe("priceRule", () => {
 		expect(priceRule(product({ tiers: FOUR_FOR_TWELVE }))).toBe("$3 each · 4 for $12");
 	});
 
+	it("leaves the bundles out when asked for the headline price alone", () => {
+		expect(priceRule(product({ tiers: FOUR_FOR_TWELVE }), { bundles: false })).toBe("$3 each");
+	});
+
 	it("advertises a stepped item by its step, not its unit price", () => {
 		// An item priced $2.50 but only sold in pairs has no single-unit price
 		// worth printing: "2 for $5" is the honest headline.
