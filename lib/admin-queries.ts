@@ -149,6 +149,21 @@ export const adminOrderCounts = cache(
 	},
 );
 
+/**
+ * One row of a list of orders: everything about the order except its lines,
+ * plus how many of them there are.
+ *
+ * Both listings select `order_items (id)` rather than the whole line, because a
+ * list says "3 items" and never what they are, so the rows exist only to be
+ * counted. That narrower select is what the cast is paying for: the generated
+ * row type describes the full join and this deliberately is not it.
+ */
+function toOrderSummary(row: { order_items?: Array<{ id: string }> | null }): OrderSummary {
+	const { order_items, ...rest } = row;
+	const { items: _items, ...summary } = toOrder(rest as never);
+	return { ...summary, itemCount: order_items?.length ?? 0 };
+}
+
 export interface OrderFilters {
 	status?: OrderStatus | "all" | "open";
 	date?: IsoDate;
@@ -220,12 +235,7 @@ export async function adminOrders(filters: OrderFilters = {}): Promise<OrderPage
 
 	return {
 		hasMore,
-		orders: rows.slice(0, perPage).map((row) => {
-			const { order_items, ...rest } = row as typeof row & { order_items?: Array<{ id: string }> };
-			const order = toOrder(rest as never);
-			const { items: _items, ...summary } = order;
-			return { ...summary, itemCount: order_items?.length ?? 0 };
-		}),
+		orders: rows.slice(0, perPage).map(toOrderSummary),
 	};
 }
 
@@ -291,13 +301,6 @@ export const adminDashboard = cache(async (today: IsoDate, weekAhead: IsoDate) =
 	return {
 		newCount: newOrders.count ?? 0,
 		overdueCount: needingAttention.count ?? 0,
-		upcoming: (upcoming.data ?? []).map((row) => {
-			const { order_items, ...rest } = row as typeof row & {
-				order_items?: Array<{ id: string }>;
-			};
-			const order = toOrder(rest as never);
-			const { items: _items, ...summary } = order;
-			return { ...summary, itemCount: order_items?.length ?? 0 };
-		}),
+		upcoming: (upcoming.data ?? []).map(toOrderSummary),
 	};
 });

@@ -19,6 +19,7 @@ import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { CopyValue } from "@/components/order/CopyValue";
 import { Inspiration } from "@/components/order/Inspiration";
+import { OrderLines } from "@/components/order/OrderLines";
 
 export const dynamic = "force-dynamic";
 
@@ -95,53 +96,19 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
 					{/* The receipt itself, on cream with a torn foot. */}
 					<div className="bg-paper-deep torn-edge rounded-t-lg px-6 pt-6 pb-10 sm:px-8 sm:pt-8">
 						<SectionLabel as="h2">Your order</SectionLabel>
-						<HairlineList className="mt-3">
-							{order.items.length === 0 ? (
+						<OrderLines
+							order={order}
+							className="mt-3"
+							unpricedLabel="I'll send you a price"
+							emptyRow={
 								<HairlineRow align="start">
 									<div className="flex flex-col gap-0.5">
 										<span className="font-medium">One custom cake</span>
 										<span className="text-cocoa-soft text-xs">As you described it</span>
 									</div>
 								</HairlineRow>
-							) : null}
-							{order.items.map((item) => (
-								<HairlineRow
-									key={item.id}
-									align="start">
-									<div className="flex flex-col gap-0.5">
-										<span className="font-medium">
-											{item.qty} &times; {item.productName}
-										</span>
-										{item.variantName ? (
-											<span className="text-cocoa-soft text-xs">{item.variantName}</span>
-										) : null}
-										{item.pricingNote ? (
-											<span className="text-cocoa-soft text-xs">{item.pricingNote}</span>
-										) : null}
-									</div>
-									<span className="shrink-0">{formatMoney(item.lineTotalCents)}</span>
-								</HairlineRow>
-							))}
-
-							{order.deliveryFeeCents > 0 ? (
-								<HairlineRow>
-									<span className="text-cocoa-soft text-sm">Delivery</span>
-									<span className="shrink-0 text-sm">{formatMoney(order.deliveryFeeCents)}</span>
-								</HairlineRow>
-							) : null}
-
-							<HairlineRow>
-								<span className="font-medium">Total</span>
-								<span
-									className={
-										order.totalCents === 0
-											? "text-cocoa-soft shrink-0 text-sm"
-											: "font-display shrink-0 text-2xl"
-									}>
-									{order.totalCents === 0 ? "I'll send you a price" : formatMoney(order.totalCents)}
-								</span>
-							</HairlineRow>
-						</HairlineList>
+							}
+						/>
 					</div>
 
 					<Fulfilment

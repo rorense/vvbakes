@@ -9,13 +9,13 @@ import {
 import { cn } from "@/lib/cn";
 import { formatDateLong } from "@/lib/dates";
 import { allowedTransitions, STATUS_TONES } from "@/lib/order-status";
-import { formatMoney } from "@/lib/pricing";
 import { siteUrl } from "@/lib/constants";
 import { ORDER_STATUS_LABELS } from "@/lib/types";
 import { AdminCard, AdminHeader } from "@/components/admin/AdminShell";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { OrderActions } from "@/components/admin/OrderActions";
 import { Inspiration } from "@/components/order/Inspiration";
+import { OrderLines } from "@/components/order/OrderLines";
 
 export const dynamic = "force-dynamic";
 
@@ -94,49 +94,11 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 							Nothing off the menu. This is the cake above.
 						</p>
 					) : null}
-					<HairlineList>
-						{order.items.map((item) => (
-							<HairlineRow
-								key={item.id}
-								align="start">
-								<div className="flex flex-col gap-0.5">
-									<span className="font-medium">
-										{item.qty} &times; {item.productName}
-									</span>
-									{item.variantName ? (
-										<span className="text-cocoa-soft text-xs">{item.variantName}</span>
-									) : null}
-									{item.pricingNote ? (
-										<span className="text-cocoa-soft text-xs">{item.pricingNote}</span>
-									) : null}
-								</div>
-								<span className="shrink-0">{formatMoney(item.lineTotalCents)}</span>
-							</HairlineRow>
-						))}
-						{order.deliveryFeeCents > 0 ? (
-							<HairlineRow>
-								<span className="text-cocoa-soft text-sm">Delivery</span>
-								<span className="shrink-0 text-sm">{formatMoney(order.deliveryFeeCents)}</span>
-							</HairlineRow>
-						) : null}
-						{order.quoteCents > 0 ? (
-							<HairlineRow>
-								<span className="text-cocoa-soft text-sm">Your price for the cake</span>
-								<span className="shrink-0 text-sm">{formatMoney(order.quoteCents)}</span>
-							</HairlineRow>
-						) : null}
-						<HairlineRow>
-							<span className="font-medium">Total</span>
-							<span
-								className={
-									order.totalCents === 0
-										? "text-cocoa-soft shrink-0 text-sm"
-										: "font-display shrink-0 text-2xl"
-								}>
-								{order.totalCents === 0 ? "Not priced yet" : formatMoney(order.totalCents)}
-							</span>
-						</HairlineRow>
-					</HairlineList>
+					<OrderLines
+						order={order}
+						unpricedLabel="Not priced yet"
+						showQuote
+					/>
 				</AdminCard>
 
 				<AdminCard title="Customer">
