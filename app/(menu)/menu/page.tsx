@@ -1,15 +1,23 @@
 import Image from "next/image";
 import { instagramUrl } from "@/lib/constants";
+import { getPrivateSettings } from "@/lib/orders";
 import styles from "./menu.module.css";
 
 /**
  * Unlisted single-screen menu card, handed out at physical markets. It is not in
  * the navigation or the sitemap and is marked noindex in the layout.
  *
- * The content here is hard-coded on purpose: it must stay stable and printable
- * even while the online catalogue changes. Bank details are shown because market
- * customers pay by transfer on the spot; the online ordering flow never exposes
- * them publicly and sends them in the confirmation email instead.
+ * The prices below are hard-coded on purpose: this is a printed card, and it has
+ * to keep saying what the card in someone's hand says even while the online
+ * catalogue moves underneath it.
+ *
+ * The bank details are the opposite case, and they come from the admin. They are
+ * shown here because market customers pay by transfer while standing there, but
+ * the day the account changes is precisely the day this card must not still be
+ * quoting the old one — and having the number written down in two places is how
+ * one of them ends up wrong. The site's other copy of it is private, shown to a
+ * customer only once their order is confirmed; this page is the deliberate
+ * exception, not a second source of truth.
  */
 const MENU_ITEMS: ReadonlyArray<{ name: string; prices: readonly string[] }> = [
 	{ name: "Cupcakes", prices: ["$3 each", "4 for $12"] },
@@ -19,12 +27,26 @@ const MENU_ITEMS: ReadonlyArray<{ name: string; prices: readonly string[] }> = [
 	{ name: "Pandan Chiffon Cake", prices: ["$3 / slice"] },
 ];
 
-const BANK_DETAILS: ReadonlyArray<{ label: string; value: string }> = [
-	{ label: "Name", value: "Liviana Ngadi" },
-	{ label: "Account", value: "12-3035-0753102-52" },
-];
+/**
+ * Cached like the other public pages rather than rendered per request. A market
+ * stall is the worst network this site ever sees, and the account number changes
+ * about never, so five minutes of staleness costs nothing and a fast card is
+ * worth a lot.
+ */
+export const revalidate = 300;
 
-export default function MenuPage() {
+export default async function MenuPage() {
+	const { bankAccountName, bankAccountNumber } = await getPrivateSettings();
+
+	// Whatever is actually filled in. A missing one is left out rather than
+	// printed as a blank row, and if the read fails entirely the section goes
+	// with it: a card with no bank details is recoverable at a stall, one
+	// showing the wrong number is not.
+	const bankDetails = [
+		{ label: "Name", value: bankAccountName },
+		{ label: "Account", value: bankAccountNumber },
+	].filter((row): row is { label: string; value: string } => Boolean(row.value));
+
 	return (
 		<div className={styles.page}>
 			<header>
@@ -71,25 +93,27 @@ export default function MenuPage() {
 				</ul>
 			</section>
 
-			<section
-				className={styles.pay}
-				aria-labelledby="pay-heading">
-				<h2
-					id="pay-heading"
-					className={styles.sectionTitle}>
-					bank details
-				</h2>
-				<dl className={styles.payGrid}>
-					{BANK_DETAILS.map((row) => (
-						<div
-							key={row.label}
-							className={styles.payRow}>
-							<dt>{row.label}</dt>
-							<dd>{row.value}</dd>
-						</div>
-					))}
-				</dl>
-			</section>
+			{bankDetails.length === 0 ? null : (
+				<section
+					className={styles.pay}
+					aria-labelledby="pay-heading">
+					<h2
+						id="pay-heading"
+						className={styles.sectionTitle}>
+						bank details
+					</h2>
+					<dl className={styles.payGrid}>
+						{bankDetails.map((row) => (
+							<div
+								key={row.label}
+								className={styles.payRow}>
+								<dt>{row.label}</dt>
+								<dd>{row.value}</dd>
+							</div>
+						))}
+					</dl>
+				</section>
+			)}
 
 			<footer className={styles.footer}>
 				<p className={styles.thanks}>thank you for supporting vvbakes</p>
