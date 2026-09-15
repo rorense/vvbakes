@@ -51,6 +51,8 @@ type ProductRow = {
 	price_on_request: boolean;
 	/** The product page asks for inspiration photos and a link, not just a note. */
 	wants_brief: boolean;
+	/** The product page asks for a flavour of their own, and for what the frosting should be. */
+	wants_custom_flavour: boolean;
 	created_at: string;
 	updated_at: string;
 };
@@ -199,6 +201,12 @@ type OrderItemRow = {
 	inspiration_image_paths: string[];
 	/** Snapshotted: this line had no price yet. Zero above means unpriced, not free. */
 	price_on_request: boolean;
+	/** A flavour they asked for that was not on the menu, in their own words. */
+	custom_flavour: string | null;
+	/** What they asked the frosting to be. Null when it matches the flavour, or when unsaid. */
+	frosting: string | null;
+	/** They asked for the frosting to taste of the flavour. Never set alongside `frosting`. */
+	frosting_matches_flavour: boolean;
 };
 
 type OrderEventRow = {

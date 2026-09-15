@@ -29,6 +29,7 @@ export function OrderActions({
 	customRequest,
 	inspiration,
 	needsQuote,
+	hasCustomFlavour,
 	quoteCents,
 	totalCents,
 }: {
@@ -52,6 +53,16 @@ export function OrderActions({
 	 * is still missing the cake.
 	 */
 	needsQuote: boolean;
+	/**
+	 * True when a line asked for a flavour of its own.
+	 *
+	 * Not the same as `needsQuote`, and deliberately does not make an order need
+	 * a price: cupcakes have a real menu price and she may well not charge extra
+	 * for pandan. It only opens the card, so that when she does charge extra
+	 * there is somewhere to put it — the shop has already told the customer this
+	 * might happen.
+	 */
+	hasCustomFlavour: boolean;
 	quoteCents: number;
 	totalCents: number;
 }) {
@@ -69,14 +80,20 @@ export function OrderActions({
 		<div className="flex flex-col gap-6">
 			{/* A photo with no words is a brief too, so the card appears for that.
 			    So does a line she has to price, whether or not they typed anything:
-			    without it there would be nowhere to put the number. */}
-			{needsQuote || customRequest || inspiration ? (
+			    without it there would be nowhere to put the number. And so does a
+			    flavour of somebody's own, which she may charge extra for and may
+			    not — the card is the only place that number could go. */}
+			{needsQuote || hasCustomFlavour || customRequest || inspiration ? (
 				<QuoteCard
 					orderId={orderId}
 					customRequest={customRequest}
 					inspiration={inspiration}
 					quoteCents={quoteCents}
 					needsPrice={needsPrice}
+					// A cake she has not priced is the reason this card usually
+					// exists; a custom flavour on a priced product is not a cake, and
+					// calling it one would have her looking for one on the order.
+					forCake={needsQuote}
 				/>
 			) : null}
 
@@ -257,12 +274,15 @@ function QuoteCard({
 	inspiration,
 	quoteCents,
 	needsPrice,
+	forCake,
 }: {
 	orderId: string;
 	customRequest: string | null;
 	inspiration: React.ReactNode;
 	quoteCents: number;
 	needsPrice: boolean;
+	/** There is a cake on this order with no price. Otherwise it is an extra on something priced. */
+	forCake: boolean;
 }) {
 	const [state, action, pending] = useActionState(saveQuote, EMPTY_FORM_STATE);
 	const errors = fieldErrorsFrom(state);
@@ -270,7 +290,7 @@ function QuoteCard({
 
 	return (
 		<AdminCard
-			title="The cake they asked for"
+			title={forCake ? "The cake they asked for" : "The custom work on this order"}
 			className={needsPrice ? "border-cocoa" : undefined}>
 			{customRequest ? (
 				<p className="mb-5 text-sm whitespace-pre-wrap">{customRequest}</p>
@@ -292,8 +312,12 @@ function QuoteCard({
 				/>
 
 				<Field
-					label="Price for this cake"
-					hint="In dollars. Added to anything they also ordered off the menu."
+					label={forCake ? "Price for this cake" : "Extra for the custom work"}
+					hint={
+						forCake
+							? "In dollars. Added to anything they also ordered off the menu."
+							: "In dollars, and only if it costs you more. Added on top of what the menu already charged. Leave it blank and they pay the menu price."
+					}
 					error={errors.quoteCents}>
 					{(props) => (
 						<Input

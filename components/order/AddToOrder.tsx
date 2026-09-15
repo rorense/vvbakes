@@ -123,7 +123,17 @@ export function AddToOrder({ product, extras = [] }: { product: Product; extras?
 				chosen.map((extra) => extra.id),
 				isDraftEmpty(brief)
 					? undefined
-					: { note: brief.note, inspirationUrl: brief.inspirationUrl, photoIds },
+					: {
+							note: brief.note,
+							inspirationUrl: brief.inspirationUrl,
+							photoIds,
+							customFlavour: brief.customFlavour,
+							// The tick and the text are one answer; `normaliseBrief` drops
+							// whichever of them the other one wins over, so both are handed
+							// over as they stand rather than reconciled twice.
+							frosting: brief.frosting,
+							frostingMatchesFlavour: brief.frostingMatchesFlavour,
+						},
 			);
 
 			// The previews belong to this picker and nothing else will ever draw

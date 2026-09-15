@@ -138,6 +138,10 @@ function OrderReceivedEmail(ctx: EmailContext) {
 				deliveryFeeCents={order.deliveryFeeCents}
 				totalCents={order.totalCents}
 				quoteCents={order.quoteCents}
+				// Said here and nowhere else in the emails. The shop said it before
+				// they ordered and the order page goes on saying it; the confirmation
+				// does not, because by then she has decided what it costs.
+				customFlavourNote="You've asked for a flavour of your own, which can cost a little more than the price on the menu. I'll let you know if it does, before I make a start."
 			/>
 
 			<DetailRows

@@ -66,6 +66,7 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		sortOrder: 1,
 		priceOnRequest: false,
 		wantsBrief: false,
+		wantsCustomFlavour: false,
 		...overrides,
 	};
 }
@@ -117,6 +118,12 @@ export const DEMO_PRODUCTS: Product[] = [
 		isFeatured: true,
 		sortOrder: 1,
 		allergens: ["gluten", "dairy", "egg"],
+		// Mirrors what
+		// supabase/migrations/20260916000004_custom_flavour.sql switches on for
+		// the whole cupcakes category: a flavour of your own, a question about
+		// the frosting, and somewhere to put the picture it came from.
+		wantsCustomFlavour: true,
+		wantsBrief: true,
 	}),
 	demoProduct({
 		id: "demo-2",

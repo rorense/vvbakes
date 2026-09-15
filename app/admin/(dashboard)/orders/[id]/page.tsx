@@ -6,6 +6,7 @@ import {
 	adminOrderReference,
 	adminSettings,
 } from "@/lib/admin-queries";
+import { hasCustomFlavour } from "@/lib/brief";
 import { cn } from "@/lib/cn";
 import { formatDateLong } from "@/lib/dates";
 import { allowedTransitions, STATUS_TONES } from "@/lib/order-status";
@@ -88,6 +89,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 					// so an order placed as custom work goes on saying so even after
 					// she un-ticks "price on request" on the product.
 					needsQuote={order.items.some((item) => item.priceOnRequest)}
+					// Opens the same card without demanding a number: a flavour of
+					// their own on cupcakes that already have a price may cost her
+					// nothing extra, and may cost her an afternoon.
+					hasCustomFlavour={order.items.some(hasCustomFlavour)}
 					quoteCents={order.quoteCents}
 					totalCents={order.totalCents}
 				/>

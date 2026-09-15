@@ -60,6 +60,10 @@ type PlaceArgs = {
 		note?: string;
 		inspiration_url?: string;
 		inspiration_image_paths?: string[];
+		/** And the flavour of their own, on the products that ask for one. */
+		custom_flavour?: string;
+		frosting?: string;
+		frosting_matches_flavour?: boolean;
 	}>;
 	pickupDate: string;
 	fulfilment?: "pickup" | "delivery";
@@ -2196,6 +2200,194 @@ describe("the custom cake as a product", () => {
 		expect(items[0]!.price_on_request).toBe(true);
 
 		await db.query("update products set price_on_request = true where id = $1", [customCake]);
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+});
+
+/**
+ * A flavour of the customer's own, and what the frosting should be.
+ *
+ * The browser decides which of these questions to put; `place_order` decides
+ * what reaches the order and whether two lines are one line, and those are the
+ * decisions covered here. The browser's half of the same agreement — the same
+ * lines folded, the same lines kept apart — is in lib/brief.test.ts.
+ */
+describe("a flavour of their own", () => {
+	let cupcakes: string;
+
+	async function itemsOf(orderId: string) {
+		const result = await db.query<{
+			qty: number;
+			custom_flavour: string | null;
+			frosting: string | null;
+			frosting_matches_flavour: boolean;
+		}>(
+			`select qty, custom_flavour, frosting, frosting_matches_flavour
+			 from order_items where order_id = $1
+			 order by coalesce(custom_flavour, ''), coalesce(frosting, ''), qty`,
+			[orderId],
+		);
+		return result.rows;
+	}
+
+	beforeAll(async () => {
+		await openEveryDay(50);
+		cupcakes = await productId("cupcakes");
+	});
+
+	it("switches the question on for the whole cupcakes category", async () => {
+		const result = await db.query<{
+			slug: string;
+			wants_custom_flavour: boolean;
+			wants_brief: boolean;
+		}>(
+			`select p.slug, p.wants_custom_flavour, p.wants_brief
+			 from products p
+			 join categories c on c.id = p.category_id
+			 where c.slug = 'cupcakes'`,
+		);
+
+		expect(result.rows.length).toBeGreaterThan(0);
+		for (const row of result.rows) {
+			expect(row).toMatchObject({ wants_custom_flavour: true, wants_brief: true });
+		}
+	});
+
+	it("leaves every other product asking nothing of the kind", async () => {
+		const result = await db.query<{ count: number }>(
+			`select count(*)::int as count
+			 from products p
+			 where p.wants_custom_flavour
+			   and p.category_id is distinct from (select id from categories where slug = 'cupcakes')`,
+		);
+
+		expect(result.rows[0]!.count).toBe(0);
+	});
+
+	it("carries the flavour and the frosting onto the line", async () => {
+		const order = await placeOrder({
+			items: [
+				{ product_id: cupcakes, qty: 4, custom_flavour: "  Pandan  ", frosting: "Pale pink" },
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		// Four cupcakes is still the seeded "4 for $12": asking for pandan does
+		// not change what the menu charges. What it may cost extra is the owner's
+		// judgement, and it goes in `quote_cents`.
+		expect(order.total_cents).toBe(1200);
+
+		expect(await itemsOf(order.id)).toEqual([
+			{
+				qty: 4,
+				custom_flavour: "Pandan",
+				frosting: "Pale pink",
+				frosting_matches_flavour: false,
+			},
+		]);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("lets the tick box win over a frosting sent alongside it", async () => {
+		// One answer to one question. A caller that sends both is not refused —
+		// it is a browser that got ahead of itself, not an attack — but only one
+		// of the two reaches the order, and it is the one that was ticked.
+		const order = await placeOrder({
+			items: [
+				{
+					product_id: cupcakes,
+					qty: 4,
+					custom_flavour: "Pandan",
+					frosting: "Pale pink",
+					frosting_matches_flavour: true,
+				},
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		expect(await itemsOf(order.id)).toEqual([
+			{ qty: 4, custom_flavour: "Pandan", frosting: null, frosting_matches_flavour: true },
+		]);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("folds a line that sent both into the line that sent only the tick", async () => {
+		// The grouping runs on the normalised pair, so these are one line of
+		// eight rather than two of four. Left ungrouped, the bundle price would
+		// apply twice here and once in the browser, and the two totals would
+		// disagree.
+		const order = await placeOrder({
+			items: [
+				{ product_id: cupcakes, qty: 4, frosting: "Pale pink", frosting_matches_flavour: true },
+				{ product_id: cupcakes, qty: 4, frosting_matches_flavour: true },
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		expect(await itemsOf(order.id)).toEqual([
+			{ qty: 8, custom_flavour: null, frosting: null, frosting_matches_flavour: true },
+		]);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("keeps two flavours as two lines", async () => {
+		// Two batches to bake. Under the old grouping these were the same product
+		// with no variant and no extras, so they folded into one line of eight and
+		// one of the two flavours was simply gone.
+		const order = await placeOrder({
+			items: [
+				{ product_id: cupcakes, qty: 4, custom_flavour: "Pandan" },
+				{ product_id: cupcakes, qty: 4, custom_flavour: "Ube" },
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		const items = await itemsOf(order.id);
+		expect(items).toHaveLength(2);
+		expect(items.map((item) => item.custom_flavour)).toEqual(["Pandan", "Ube"]);
+		// Each line is priced as four, so each gets the bundle. That is the same
+		// arithmetic the basket did, which is the point.
+		expect(order.total_cents).toBe(2400);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("keeps a line with no flavour folding together exactly as before", async () => {
+		// The compatibility case, and the one most orders are: nothing asked, one
+		// line, the price it always was.
+		const order = await placeOrder({
+			items: [
+				{ product_id: cupcakes, qty: 2 },
+				{ product_id: cupcakes, qty: 2 },
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		expect(await itemsOf(order.id)).toEqual([
+			{ qty: 4, custom_flavour: null, frosting: null, frosting_matches_flavour: false },
+		]);
+		expect(order.total_cents).toBe(1200);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("refuses a row that gives two answers about one frosting", async () => {
+		// `place_order` already blanks one of them. This is the promise underneath
+		// that: nothing can put a row in this table saying the frosting is pale
+		// pink *and* whatever the flavour is.
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 4, frosting_matches_flavour: true }],
+			pickupDate: await dateIn(5),
+		});
+
+		const error = await errorOf(() =>
+			db.query("update order_items set frosting = 'Pale pink' where order_id = $1", [order.id]),
+		);
+		expect(error).toMatch(/order_items_frosting_is_one_answer/);
+
 		await db.query("delete from orders where id = $1", [order.id]);
 	});
 });

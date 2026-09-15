@@ -48,34 +48,47 @@ on conflict (slug) do nothing;
 --   Brochi    $5 / slice               -> unit 500, label 'slice'
 --   Wingko    $5 / slice               -> unit 500, label 'slice'
 --   Pandan Chiffon Cake  $3 / slice    -> unit 300, label 'slice'
+--
+-- The cupcakes ask two questions nothing else here does: a flavour of your own
+-- and what the frosting should be, plus somewhere to put the picture it came
+-- from. 20260916000004_custom_flavour.sql switches the same two columns on for
+-- the whole cupcakes category, which is what a project seeded before that
+-- migration existed needs; this is what a project seeded after it needs, since
+-- migrations run before the seed and that update has no rows to find.
 insert into products (
 	name, slug, category_id, description,
-	unit_price_cents, unit_label, qty_step, is_featured, sort_order
+	unit_price_cents, unit_label, qty_step, is_featured, sort_order,
+	wants_custom_flavour, wants_brief
 ) values
 	(
 		'Cupcakes', 'cupcakes',
 		(select id from categories where slug = 'cupcakes'),
-		null, 300, 'each', 1, true, 1
+		null, 300, 'each', 1, true, 1,
+		true, true
 	),
 	(
 		'Cookies', 'cookies',
 		(select id from categories where slug = 'cookies'),
-		'Each pack comes with two cookies.', 500, 'pack', 1, true, 2
+		'Each pack comes with two cookies.', 500, 'pack', 1, true, 2,
+		false, false
 	),
 	(
 		'Brochi', 'brochi',
 		(select id from categories where slug = 'cakes-and-kue'),
-		null, 500, 'slice', 1, false, 3
+		null, 500, 'slice', 1, false, 3,
+		false, false
 	),
 	(
 		'Wingko', 'wingko',
 		(select id from categories where slug = 'cakes-and-kue'),
-		null, 500, 'slice', 1, false, 4
+		null, 500, 'slice', 1, false, 4,
+		false, false
 	),
 	(
 		'Pandan Chiffon Cake', 'pandan-chiffon-cake',
 		(select id from categories where slug = 'cakes-and-kue'),
-		null, 300, 'slice', 1, true, 5
+		null, 300, 'slice', 1, true, 5,
+		false, false
 	)
 on conflict (slug) do nothing;
 

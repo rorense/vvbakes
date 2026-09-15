@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { placeOrder } from "@/app/(site)/order/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
-import { briefPhotoIds } from "@/lib/brief";
+import { briefPhotoIds, frostingLabel, hasCustomFlavour } from "@/lib/brief";
 import { cartLineKey, clearCart, useCart } from "@/lib/cart";
 import { cn } from "@/lib/cn";
 import { MAX_ORDER_INSPIRATION_PHOTOS } from "@/lib/constants";
@@ -295,6 +295,11 @@ export function OrderForm({
 	// Something in the basket has no price yet, so the figure above is a subtotal
 	// of everything else and has to say so wherever it appears.
 	const hasUnpriced = lines.some((line) => line.onRequest);
+	// And something in it was asked for in a flavour of its own, which is a real
+	// price the owner may add to rather than half of one. A different sentence,
+	// said in the same place. Repeated on the order page once it is placed, where
+	// it stops the moment she decides what it costs.
+	const mayCostMore = lines.some((line) => line.brief && hasCustomFlavour(line.brief));
 
 	const attachedPhotos = photoIds.filter((id) => photos.has(id)).length;
 	const tooManyPhotos = attachedPhotos > MAX_ORDER_INSPIRATION_PHOTOS;
@@ -370,6 +375,13 @@ export function OrderForm({
 						extraIds: line.extras.map((extra) => extra.id),
 						note: line.brief?.note ?? "",
 						inspirationUrl: line.brief?.inspirationUrl ?? "",
+						customFlavour: line.brief?.customFlavour ?? "",
+						// Already reconciled by `normaliseBrief` on the way into the
+						// cart: a brief carrying the tick carries no frosting text.
+						// `place_order` reconciles them again anyway, because it does
+						// not get to assume this page wrote the basket.
+						frosting: line.brief?.frosting ?? "",
+						frostingMatchesFlavour: line.brief?.frostingMatchesFlavour ?? false,
 						qty: line.qty,
 					})),
 				)}
@@ -697,6 +709,7 @@ export function OrderForm({
 					deliveryFee={deliveryFee}
 					total={total}
 					hasUnpriced={hasUnpriced}
+					mayCostMore={mayCostMore}
 				/>
 				<div>
 					<Button
@@ -719,10 +732,16 @@ export function OrderForm({
 					</span>
 					<span className="flex items-baseline gap-2">
 						{total > 0 ? <span className="font-display text-xl">{formatMoney(total)}</span> : null}
+						{/* The desktop summary says all of this in sentences; there is no
+						    room for one here, so the bar carries the shortest true
+						    version. A cake with no price at all is the bigger caveat of
+						    the two, so it wins when an order somehow holds both. */}
 						{hasUnpriced ? (
 							<span className="text-cocoa-soft text-xs">
 								{total > 0 ? "+ your cake" : "Price to follow"}
 							</span>
+						) : mayCostMore ? (
+							<span className="text-cocoa-soft text-xs">may change</span>
 						) : null}
 					</span>
 				</div>
@@ -817,8 +836,18 @@ function LineBrief({
 		.map((id) => photos.get(id))
 		.filter((photo): photo is LinePhoto => photo !== undefined);
 
+	const frosting = frostingLabel(brief.frosting, brief.frostingMatchesFlavour);
+
 	return (
 		<div className="border-line mt-2 flex flex-col gap-2 border-l pl-3">
+			{/* Labelled, unlike the note, because these are answers to questions
+			    and the answers are short enough to be mistaken for each other:
+			    "pandan" on its own could as easily be the frosting. */}
+			{brief.customFlavour ? (
+				<p className="text-cocoa-soft text-xs">Flavour: {brief.customFlavour}</p>
+			) : null}
+			{frosting ? <p className="text-cocoa-soft text-xs">Frosting: {frosting}</p> : null}
+
 			{brief.note ? (
 				<p className="text-cocoa-soft text-xs whitespace-pre-wrap">{brief.note}</p>
 			) : null}
@@ -886,12 +915,21 @@ function Total({
 	deliveryFee,
 	total,
 	hasUnpriced,
+	mayCostMore,
 }: {
 	subtotal: number;
 	deliveryFee: number;
 	total: number;
 	/** True when something in the basket has no price on it yet. */
 	hasUnpriced: boolean;
+	/**
+	 * True when something in the basket was asked for in a flavour of its own.
+	 *
+	 * A different sentence from `hasUnpriced`, because the figure above is a real
+	 * price rather than half of one — it is just a price the owner is allowed to
+	 * add to once she has read what is being asked.
+	 */
+	mayCostMore: boolean;
 }) {
 	return (
 		<div className="flex flex-col gap-2">
@@ -923,6 +961,13 @@ function Total({
 				<p className="text-cocoa-soft text-xs">
 					Plus whatever the custom work comes to. I&rsquo;ll price it once I&rsquo;ve read your
 					brief and email you the full total.
+				</p>
+			) : null}
+
+			{mayCostMore ? (
+				<p className="text-cocoa-soft text-xs">
+					You&rsquo;ve asked for a flavour of your own, which can cost a little more than the price
+					on the menu. I&rsquo;ll email you if it does, before I make a start.
 				</p>
 			) : null}
 		</div>

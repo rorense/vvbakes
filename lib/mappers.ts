@@ -211,6 +211,7 @@ export function toProduct(
 		// would behave, but `false` is what the type promises.
 		priceOnRequest: row.price_on_request ?? false,
 		wantsBrief: row.wants_brief ?? false,
+		wantsCustomFlavour: row.wants_custom_flavour ?? false,
 	};
 }
 
@@ -296,6 +297,12 @@ function toOrderItem(row: OrderItemColumns): OrderItem {
 		note: row.note ?? null,
 		inspirationUrl: row.inspiration_url ?? null,
 		inspirationImagePaths: row.inspiration_image_paths ?? [],
+		customFlavour: row.custom_flavour ?? null,
+		// Null whenever the box was ticked, because the two are one answer to one
+		// question and the column has a constraint saying so. `frostingLabel` is
+		// what turns the pair back into a sentence.
+		frosting: row.frosting ?? null,
+		frostingMatchesFlavour: row.frosting_matches_flavour ?? false,
 		// See `toProduct`: absent until the migration lands, and absent forever
 		// on the lines of orders placed before it.
 		priceOnRequest: row.price_on_request ?? false,

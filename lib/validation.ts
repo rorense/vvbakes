@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_BRIEF_NOTE, MAX_BRIEF_URL } from "./brief";
+import { MAX_BRIEF_FLAVOUR, MAX_BRIEF_FROSTING, MAX_BRIEF_NOTE, MAX_BRIEF_URL } from "./brief";
 import { ALLERGENS, ACCENTS } from "./types";
 
 /**
@@ -101,6 +101,25 @@ const orderItemSchema = z.object({
 	// product page's business; a link on a line that did not is harmless and
 	// still worth showing the owner.
 	inspirationUrl: inspirationLink.optional(),
+	// The flavour they asked for, where the product asked what flavour. Same
+	// arrangement as the link: whether the question was put is the product
+	// page's business, and an answer to one nobody asked is still an answer
+	// worth showing her rather than a reason to refuse the order.
+	customFlavour: z
+		.string()
+		.trim()
+		.max(MAX_BRIEF_FLAVOUR, "That flavour is longer than I can fit on a cupcake")
+		.optional(),
+	// The frosting, and the tick box that stands in for it. Both are accepted
+	// here and reconciled in `place_order`, which blanks the text when the box
+	// is ticked — they are one answer to one question, and the column has a
+	// constraint refusing a row that tries to give two.
+	frosting: z
+		.string()
+		.trim()
+		.max(MAX_BRIEF_FROSTING, "That's a longer description than the frosting needs")
+		.optional(),
+	frostingMatchesFlavour: z.boolean().optional(),
 	qty: z.number().int().min(1).max(200),
 });
 
@@ -214,6 +233,7 @@ export const productSchema = z
 		// than a zero.
 		priceOnRequest: z.boolean(),
 		wantsBrief: z.boolean(),
+		wantsCustomFlavour: z.boolean(),
 		tiers: z.array(priceTierSchema).max(6),
 		variantLabel: z.string().trim().min(1, "e.g. Flavour, Size").max(30),
 		// Set only by turning the variants switch off, which is the one place the

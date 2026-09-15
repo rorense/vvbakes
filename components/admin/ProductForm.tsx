@@ -683,6 +683,12 @@ export function ProductForm({
 						description="Adds an inspiration photo upload and a link field to this product's page. Every product already asks for a note; this is for the ones a picture is the brief for."
 						defaultChecked={product?.wantsBrief ?? false}
 					/>
+					<Switch
+						name="wantsCustomFlavour"
+						label="Ask for a flavour of their own"
+						description="Adds a custom flavour box, and a question about the frosting, to this product's page. For the things you'll make in a flavour that isn't on the menu — not for the ones that come how they come."
+						defaultChecked={product?.wantsCustomFlavour ?? false}
+					/>
 					<Field
 						label="Note when unavailable"
 						hint='Shown on the card instead of "Sold out", e.g. "Back in December".'

@@ -8,7 +8,15 @@
  * a product".
  */
 import { describe, expect, it } from "vitest";
-import { briefKey, briefPhotoIds, isEmptyBrief, MAX_BRIEF_NOTE, normaliseBrief } from "./brief";
+import {
+	briefKey,
+	briefPhotoIds,
+	frostingLabel,
+	isEmptyBrief,
+	MAX_BRIEF_FLAVOUR,
+	MAX_BRIEF_NOTE,
+	normaliseBrief,
+} from "./brief";
 import { cartLineKey } from "./cart";
 
 const PRODUCT = "11111111-1111-4111-8111-111111111111";
@@ -42,6 +50,50 @@ describe("normaliseBrief", () => {
 		const brief = { photoIds: ["a", "", "b"] };
 		expect(normaliseBrief(brief)?.photoIds).toEqual(["a", "b"]);
 	});
+
+	it("keeps a flavour of their own, trimmed and capped like the note", () => {
+		expect(normaliseBrief({ customFlavour: "  Pandan  " })).toEqual({ customFlavour: "Pandan" });
+		const long = normaliseBrief({ customFlavour: "x".repeat(MAX_BRIEF_FLAVOUR + 50) });
+		expect(long?.customFlavour).toHaveLength(MAX_BRIEF_FLAVOUR);
+	});
+
+	it("lets the tick box win over the frosting text, because they are one answer", () => {
+		// The case that would otherwise reach an order saying two different things
+		// about one frosting. `place_order` blanks it again on the way in, and the
+		// column has a constraint refusing the row outright.
+		expect(normaliseBrief({ frosting: "Pale pink", frostingMatchesFlavour: true })).toEqual({
+			frostingMatchesFlavour: true,
+		});
+	});
+
+	it("treats a ticked box on its own as something they said", () => {
+		// "Chocolate frosting on the chocolate ones" is a real instruction even
+		// when nothing was typed anywhere, so the line has to carry a brief.
+		expect(normaliseBrief({ frostingMatchesFlavour: true })).toEqual({
+			frostingMatchesFlavour: true,
+		});
+		expect(isEmptyBrief({ frostingMatchesFlavour: true })).toBe(false);
+	});
+
+	it("drops an unticked box rather than storing false", () => {
+		// False and absent are the same answer, and a line saved before any of
+		// this existed has to key the same as one saved since.
+		expect(normaliseBrief({ note: "x", frostingMatchesFlavour: false })).toEqual({ note: "x" });
+		expect(normaliseBrief({ frostingMatchesFlavour: false })).toBeUndefined();
+	});
+});
+
+describe("frostingLabel", () => {
+	it("says the same thing wherever the frosting is shown back", () => {
+		expect(frostingLabel(null, true)).toBe("To match the flavour");
+		expect(frostingLabel("  Pale pink  ", false)).toBe("Pale pink");
+	});
+
+	it("is null when they said nothing, so nothing is rendered", () => {
+		expect(frostingLabel(null, false)).toBeNull();
+		expect(frostingLabel("   ", false)).toBeNull();
+		expect(frostingLabel(undefined, undefined)).toBeNull();
+	});
 });
 
 describe("isEmptyBrief", () => {
@@ -72,6 +124,22 @@ describe("briefKey", () => {
 	it("is different for two briefs that say different things", () => {
 		expect(briefKey({ note: "Chocolate" })).not.toBe(briefKey({ note: "Lemon" }));
 		expect(briefKey({ note: "a" })).not.toBe(briefKey({ note: "a", photoIds: ["x"] }));
+	});
+
+	it("splits two boxes of cupcakes asked for in two flavours", () => {
+		expect(briefKey({ customFlavour: "Pandan" })).not.toBe(briefKey({ customFlavour: "Ube" }));
+	});
+
+	it("is the same for a brief that sent both halves of the frosting answer and one that sent the tick", () => {
+		// `place_order` normalises the pair the same way before it groups, so the
+		// browser's idea of which lines are one line and the database's agree.
+		expect(briefKey({ frosting: "Pale pink", frostingMatchesFlavour: true })).toBe(
+			briefKey({ frostingMatchesFlavour: true }),
+		);
+	});
+
+	it("does not confuse a flavour with a frosting that reads the same", () => {
+		expect(briefKey({ customFlavour: "Pandan" })).not.toBe(briefKey({ frosting: "Pandan" }));
 	});
 
 	it("does not confuse a note with a link that reads the same", () => {
@@ -114,6 +182,20 @@ describe("cartLineKey", () => {
 	it("splits a described line from an identical undescribed one", () => {
 		expect(cartLineKey(PRODUCT, null, [], { note: "No sprinkles" })).not.toBe(
 			cartLineKey(PRODUCT, null, []),
+		);
+	});
+
+	it("splits four cupcakes in pandan from four of the same in ube", () => {
+		// Two lines, two flavours, two batches to bake. Folded together, one of
+		// the flavours would simply be gone.
+		expect(cartLineKey(PRODUCT, "v1", [], { customFlavour: "Pandan" })).not.toBe(
+			cartLineKey(PRODUCT, "v1", [], { customFlavour: "Ube" }),
+		);
+	});
+
+	it("splits a matching frosting from a named one", () => {
+		expect(cartLineKey(PRODUCT, null, [], { frostingMatchesFlavour: true })).not.toBe(
+			cartLineKey(PRODUCT, null, [], { frosting: "Pale pink" }),
 		);
 	});
 });

@@ -1,3 +1,4 @@
+import { frostingLabel, hasCustomFlavour } from "@/lib/brief";
 import { formatMoney } from "@/lib/pricing";
 import type { Order } from "@/lib/types";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
@@ -34,6 +35,7 @@ export function OrderLines({
 	order,
 	unpricedLabel,
 	unpricedNote,
+	customFlavourNote,
 	showQuote = false,
 	emptyRow,
 	tile,
@@ -53,6 +55,15 @@ export function OrderLines({
 	 */
 	unpricedNote?: React.ReactNode;
 	/**
+	 * The line under the total when something was asked for in a flavour of its
+	 * own. Unlike a custom cake the figure above is a real, complete price — it
+	 * is just one the owner is allowed to add to once she has read what is being
+	 * asked, and the shop said so before it was ordered.
+	 *
+	 * Left out in the admin, where she is the one who would be adding to it.
+	 */
+	customFlavourNote?: React.ReactNode;
+	/**
 	 * Break the owner's quote out as its own row. Only the admin shows it: to the
 	 * customer the cake is a price, not a price plus a markup.
 	 */
@@ -67,6 +78,11 @@ export function OrderLines({
 	// against it yet. Once she quotes, the total is the whole total again and
 	// none of this needs saying.
 	const hasUnpriced = order.items.some((item) => item.priceOnRequest) && order.quoteCents === 0;
+	// Something here was asked for in a flavour of its own, and she has not
+	// decided yet whether that costs more. Once she has, the total is the whole
+	// total and none of this needs saying — the same rule the unpriced note
+	// follows, for the same reason.
+	const mayCostMore = order.items.some(hasCustomFlavour) && order.quoteCents === 0;
 
 	return (
 		<div className={className}>
@@ -79,6 +95,7 @@ export function OrderLines({
 					// to put here. A cake with candles on it still shows what the
 					// candles came to.
 					const silent = item.priceOnRequest && money === 0;
+					const frosting = frostingLabel(item.frosting, item.frostingMatchesFlavour);
 
 					return (
 						<HairlineRow
@@ -111,8 +128,22 @@ export function OrderLines({
 								    describes rather than gathered into a panel at the bottom
 								    of the order. A brief belongs to its cake; an order with
 								    two of them had nowhere to put the second. */}
-								{item.note || item.inspirationUrl || item.inspirationImagePaths.length > 0 ? (
+								{item.note ||
+								item.customFlavour ||
+								frosting ||
+								item.inspirationUrl ||
+								item.inspirationImagePaths.length > 0 ? (
 									<div className="border-line mt-2 flex flex-col gap-2 border-l pl-3">
+										{/* Labelled, unlike the note, because these are answers to
+										    questions and are short enough to be mistaken for each
+										    other: "pandan" alone could as easily be the frosting.
+										    She bakes from this. */}
+										{item.customFlavour ? (
+											<span className="text-cocoa-soft text-sm">Flavour: {item.customFlavour}</span>
+										) : null}
+										{frosting ? (
+											<span className="text-cocoa-soft text-sm">Frosting: {frosting}</span>
+										) : null}
 										{item.note ? (
 											<span className="text-cocoa-soft text-sm whitespace-pre-wrap">
 												{item.note}
@@ -172,6 +203,10 @@ export function OrderLines({
 
 			{hasUnpriced && order.totalCents > 0 && unpricedNote ? (
 				<p className="text-cocoa-soft mt-2 text-xs">{unpricedNote}</p>
+			) : null}
+
+			{mayCostMore && customFlavourNote ? (
+				<p className="text-cocoa-soft mt-2 text-xs">{customFlavourNote}</p>
 			) : null}
 		</div>
 	);

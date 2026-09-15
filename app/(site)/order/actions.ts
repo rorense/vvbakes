@@ -139,6 +139,13 @@ export async function placeOrder(
 			note: item.note ?? null,
 			inspiration_url: item.inspirationUrl ?? null,
 			inspiration_image_paths: photos.byLine.get(index) ?? [],
+			custom_flavour: item.customFlavour ?? null,
+			// Both are passed as they arrived. `place_order` blanks the text when
+			// the box is ticked — they are one answer to one question — and it does
+			// that before it groups, so a caller that sent both lands on the same
+			// line as one that sent only the tick.
+			frosting: item.frosting ?? null,
+			frosting_matches_flavour: item.frostingMatchesFlavour ?? false,
 		})),
 		p_pickup_date: input.pickupDate,
 		p_fulfilment: input.fulfilment,

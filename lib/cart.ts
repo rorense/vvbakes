@@ -72,7 +72,11 @@ function isBriefShaped(value: unknown): value is CartBrief | undefined {
 		(brief.note === undefined || typeof brief.note === "string") &&
 		(brief.inspirationUrl === undefined || typeof brief.inspirationUrl === "string") &&
 		(brief.photoIds === undefined ||
-			(Array.isArray(brief.photoIds) && brief.photoIds.every((id) => typeof id === "string")))
+			(Array.isArray(brief.photoIds) && brief.photoIds.every((id) => typeof id === "string"))) &&
+		(brief.customFlavour === undefined || typeof brief.customFlavour === "string") &&
+		(brief.frosting === undefined || typeof brief.frosting === "string") &&
+		(brief.frostingMatchesFlavour === undefined ||
+			typeof brief.frostingMatchesFlavour === "boolean")
 	);
 }
 

@@ -101,6 +101,7 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
 							className="mt-3"
 							unpricedLabel="I'll send you a price"
 							unpricedNote="Plus whatever the custom work comes to. I'll price it once I've read your brief and email you the full total."
+							customFlavourNote="You've asked for a flavour of your own, which can cost a little more than the menu price. I'll email you if it does, before I make a start."
 							emptyRow={
 								<HairlineRow align="start">
 									<div className="flex flex-col gap-0.5">

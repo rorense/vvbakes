@@ -50,6 +50,7 @@ function product(overrides: Partial<Product> = {}): Product {
 		sortOrder: 1,
 		priceOnRequest: false,
 		wantsBrief: false,
+		wantsCustomFlavour: false,
 		...overrides,
 	};
 }

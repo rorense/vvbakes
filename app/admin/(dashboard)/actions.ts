@@ -93,6 +93,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		isFeatured: checkbox(formData, "isFeatured"),
 		priceOnRequest: checkbox(formData, "priceOnRequest"),
 		wantsBrief: checkbox(formData, "wantsBrief"),
+		wantsCustomFlavour: checkbox(formData, "wantsCustomFlavour"),
 		availabilityNote: formData.get("availabilityNote") ?? "",
 		allergens: formData.getAll("allergens").map(String),
 		sortOrder: formData.get("sortOrder") ?? 0,
@@ -131,6 +132,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		variant_label: input.variantLabel,
 		price_on_request: input.priceOnRequest,
 		wants_brief: input.wantsBrief,
+		wants_custom_flavour: input.wantsCustomFlavour,
 	};
 
 	let productId = input.id;

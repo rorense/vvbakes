@@ -211,6 +211,17 @@ export interface Product {
 	 * together: personalised cookies are made to a brief and still have a price.
 	 */
 	wantsBrief: boolean;
+	/**
+	 * The product page asks for a flavour of the customer's own, and for what
+	 * the frosting should be.
+	 *
+	 * A third switch rather than a widening of `wantsBrief`, because it is a
+	 * different question: the brief is "here is what I am picturing", this is
+	 * "make it taste of pandan". She sells cupcakes in a flavour of your
+	 * choosing and slices of pandan chiffon as they come, and asking the second
+	 * one what flavour it should be is a question with no answer.
+	 */
+	wantsCustomFlavour: boolean;
 }
 
 /** A category with its products already attached, for the shop page. */
@@ -389,6 +400,25 @@ export interface CartBrief {
 	note?: string;
 	inspirationUrl?: string;
 	photoIds?: string[];
+	/**
+	 * A flavour they asked for that is not on the menu, in their own words, on
+	 * the products where `Product.wantsCustomFlavour` is on.
+	 */
+	customFlavour?: string;
+	/**
+	 * What they asked the frosting to be: a colour, or a flavour of its own.
+	 *
+	 * Never set alongside `frostingMatchesFlavour`. The two are one answer to
+	 * one question, and `normaliseBrief` drops this one when the box is ticked,
+	 * exactly as `place_order` does on the way into the order.
+	 */
+	frosting?: string;
+	/**
+	 * They asked for the frosting to taste of the flavour. Absent is the same as
+	 * false, which is what every other line and every cart saved before this
+	 * existed looks like.
+	 */
+	frostingMatchesFlavour?: boolean;
 }
 
 export interface CartLine {
@@ -469,6 +499,15 @@ export interface OrderItem {
 	inspirationUrl: string | null;
 	/** Object paths in the order-inspiration bucket, for this line. At most three. */
 	inspirationImagePaths: string[];
+	/** A flavour they asked for that was not on the menu, in their own words. */
+	customFlavour: string | null;
+	/**
+	 * What they asked the frosting to be. Null when it matches the flavour, and
+	 * null when they said nothing: `frostingMatchesFlavour` tells the two apart.
+	 */
+	frosting: string | null;
+	/** They asked for the frosting to taste of the flavour. */
+	frostingMatchesFlavour: boolean;
 	/**
 	 * This line had no price when the order was placed, so `lineTotalCents` is
 	 * zero because nobody has priced it — not because it was free.

@@ -13,6 +13,7 @@ import {
 	Text,
 } from "@react-email/components";
 import type { Order, OrderItem } from "@/lib/types";
+import { frostingLabel, hasCustomFlavour } from "@/lib/brief";
 import { inspirationImageUrl } from "@/lib/images";
 import { formatMoney } from "@/lib/pricing";
 import { formatDateLong } from "@/lib/dates";
@@ -172,6 +173,19 @@ export function DetailRows({ rows }: { rows: Array<{ label: string; value: strin
 	);
 }
 
+/**
+ * A labelled answer under a line: the flavour, the frosting.
+ *
+ * Its own constant rather than repeated inline, because two answers styled
+ * almost the same is how a mail template starts drifting — and these two are
+ * read together, standing at a bench.
+ */
+const BRIEF_ANSWER = {
+	fontSize: "13px",
+	fontWeight: 600,
+	margin: "6px 0 0",
+} as const;
+
 /** The menu price of a line plus everything added to it. Mirrors OrderLines. */
 function lineTotal(item: OrderItem): number {
 	return item.extras.reduce((total, extra) => total + extra.lineTotalCents, item.lineTotalCents);
@@ -184,6 +198,7 @@ export function OrderItemsTable({
 	totalCents,
 	quoteCents,
 	unpricedNote,
+	customFlavourNote,
 }: {
 	items: OrderItem[];
 	subtotalCents: number;
@@ -193,11 +208,19 @@ export function OrderItemsTable({
 	quoteCents: number;
 	/** The line under the total when the order holds priced items and custom work both. */
 	unpricedNote?: string;
+	/**
+	 * The line under the total when something was asked for in a flavour of its
+	 * own, where the figure above is a real price she is nonetheless allowed to
+	 * add to. Only the "I've got your request" email passes it: by the time she
+	 * confirms, she has decided, and the total is the total.
+	 */
+	customFlavourNote?: string;
 }) {
 	// Something here was placed with no price on it, and nothing has been quoted
 	// against it yet. Once she quotes, the total is the whole total again and
 	// none of this needs saying.
 	const hasUnpriced = items.some((item) => item.priceOnRequest) && quoteCents === 0;
+	const mayCostMore = items.some(hasCustomFlavour) && quoteCents === 0;
 
 	return (
 		<Section style={{ borderTop: `1px solid ${LINE}`, margin: "0 0 20px" }}>
@@ -211,77 +234,90 @@ export function OrderItemsTable({
 					</Column>
 				</Row>
 			) : null}
-			{items.map((item) => (
-				<Row
-					key={item.id}
-					style={{ borderBottom: `1px solid ${LINE}` }}>
-					<Column style={{ padding: "12px 0", verticalAlign: "top" }}>
-						<Text style={{ fontSize: "15px", fontWeight: 600, margin: 0 }}>
-							{item.qty} &times; {item.productName}
-						</Text>
-						{item.variantName ? (
-							<Text style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
-								{item.variantName}
+			{items.map((item) => {
+				const frosting = frostingLabel(item.frosting, item.frostingMatchesFlavour);
+
+				return (
+					<Row
+						key={item.id}
+						style={{ borderBottom: `1px solid ${LINE}` }}>
+						<Column style={{ padding: "12px 0", verticalAlign: "top" }}>
+							<Text style={{ fontSize: "15px", fontWeight: 600, margin: 0 }}>
+								{item.qty} &times; {item.productName}
 							</Text>
-						) : null}
-						{item.pricingNote ? (
-							<Text style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
-								{item.pricingNote}
-							</Text>
-						) : null}
-						{/* Named under the line, not folded into the price beside it: that
+							{item.variantName ? (
+								<Text style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
+									{item.variantName}
+								</Text>
+							) : null}
+							{item.pricingNote ? (
+								<Text style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
+									{item.pricingNote}
+								</Text>
+							) : null}
+							{/* Named under the line, not folded into the price beside it: that
 						    price is what the menu charged, and the extras are counted into
 						    the total at the bottom. She has to be able to read this and
 						    know to put candles in the box. */}
-						{item.extras.map((extra) => (
-							<Text
-								key={extra.id}
-								style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
-								+ {extra.name}{" "}
-								{extra.lineTotalCents === 0 ? "(free)" : formatMoney(extra.lineTotalCents)}
-							</Text>
-						))}
+							{item.extras.map((extra) => (
+								<Text
+									key={extra.id}
+									style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
+									+ {extra.name}{" "}
+									{extra.lineTotalCents === 0 ? "(free)" : formatMoney(extra.lineTotalCents)}
+								</Text>
+							))}
 
-						{/* What they asked for, against the line they asked it of. This
+							{/* What they asked for, against the line they asked it of. This
 						    is the whole brief for a custom cake, so it sits in the order
 						    itself rather than in a block underneath — she reads this
-						    email standing in the kitchen. */}
-						{item.note ? (
-							<Text
-								style={{
-									fontSize: "14px",
-									margin: "8px 0 0",
-									paddingLeft: "10px",
-									borderLeft: `2px solid ${LINE}`,
-									whiteSpace: "pre-wrap",
-								}}>
-								{item.note}
-							</Text>
-						) : null}
-						{item.inspirationImagePaths.length > 0 || item.inspirationUrl ? (
-							<Section style={{ margin: "8px 0 0" }}>
-								<InspirationBlock
-									paths={item.inspirationImagePaths}
-									url={item.inspirationUrl}
-								/>
-							</Section>
-						) : null}
-					</Column>
-					<Column
-						style={{
-							padding: "12px 0",
-							verticalAlign: "top",
-							textAlign: "right",
-							whiteSpace: "nowrap",
-						}}>
-						<Text style={{ fontSize: "15px", margin: 0 }}>
-							{/* A line nobody has priced yet is a dash, not a zero. Beside
+						    email standing in the kitchen.
+
+						    The flavour and the frosting are labelled and the note is not,
+						    because they are answers to questions and are short enough to
+						    be mistaken for each other: "pandan" alone could as easily be
+						    either one. */}
+							{item.customFlavour ? (
+								<Text style={BRIEF_ANSWER}>Flavour: {item.customFlavour}</Text>
+							) : null}
+							{frosting ? <Text style={BRIEF_ANSWER}>Frosting: {frosting}</Text> : null}
+							{item.note ? (
+								<Text
+									style={{
+										fontSize: "14px",
+										margin: "8px 0 0",
+										paddingLeft: "10px",
+										borderLeft: `2px solid ${LINE}`,
+										whiteSpace: "pre-wrap",
+									}}>
+									{item.note}
+								</Text>
+							) : null}
+							{item.inspirationImagePaths.length > 0 || item.inspirationUrl ? (
+								<Section style={{ margin: "8px 0 0" }}>
+									<InspirationBlock
+										paths={item.inspirationImagePaths}
+										url={item.inspirationUrl}
+									/>
+								</Section>
+							) : null}
+						</Column>
+						<Column
+							style={{
+								padding: "12px 0",
+								verticalAlign: "top",
+								textAlign: "right",
+								whiteSpace: "nowrap",
+							}}>
+							<Text style={{ fontSize: "15px", margin: 0 }}>
+								{/* A line nobody has priced yet is a dash, not a zero. Beside
 							    a custom cake "$0.00" reads as one she is giving away. */}
-							{item.priceOnRequest && lineTotal(item) === 0 ? "—" : formatMoney(lineTotal(item))}
-						</Text>
-					</Column>
-				</Row>
-			))}
+								{item.priceOnRequest && lineTotal(item) === 0 ? "—" : formatMoney(lineTotal(item))}
+							</Text>
+						</Column>
+					</Row>
+				);
+			})}
 
 			{deliveryFeeCents > 0 ? (
 				<>
@@ -328,6 +364,14 @@ export function OrderItemsTable({
 				<Row>
 					<Column style={{ padding: "0 0 12px", fontSize: "12px", color: COCOA_SOFT }}>
 						{unpricedNote ?? "Plus whatever the custom work comes to, once it is priced."}
+					</Column>
+				</Row>
+			) : null}
+
+			{mayCostMore && customFlavourNote ? (
+				<Row>
+					<Column style={{ padding: "0 0 12px", fontSize: "12px", color: COCOA_SOFT }}>
+						{customFlavourNote}
 					</Column>
 				</Row>
 			) : null}
