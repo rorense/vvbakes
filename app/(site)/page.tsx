@@ -127,8 +127,8 @@ export default async function HomePage() {
 						<div className="flex flex-col gap-6 lg:col-span-7">
 							<SectionLabel>
 								{settings.pickupSuburb
-									? `Custom cakes, made in ${settings.pickupSuburb}`
-									: "Custom cakes, made to order"}
+									? `Sweet treats, made in ${settings.pickupSuburb}`
+									: "Sweet treats, made to order"}
 							</SectionLabel>
 
 							{/* text-5xl clamps on viewport *width* and tops out at 88px, which on a
@@ -141,19 +141,21 @@ export default async function HomePage() {
 									fontSize: "min(var(--text-5xl), max(2.5rem, 8vh))",
 									lineHeight: 1,
 								}}>
-								Tell me what you&rsquo;re celebrating. I&rsquo;ll bake it.
+								Homemade bakes for every occasion.
 							</h1>
 
 							<p className="text-cocoa-soft max-w-lg text-lg">
-								Cakes made for one occasion and one day. Your flavours, your colours, whatever it
-								needs to say on top.
+								Cakes, cookies &amp; sweet treats for celebrations, gatherings and everything in
+								between.
 							</p>
 
 							<div className="mt-2 flex flex-wrap gap-3">
 								<ButtonLink
 									href="/order"
 									size="lg">
-									{nextDate ? `Start a cake for ${formatDateShort(nextDate.date)}` : "Start a cake"}
+									{nextDate
+										? `Start an order for ${formatDateShort(nextDate.date)}`
+										: "Start an order"}
 								</ButtonLink>
 								<ButtonLink
 									href="/shop"
@@ -165,21 +167,24 @@ export default async function HomePage() {
 						</div>
 
 						<div className="relative lg:col-span-5">
+							{/* The badge fills the arch rather than sitting on a tile inside it. It is
+							    the ringless crop, and the frame is butter because that is the badge’s
+							    own ground — so the corners the circle cannot reach carry on the same
+							    yellow. The pink the crop took off comes back as the arch’s own border,
+							    in rose, which is the colour the ring was drawn in. */}
 							<ArchFrame
-								tone="mint"
-								className="aspect-4/5 w-full">
-								<div className="flex h-full items-center justify-center p-8">
-									<Image
-										src="/logo.png"
-										alt=""
-										aria-hidden="true"
-										width={800}
-										height={800}
-										sizes="(min-width: 1024px) 40vw, 100vw"
-										className="w-full max-w-72"
-										priority
-									/>
-								</div>
+								tone="butter"
+								className="border-rose aspect-4/5 w-full border-6 sm:border-8">
+								<Image
+									src="/hero-badge.png"
+									alt=""
+									aria-hidden="true"
+									width={706}
+									height={706}
+									sizes="(min-width: 1024px) 40vw, 100vw"
+									className="h-full w-full object-contain"
+									priority
+								/>
 							</ArchFrame>
 
 							<div className="absolute -bottom-6 -left-4 sm:-left-8">

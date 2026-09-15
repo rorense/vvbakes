@@ -43,16 +43,26 @@ export default async function ShopPage() {
 				tone="paper"
 				size="tight">
 				<Container width="wide">
+					{/* The intro runs the full width of the container rather than a reading
+					    column: the client wants it across the page, not broken to half of it. */}
 					<div className="flex flex-col gap-4">
 						<SectionLabel>Shop</SectionLabel>
-						<h1 className="font-display max-w-2xl text-4xl">The ready-made half</h1>
-						<p className="text-cocoa-soft max-w-xl">
-							Everything here is baked for the day you pick, no decisions required. After a custom
-							cake instead? Say so on the order form.
-							{settings.leadTimeDays > 0
-								? ` We need ${settings.leadTimeDays} day${settings.leadTimeDays === 1 ? "" : "s"} notice.`
-								: ""}
+						<h1 className="font-display text-4xl">The ready-made half</h1>
+						<p className="text-cocoa-soft">
+							A selection of our favourite bakes, freshly made for your chosen date. Simply pick
+							your treats, choose your flavours, and leave the baking to us.
 						</p>
+						<p className="text-cocoa-soft">
+							Looking for something a little more personal? Custom cakes are available too — just
+							let us know through the custom cake order section.
+						</p>
+						{/* Still the admin's lead time rather than a hardcoded 7, so the promise
+						    on the page moves when the setting does. */}
+						{settings.leadTimeDays > 0 ? (
+							<p className="text-cocoa-soft">
+								{`Please allow at least ${settings.leadTimeDays} day${settings.leadTimeDays === 1 ? "" : "s"} notice for all orders.`}
+							</p>
+						) : null}
 					</div>
 
 					{/* Category rail. Anchors rather than filters: with this many

@@ -35,7 +35,7 @@ const LINKS = [
 	// "When can I get a cake" is the question people actually arrive with, and
 	// the pickup details sit directly under the calendar anyway. Dropped on the
 	// narrowest phones, where a third link pushes the wordmark into the nav.
-	{ href: "/#dates", label: "Dates", small: false },
+	{ href: "/#dates", label: "Availability", small: false },
 ];
 
 export function SiteHeader({ settings }: { settings: SiteSettings }) {
@@ -59,7 +59,7 @@ export function SiteHeader({ settings }: { settings: SiteSettings }) {
 					/>
 					<Wordmark
 						size="sm"
-						className="truncate sm:text-2xl"
+						className="truncate font-bold sm:text-2xl"
 					/>
 				</Link>
 
