@@ -28,7 +28,7 @@ export default async function OrderPage({
 	const { date: requestedDate } = await searchParams;
 	// One round trip rather than two. This page is never cached, so the wait is
 	// the page.
-	const { settings, products, extras, rules, overrides, counts } = await getAvailabilityInputs();
+	const { settings, products, rules, overrides, counts } = await getAvailabilityInputs();
 
 	const availability = computeAvailability({ settings, rules, overrides, counts });
 
@@ -71,7 +71,6 @@ export default async function OrderPage({
 
 				<OrderForm
 					products={products}
-					extras={extras}
 					dates={availability.dates}
 					// The same grids the home page draws, so the calendar someone
 					// clicked a day on and the one they now pick from are one thing.

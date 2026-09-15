@@ -57,15 +57,12 @@ import { PickupCalendar } from "./PickupCalendar";
  */
 export function OrderForm({
 	products,
-	extras,
 	dates,
 	months,
 	settings,
 	initialDate = null,
 }: {
 	products: Product[];
-	/** The shop-wide list, for pricing and naming whatever a line carries. */
-	extras: Extra[];
 	dates: PickableDate[];
 	/** The same month grids the home page draws, for choosing a date. */
 	months: PublicCalendarMonth[];
@@ -96,7 +93,6 @@ export function OrderForm({
 	}, []);
 
 	const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
-	const extraById = useMemo(() => new Map(extras.map((e) => [e.id, e])), [extras]);
 
 	// Cart lines resolved against the live catalogue. A product that has since
 	// been deleted or sold out drops out here rather than failing on submit, and
@@ -131,9 +127,12 @@ export function OrderForm({
 						return null;
 					}
 
+					// Resolved against this product's own list, not a shop-wide one: an
+					// id that belongs to another product names nothing here, which is
+					// the same answer `place_order` gives it.
 					const wanted = normaliseExtraIds(line.extraIds);
 					const chosen = wanted
-						.map((id) => extraById.get(id))
+						.map((id) => product.extras.find((extra) => extra.id === id))
 						.filter((extra): extra is Extra => Boolean(extra?.isAvailable));
 
 					return {
@@ -153,7 +152,7 @@ export function OrderForm({
 					};
 				})
 				.filter((line): line is NonNullable<typeof line> => line !== null),
-		[cart.lines, byId, extraById],
+		[cart.lines, byId],
 	);
 
 	// Two saved lines can land on the same thing once a dropped extra is taken

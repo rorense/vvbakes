@@ -13,7 +13,6 @@ import type {
 	AvailabilityOverride,
 	AvailabilityRule,
 	Category,
-	Extra,
 	Faq,
 	Product,
 	Review,
@@ -57,6 +56,7 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		variantLabel: "Flavour",
 		variants: [],
 		optionGroups: [],
+		extras: [],
 		imagePath: null,
 		imageAlt: null,
 		isAvailable: true,
@@ -89,6 +89,27 @@ export const DEMO_PRODUCTS: Product[] = [
 		sortOrder: 0,
 		priceOnRequest: true,
 		wantsBrief: true,
+		// A different list at a different price, which is the whole reason these
+		// belong to a product rather than to the shop: candles for a tiered cake
+		// are not the candles that go on a cupcake.
+		extras: [
+			{
+				id: "demo-extra-4",
+				name: "Candles and a sparkler",
+				description: "Numbers or plain, and one sparkler for the top.",
+				priceCents: 900,
+				isAvailable: true,
+				sortOrder: 1,
+			},
+			{
+				id: "demo-extra-5",
+				name: "Cake box and board",
+				description: "Sturdy enough for a car boot.",
+				priceCents: 1500,
+				isAvailable: true,
+				sortOrder: 2,
+			},
+		],
 		variantLabel: "Size",
 		variants: [
 			"Six to eight people",
@@ -118,6 +139,36 @@ export const DEMO_PRODUCTS: Product[] = [
 		isFeatured: true,
 		sortOrder: 1,
 		allergens: ["gluten", "dairy", "egg"],
+		// Two products carry extras here so the demo catalogue shows both halves of
+		// the feature: a product that offers some, and the several that offer none.
+		// The real table is seeded with nothing, because a price the owner never
+		// agreed to charge has no business on a live page.
+		extras: [
+			{
+				id: "demo-extra-1",
+				name: "Birthday candles",
+				description: "Six, in whatever colour goes with the icing.",
+				priceCents: 300,
+				isAvailable: true,
+				sortOrder: 1,
+			},
+			{
+				id: "demo-extra-2",
+				name: "Gift box",
+				description: "Ribbon and all, ready to hand over.",
+				priceCents: 800,
+				isAvailable: true,
+				sortOrder: 2,
+			},
+			{
+				id: "demo-extra-3",
+				name: "Handwritten card",
+				description: "Tell me what to write in the notes.",
+				priceCents: 0,
+				isAvailable: true,
+				sortOrder: 3,
+			},
+		],
 		// Mirrors what
 		// supabase/migrations/20260916000004_custom_flavour.sql switches on for
 		// the whole cupcakes category: a flavour of your own, a question about
@@ -249,33 +300,6 @@ export const DEMO_REVIEWS: Review[] = [];
  * agreed to charge has no business on a live page — but this catalogue is fake
  * from top to bottom and says so on every page that uses it.
  */
-export const DEMO_EXTRAS: Extra[] = [
-	{
-		id: "demo-extra-1",
-		name: "Birthday candles",
-		description: "Six, in whatever colour goes with the icing.",
-		priceCents: 300,
-		isAvailable: true,
-		sortOrder: 1,
-	},
-	{
-		id: "demo-extra-2",
-		name: "Gift box",
-		description: "Ribbon and all, ready to hand over.",
-		priceCents: 800,
-		isAvailable: true,
-		sortOrder: 2,
-	},
-	{
-		id: "demo-extra-3",
-		name: "Handwritten card",
-		description: "Tell me what to write in the notes.",
-		priceCents: 0,
-		isAvailable: true,
-		sortOrder: 3,
-	},
-];
-
 export const DEMO_RULES: AvailabilityRule[] = ([0, 1, 2, 3, 4, 5, 6] as Weekday[]).map(
 	(weekday) => ({
 		weekday,

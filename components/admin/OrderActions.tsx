@@ -7,12 +7,23 @@ import {
 	saveQuote,
 	setOrderStatus,
 } from "@/app/admin/(dashboard)/orders/actions";
-import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, succeeded } from "@/lib/action-state";
+import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
 import { TRANSITION_EFFECTS, TRANSITION_LABELS } from "@/lib/order-status";
-import type { OrderStatus } from "@/lib/types";
+import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
-import { Field, FormError, FormSuccess, Input, Textarea } from "@/components/ui/Form";
+import { Field, FormError, Input, Textarea } from "@/components/ui/Form";
+import { useToastOnResult } from "@/components/ui/Toast";
 import { AdminCard } from "./AdminShell";
+
+/**
+ * What a landed transition is worth saying: where the order is now, and whether
+ * that wrote to a real person. The email is the part with no undo, so it is the
+ * part she should not have to go and check.
+ */
+function statusSaid(status: OrderStatus): string {
+	const emailed = TRANSITION_EFFECTS[status] ? " The customer has been emailed." : "";
+	return `This order is now ${ORDER_STATUS_LABELS[status].toLowerCase()}.${emailed}`;
+}
 
 /**
  * Moving an order along, plus the owner's private notes.
@@ -69,6 +80,19 @@ export function OrderActions({
 	const [state, action, pending] = useActionState(setOrderStatus, EMPTY_FORM_STATE);
 	const [confirming, setConfirming] = useState<OrderStatus | null>(null);
 	const error = errorFrom(state);
+
+	useToastOnResult(state, confirming ? statusSaid(confirming) : "That order has moved on.");
+
+	// A transition that lands comes back as a new status from the server, and the
+	// prompt that asked for it is left on screen asking about something that has
+	// already happened. Clearing it in the render that brings the new status in
+	// is React's own way of adjusting state to a prop, and keeps it out of an
+	// effect that would render the page twice to do the same thing.
+	const [asked, setAsked] = useState(status);
+	if (asked !== status) {
+		setAsked(status);
+		setConfirming(null);
+	}
 
 	// Custom work arrives unpriced. Confirming it would email the customer bank
 	// details and a total that leaves the cake out, so the price comes first.
@@ -198,6 +222,8 @@ function ResendEmail({ orderId }: { orderId: string }) {
 	const [state, action, pending] = useActionState(resendEmail, EMPTY_FORM_STATE);
 	const error = errorFrom(state);
 
+	useToastOnResult(state, "That email has gone again.");
+
 	return (
 		<form
 			action={action}
@@ -214,7 +240,6 @@ function ResendEmail({ orderId }: { orderId: string }) {
 				{pending ? "Sending…" : "Send the latest email again"}
 			</button>
 			{error ? <FormError>{error}</FormError> : null}
-			{succeeded(state) ? <FormSuccess>Sent.</FormSuccess> : null}
 		</form>
 	);
 }
@@ -222,6 +247,8 @@ function ResendEmail({ orderId }: { orderId: string }) {
 function InternalNotes({ orderId, value }: { orderId: string; value: string | null }) {
 	const [state, action, pending] = useActionState(saveInternalNotes, EMPTY_FORM_STATE);
 	const error = errorFrom(state);
+
+	useToastOnResult(state, "Your notes are saved.");
 
 	return (
 		<AdminCard title="Your notes">
@@ -247,13 +274,6 @@ function InternalNotes({ orderId, value }: { orderId: string; value: string | nu
 						disabled={pending}>
 						{pending ? "Saving…" : "Save notes"}
 					</Button>
-					{succeeded(state) ? (
-						<span
-							role="status"
-							className="text-cocoa-soft text-sm">
-							Saved.
-						</span>
-					) : null}
 				</div>
 				{error ? <FormError>{error}</FormError> : null}
 			</form>
@@ -287,6 +307,8 @@ function QuoteCard({
 	const [state, action, pending] = useActionState(saveQuote, EMPTY_FORM_STATE);
 	const errors = fieldErrorsFrom(state);
 	const error = errorFrom(state);
+
+	useToastOnResult(state, "That price is saved.");
 
 	return (
 		<AdminCard
@@ -337,13 +359,6 @@ function QuoteCard({
 						disabled={pending}>
 						{pending ? "Saving…" : quoteCents > 0 ? "Update the price" : "Set the price"}
 					</Button>
-					{succeeded(state) ? (
-						<span
-							role="status"
-							className="text-cocoa-soft text-sm">
-							Saved.
-						</span>
-					) : null}
 				</div>
 
 				{error ? <FormError>{error}</FormError> : null}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { NavLink } from "@/components/ui/NavLink";
+import { ToastProvider } from "@/components/ui/Toast";
 
 /**
  * The admin is used mostly on a phone, standing in a kitchen, so it is laid out
@@ -42,37 +43,39 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 
 	return (
-		<div className="bg-paper min-h-screen">
-			<div className="mx-auto w-full max-w-4xl px-4 pt-4 pb-28 sm:px-6 sm:pb-10">{children}</div>
+		<ToastProvider>
+			<div className="bg-paper min-h-screen">
+				<div className="mx-auto w-full max-w-4xl px-4 pt-4 pb-28 sm:px-6 sm:pb-10">{children}</div>
 
-			<nav
-				aria-label="Admin sections"
-				className="border-line bg-paper fixed inset-x-0 bottom-0 z-40 border-t sm:static sm:border-t-0">
-				<ul className="mx-auto flex w-full max-w-4xl px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:hidden">
-					{TABS.map((tab) => {
-						const active = tab.match(pathname);
-						return (
-							<li
-								key={tab.href}
-								className="flex-1">
-								{/* Every admin page is `force-dynamic`, so a tab press is always
+				<nav
+					aria-label="Admin sections"
+					className="border-line bg-paper fixed inset-x-0 bottom-0 z-40 border-t sm:static sm:border-t-0">
+					<ul className="mx-auto flex w-full max-w-4xl px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:hidden">
+						{TABS.map((tab) => {
+							const active = tab.match(pathname);
+							return (
+								<li
+									key={tab.href}
+									className="flex-1">
+									{/* Every admin page is `force-dynamic`, so a tab press is always
 								    a real fetch before the highlight below can move — see
 								    NavLink for what fills that gap. */}
-								<NavLink
-									href={tab.href}
-									aria-current={active ? "page" : undefined}
-									className={cn(
-										"text-2xs flex min-h-11 flex-col items-center justify-center rounded-md px-1 py-2 font-medium",
-										active ? "bg-paper-deep text-cocoa" : "text-cocoa-soft",
-									)}>
-									{tab.label}
-								</NavLink>
-							</li>
-						);
-					})}
-				</ul>
-			</nav>
-		</div>
+									<NavLink
+										href={tab.href}
+										aria-current={active ? "page" : undefined}
+										className={cn(
+											"text-2xs flex min-h-11 flex-col items-center justify-center rounded-md px-1 py-2 font-medium",
+											active ? "bg-paper-deep text-cocoa" : "text-cocoa-soft",
+										)}>
+										{tab.label}
+									</NavLink>
+								</li>
+							);
+						})}
+					</ul>
+				</nav>
+			</div>
+		</ToastProvider>
 	);
 }
 

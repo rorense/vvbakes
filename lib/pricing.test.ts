@@ -41,6 +41,7 @@ function product(overrides: Partial<Product> = {}): Product {
 		variantLabel: "Flavour",
 		variants: [],
 		optionGroups: [],
+		extras: [],
 		imagePath: null,
 		imageAlt: null,
 		isAvailable: true,

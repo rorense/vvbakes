@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { saveProduct } from "@/app/admin/(dashboard)/actions";
-import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, succeeded } from "@/lib/action-state";
+import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
 import { cn } from "@/lib/cn";
 import { moveItem, patchItem } from "@/lib/list-edit";
 import {
@@ -20,21 +20,44 @@ import {
 	ALLERGENS,
 	type Allergen,
 	type Category,
+	type Extra,
 	type Product,
 } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
-import {
-	Checkbox,
-	Field,
-	FormError,
-	FormSuccess,
-	Input,
-	Select,
-	Switch,
-	Textarea,
-} from "@/components/ui/Form";
+import { Checkbox, Field, FormError, Input, Select, Switch, Textarea } from "@/components/ui/Form";
+import { useToastOnResult } from "@/components/ui/Toast";
 import { AdminCard } from "./AdminShell";
+import { DraftList } from "./DraftList";
 import { ImageUploader } from "./ImageUploader";
+
+/**
+ * One extra being edited. `key` is React's and belongs to the draft; `id` is the
+ * database row's and is absent until the first save, which is what tells the
+ * server to insert rather than update.
+ *
+ * The price is held as the string in the box rather than as cents, so a
+ * half-typed "12." is something you can go on typing into instead of a number
+ * the field has already rounded.
+ */
+interface ExtraDraft {
+	key: string;
+	id?: string;
+	name: string;
+	description: string;
+	price: string;
+	isAvailable: boolean;
+}
+
+function toExtraDrafts(extras: Extra[]): ExtraDraft[] {
+	return extras.map((extra) => ({
+		key: extra.id,
+		id: extra.id,
+		name: extra.name,
+		description: extra.description ?? "",
+		price: (extra.priceCents / 100).toString(),
+		isAvailable: extra.isAvailable,
+	}));
+}
 
 interface TierDraft {
 	key: string;
@@ -214,6 +237,10 @@ export function ProductForm({
 	const errors = fieldErrorsFrom(state);
 	const error = errorFrom(state);
 
+	// The page does not move after a save — the same form is still sitting
+	// there, looking exactly as it did — so the toast is the whole of the answer.
+	useToastOnResult(state, product ? "Product saved." : "Product added.");
+
 	const nameAndSlug = useSlugField(product);
 
 	const [unitPrice, setUnitPrice] = useState(
@@ -222,6 +249,9 @@ export function ProductForm({
 	const [unitLabel, setUnitLabel] = useState(product?.unitLabel ?? "each");
 	const [qtyStep, setQtyStep] = useState(String(product?.qtyStep ?? 1));
 	const [tiers, setTiers] = useState<TierDraft[]>(() => initialTiers(product));
+	const [extraRows, setExtraRows] = useState<ExtraDraft[]>(() =>
+		toExtraDrafts(product?.extras ?? []),
+	);
 	const [groups, setGroups] = useState<GroupDraft[]>(() => initialGroups(product));
 	// Safe to build the groups twice: `initialGroups` derives its keys from
 	// position, so both calls agree on what the cells are keyed by.
@@ -242,6 +272,32 @@ export function ProductForm({
 			.filter((tier) => tier.qty.trim() !== "" && tier.price.trim() !== "")
 			.map((tier) => ({ qty: tier.qty, priceCents: tier.price })),
 	);
+
+	// The id travels with the row, unlike the bundle prices above, which are
+	// replaced outright on every save. An order points at the extra it carried,
+	// so an extra has an identity worth keeping across a rename or a re-price.
+	//
+	// A row with nothing in any box is someone who pressed "Add" and changed
+	// their mind, so it is dropped rather than failed. One with a name and no
+	// price is a real mistake and is left in for the server to complain about.
+	const extrasJson = JSON.stringify(
+		extraRows
+			.map((row) => ({
+				id: row.id,
+				name: row.name.trim(),
+				description: row.description.trim(),
+				priceCents: row.price.trim(),
+				isAvailable: row.isAvailable,
+			}))
+			.filter((row) => row.name !== "" || row.description !== "" || row.priceCents !== ""),
+	);
+
+	// Zod reports these per row, as `extras.1.name`, and the rows submitted are
+	// not the rows on screen once the blank ones have been dropped. So the index
+	// is thrown away and the list carries one message, which is why those
+	// messages are written to make sense without it.
+	const extrasError =
+		errors.extras ?? Object.entries(errors).find(([key]) => key.startsWith("extras."))?.[1];
 
 	// A half-typed row is not a question or an answer yet. Dropping them here
 	// rather than failing validation means an empty row left behind after "Add"
@@ -373,6 +429,11 @@ export function ProductForm({
 				type="hidden"
 				name="variants"
 				value={variantsJson}
+			/>
+			<input
+				type="hidden"
+				name="extras"
+				value={extrasJson}
 			/>
 			{/* Always submitted, questions or not, so that turning them off and on
 			    again does not quietly rename what the picker asks for. */}
@@ -612,6 +673,76 @@ export function ProductForm({
 				/>
 			</AdminCard>
 
+			<AdminCard title="Extras">
+				<p className="text-cocoa-soft mb-5 text-sm">
+					Things a customer can add to this one: candles, a gift box, a card. The price is per item
+					ordered, so two of these with candles is two sets of candles. Each product has its own
+					list, so candles here can cost something different from candles on another cake. No
+					extras, nothing shown on the page.
+				</p>
+
+				<DraftList
+					rows={extraRows}
+					setRows={setExtraRows}
+					legend="Extras"
+					noun="extra"
+					error={extrasError}
+					blank={() => ({
+						key: `new-${Date.now()}`,
+						name: "",
+						description: "",
+						price: "",
+						isAvailable: true,
+					})}
+					labelOf={(extra, index) => extra.name || `extra ${index + 1}`}
+					fields={(extra, index, update) => (
+						<>
+							<label className="flex flex-1 flex-col gap-1">
+								<span className="text-cocoa-soft text-xs">Name</span>
+								<Input
+									value={extra.name}
+									placeholder={index === 0 ? "Birthday candles" : ""}
+									onChange={(event) => update({ name: event.target.value })}
+								/>
+							</label>
+
+							<label className="flex w-full flex-col gap-1 sm:w-28">
+								<span className="text-cocoa-soft text-xs">Price</span>
+								<Input
+									value={extra.price}
+									inputMode="decimal"
+									placeholder={index === 0 ? "3" : ""}
+									onChange={(event) => update({ price: event.target.value })}
+								/>
+							</label>
+						</>
+					)}
+					body={(extra, _index, update) => (
+						<div className="flex flex-col gap-3">
+							<label className="flex flex-col gap-1">
+								<span className="text-cocoa-soft text-xs">The line underneath (optional)</span>
+								<Input
+									value={extra.description}
+									placeholder="Six, in whatever colour goes with the icing"
+									onChange={(event) => update({ description: event.target.value })}
+								/>
+							</label>
+
+							{/* Off is how something comes back later without being retyped.
+							    It hides the extra on the page, and refuses a basket that was
+							    filled before you switched it off rather than sending the order
+							    through without it. */}
+							<Switch
+								label="Available"
+								description="Turn off to hide it without deleting it."
+								checked={extra.isAvailable}
+								onChange={(event) => update({ isAvailable: event.target.checked })}
+							/>
+						</div>
+					)}
+				/>
+			</AdminCard>
+
 			<AdminCard title="Photo">
 				<ImageUploader
 					slug={nameAndSlug.slug || "product"}
@@ -666,11 +797,12 @@ export function ProductForm({
 						description="Up to three featured products appear under 'A few favourites'."
 						defaultChecked={product?.isFeatured ?? false}
 					/>
-					{/* The two switches that make an ordinary product a made-to-order
+					{/* The three switches that make an ordinary product a made-to-order
 					    one. Kept apart because they do not always travel together:
 					    personalised cookies are made to a brief and still have a price,
-					    and a dessert table is priced on request without anybody sending
-					    a picture. */}
+					    a dessert table is priced on request without anybody sending a
+					    picture, and a cupcake takes a flavour of its own without being
+					    either. */}
 					<Switch
 						name="priceOnRequest"
 						label="Price on request"
@@ -724,7 +856,6 @@ export function ProductForm({
 			</AdminCard>
 
 			{error ? <FormError>{error}</FormError> : null}
-			{succeeded(state) ? <FormSuccess>Saved.</FormSuccess> : null}
 
 			<div className="flex flex-wrap items-center gap-3">
 				<Button

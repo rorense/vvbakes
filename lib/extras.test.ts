@@ -6,6 +6,9 @@
  * because the number on the order form and the number charged have to be the
  * same number — the two rules that have to match are "per unit of the line" and
  * "the same extras in either order are one line".
+ *
+ * An extra belongs to one product, so there is no shop-wide list to look an id
+ * up in: the product it was added to is the list.
  */
 import { describe, expect, it } from "vitest";
 import { cartLineKey } from "./cart";
@@ -63,6 +66,14 @@ describe("findExtras", () => {
 	it("skips an id the owner has since deleted rather than throwing", () => {
 		// The cart is localStorage and outlives the list it was filled from.
 		expect(findExtras([candles], ["a", "gone"])).toEqual([candles]);
+	});
+
+	it("skips an id that belongs to a different product", () => {
+		// Each product's extras are looked up in its own list, so another
+		// product's id names nothing here. `place_order` says the same, by
+		// requiring the extra's product_id to match the line's.
+		const otherProductsRibbon = extra({ id: "z", name: "Ribbon", priceCents: 100 });
+		expect(findExtras([candles, giftBox], [otherProductsRibbon.id])).toEqual([]);
 	});
 });
 

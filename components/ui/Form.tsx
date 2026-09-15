@@ -207,14 +207,3 @@ export function FormError({ children }: { children: React.ReactNode }) {
 		</p>
 	);
 }
-
-export function FormSuccess({ children }: { children: React.ReactNode }) {
-	if (!children) return null;
-	return (
-		<p
-			role="status"
-			className="border-mint bg-mint/40 rounded-md border px-4 py-3 text-sm">
-			{children}
-		</p>
-	);
-}

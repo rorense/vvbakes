@@ -19,7 +19,7 @@ import {
 	optionGroups,
 	priceProduct,
 } from "@/lib/pricing";
-import type { Extra, Product } from "@/lib/types";
+import type { Product } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Stepper } from "@/components/ui/Stepper";
 import { BriefFields, EMPTY_BRIEF, isDraftEmpty, type DraftBrief } from "./BriefFields";
@@ -49,7 +49,7 @@ import { useVariantChoice } from "./VariantChoice";
  * of the line too, and more strongly than the extras are — two cakes described
  * differently are two cakes however alike the rest of the line looks.
  */
-export function AddToOrder({ product, extras = [] }: { product: Product; extras?: Extra[] }) {
+export function AddToOrder({ product }: { product: Product }) {
 	const { add } = useCart();
 	const groups = optionGroups(product);
 	const { selection, variant, choose } = useVariantChoice(product);
@@ -68,7 +68,7 @@ export function AddToOrder({ product, extras = [] }: { product: Product; extras?
 	// The picker only ever offers what is on sale. An extra switched off between
 	// filling the basket and submitting is refused by `place_order` rather than
 	// quietly dropped, which is the same promise the flavours make.
-	const offered = availableExtras(extras);
+	const offered = availableExtras(product.extras);
 	const chosen = offered.filter((extra) => chosenExtraIds.includes(extra.id));
 
 	if (!isOrderable(product)) {

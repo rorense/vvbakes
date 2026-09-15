@@ -14,7 +14,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
 	title: "Shop",
 	description:
-		"The ready-made half of vvbakes: cupcakes, cookies and Indonesian cakes, baked for the day you collect them. Custom cakes are made to order separately.",
+		"Cupcakes, cookies and Indonesian cakes baked for the day you collect them, plus custom cakes made to your brief.",
 	alternates: { canonical: "/shop" },
 };
 
@@ -52,9 +52,17 @@ export default async function ShopPage() {
 							A selection of our favourite bakes, freshly made for your chosen date. Simply pick
 							your treats, choose your flavours, and leave the baking to us.
 						</p>
+						{/* This used to send people to a panel at the bottom of the order
+						    form. The custom cake is a product now, so it sends them to it. */}
 						<p className="text-cocoa-soft">
-							Looking for something a little more personal? Custom cakes are available too — just
-							let us know through the custom cake order section.
+							Looking for something a little more personal? A{" "}
+							<Link
+								href="/shop/custom-cake"
+								className="underline underline-offset-4">
+								custom cake
+							</Link>{" "}
+							is made to your brief — tell me about it on its page, photos and all, and I&rsquo;ll
+							come back to you with a price.
 						</p>
 						{/* Still the admin's lead time rather than a hardcoded 7, so the promise
 						    on the page moves when the setting does. */}

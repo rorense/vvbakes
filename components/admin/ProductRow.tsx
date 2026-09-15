@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { optionGroups } from "@/lib/pricing";
 import type { Product } from "@/lib/types";
+import { useToastedTransition } from "@/components/ui/Toast";
 import { ReorderButtons } from "./AdminShell";
 
 /**
@@ -48,7 +49,7 @@ export function ProductRow({
 	onToggle: (id: string, field: "is_available" | "is_featured", value: boolean) => Promise<void>;
 	onDelete: (id: string) => Promise<void>;
 }) {
-	const [pending, startTransition] = useTransition();
+	const [pending, run] = useToastedTransition();
 	const [confirmingDelete, setConfirmingDelete] = useState(false);
 
 	const chip =
@@ -75,7 +76,12 @@ export function ProductRow({
 					disabled={pending}
 					isFirst={isFirst}
 					isLast={isLast}
-					onMove={(direction) => startTransition(() => onMove(product.id, direction))}
+					onMove={(direction) =>
+						run(
+							() => onMove(product.id, direction),
+							`${product.name} didn't move. Please try again.`,
+						)
+					}
 				/>
 			</div>
 
@@ -85,7 +91,10 @@ export function ProductRow({
 					disabled={pending}
 					aria-pressed={product.isAvailable}
 					onClick={() =>
-						startTransition(() => onToggle(product.id, "is_available", !product.isAvailable))
+						run(
+							() => onToggle(product.id, "is_available", !product.isAvailable),
+							`${product.name} didn't change. Please try again.`,
+						)
 					}
 					className={cn(
 						chip,
@@ -99,7 +108,10 @@ export function ProductRow({
 					disabled={pending}
 					aria-pressed={product.isFeatured}
 					onClick={() =>
-						startTransition(() => onToggle(product.id, "is_featured", !product.isFeatured))
+						run(
+							() => onToggle(product.id, "is_featured", !product.isFeatured),
+							`${product.name} didn't change. Please try again.`,
+						)
 					}
 					className={cn(
 						chip,
@@ -119,7 +131,16 @@ export function ProductRow({
 						<button
 							type="button"
 							disabled={pending}
-							onClick={() => startTransition(() => onDelete(product.id))}
+							onClick={() =>
+								// Said out loud, unlike the chips above: the row simply vanishes
+								// otherwise, which looks the same as a row that scrolled — and
+								// this is the one button here with nothing behind it.
+								run(
+									() => onDelete(product.id),
+									`${product.name} couldn't be deleted. Please try again.`,
+									`${product.name} deleted.`,
+								)
+							}
 							className={cn(chip, "border-danger text-danger")}>
 							Delete for good
 						</button>

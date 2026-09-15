@@ -3,7 +3,6 @@ import "server-only";
 import { cache } from "react";
 import {
 	DEMO_CATEGORIES,
-	DEMO_EXTRAS,
 	DEMO_FAQS,
 	DEMO_OVERRIDES,
 	DEMO_PRODUCTS,
@@ -16,7 +15,6 @@ import { addDays, todayIn, type IsoDate } from "./dates";
 import {
 	PRODUCT_SELECT,
 	toCategory,
-	toExtra,
 	toFaq,
 	toOverride,
 	toProduct,
@@ -31,7 +29,6 @@ import type {
 	AvailabilityRule,
 	Category,
 	CategoryWithProducts,
-	Extra,
 	Faq,
 	Product,
 	Review,
@@ -152,27 +149,8 @@ export const getReviews = cache(async (): Promise<Review[]> => {
 	return (data ?? []).map(toReview);
 });
 
-/**
- * The extras offered alongside every product, in the owner's order.
- *
- * Nothing is seeded, so empty is the ordinary state of a new shop rather than a
- * failure: the product page shows no extras section until she types one in.
- */
-export const getExtras = cache(async (): Promise<Extra[]> => {
-	if (isDemoMode()) return DEMO_EXTRAS;
-
-	const supabase = createPublicClient();
-	const { data, error } = await supabase
-		.from("extras")
-		.select("*")
-		.order("sort_order", { ascending: true });
-
-	if (error) {
-		console.error("[vvbakes] could not read the extras", error);
-		return [];
-	}
-	return (data ?? []).map(toExtra);
-});
+// Extras have no query of their own: they belong to a product and ride in on
+// `PRODUCT_SELECT`, the same way a product's bundle prices and flavours do.
 
 const getProducts = cache(async (): Promise<Product[]> => {
 	if (isDemoMode()) return DEMO_PRODUCTS;
@@ -337,14 +315,13 @@ export async function getAvailabilityInputs() {
 	const from = addDays(utcToday, -1);
 	const to = addDays(utcToday, MAX_BOOKING_WINDOW_DAYS + 1);
 
-	const [settings, products, extras, rules, overrides, counts] = await Promise.all([
+	const [settings, products, rules, overrides, counts] = await Promise.all([
 		getSettings(),
 		getProducts(),
-		getExtras(),
 		getAvailabilityRules(),
 		getAvailabilityOverrides(from, to),
 		getOrderCounts(from, to),
 	]);
 
-	return { settings, products, extras, rules, overrides, counts };
+	return { settings, products, rules, overrides, counts };
 }

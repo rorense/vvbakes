@@ -4,13 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SITE_NAME, siteUrl } from "@/lib/constants";
 import { formatPrice, priceRule } from "@/lib/pricing";
-import {
-	getCategories,
-	getExtras,
-	getProductBySlug,
-	getProductSlugs,
-	getSettings,
-} from "@/lib/queries";
+import { getCategories, getProductBySlug, getProductSlugs, getSettings } from "@/lib/queries";
 import { Container, Section } from "@/components/ui/Container";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { ArchFrame } from "@/components/ui/ArchFrame";
@@ -66,14 +60,10 @@ export async function generateMetadata({
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
 	const { slug } = await params;
-	const [product, categories, settings, extras] = await Promise.all([
+	const [product, categories, settings] = await Promise.all([
 		getProductBySlug(slug),
 		getCategories(),
 		getSettings(),
-		// One list for the whole shop, so every product page asks the same question
-		// and gets the same answer. Empty until the owner adds one, which is what
-		// hides the picker rather than showing an empty heading.
-		getExtras(),
 	]);
 
 	if (!product) notFound();
@@ -206,10 +196,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 								</div>
 							) : null}
 
-							<AddToOrder
-								product={product}
-								extras={extras}
-							/>
+							{/* The extras ride in on the product, so there is nothing to
+							    pass: a product with none shows no picker. */}
+							<AddToOrder product={product} />
 
 							<VariantAllergens product={product} />
 

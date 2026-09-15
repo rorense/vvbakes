@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
 	blockRange,
 	clearOverride,
@@ -10,11 +10,12 @@ import {
 } from "@/app/admin/(dashboard)/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
 import { cn } from "@/lib/cn";
-import { addMonths, formatDateLong, formatMonth, MONDAY_FIRST } from "@/lib/dates";
+import { addMonths, formatDateLong, formatDateShort, formatMonth, MONDAY_FIRST } from "@/lib/dates";
 import type { AvailabilityRule, CalendarDay, DayState, Weekday } from "@/lib/types";
 import { WEEKDAY_NAMES } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Switch } from "@/components/ui/Form";
+import { useToastedTransition, useToastOnResult } from "@/components/ui/Toast";
 import { AdminCard } from "./AdminShell";
 
 const DAY_HEADS = MONDAY_FIRST.map((weekday) => WEEKDAY_NAMES[weekday].slice(0, 3));
@@ -171,9 +172,13 @@ function Legend() {
 function DayEditor({ day, onClose }: { day: CalendarDay; onClose: () => void }) {
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const [state, action, pending] = useActionState(saveOverride, EMPTY_FORM_STATE);
-	const [clearing, startClearing] = useTransition();
+	const [clearing, clear] = useToastedTransition();
 	const errors = fieldErrorsFrom(state);
 	const error = errorFrom(state);
+
+	// The sheet shuts itself on a save, so whatever it might have said about how
+	// that went goes with it.
+	useToastOnResult(state, `${formatDateShort(day.date)} saved.`);
 
 	useEffect(() => {
 		dialogRef.current?.showModal();
@@ -276,10 +281,14 @@ function DayEditor({ day, onClose }: { day: CalendarDay; onClose: () => void }) 
 							type="button"
 							disabled={clearing}
 							onClick={() =>
-								startClearing(async () => {
-									await clearOverride(day.date);
-									onClose();
-								})
+								clear(
+									async () => {
+										await clearOverride(day.date);
+										onClose();
+									},
+									`${formatDateShort(day.date)} didn't reset. Please try again.`,
+									`${formatDateShort(day.date)} is back to the usual pattern.`,
+								)
 							}
 							className="text-cocoa-soft hover:text-cocoa text-sm underline underline-offset-4">
 							{clearing ? "Resetting…" : "Back to the usual pattern"}
@@ -295,7 +304,8 @@ function DayEditor({ day, onClose }: { day: CalendarDay; onClose: () => void }) 
 function WeekdayDefaults({ rules }: { rules: AvailabilityRule[] }) {
 	const [state, action, pending] = useActionState(saveWeekdayDefaults, EMPTY_FORM_STATE);
 	const error = errorFrom(state);
-	const saved = state.result?.ok === true;
+
+	useToastOnResult(state, "Your usual week is saved.");
 
 	// Monday first, to match the calendar above.
 	const ordered = ([1, 2, 3, 4, 5, 6, 0] as Weekday[]).map(
@@ -352,13 +362,6 @@ function WeekdayDefaults({ rules }: { rules: AvailabilityRule[] }) {
 						disabled={pending}>
 						{pending ? "Saving…" : "Save the week"}
 					</Button>
-					{saved ? (
-						<span
-							role="status"
-							className="text-cocoa-soft text-sm">
-							Saved.
-						</span>
-					) : null}
 				</div>
 			</form>
 		</AdminCard>
@@ -370,7 +373,8 @@ function BlockRangeForm() {
 	const [state, action, pending] = useActionState(blockRange, EMPTY_FORM_STATE);
 	const errors = fieldErrorsFrom(state);
 	const error = errorFrom(state);
-	const saved = state.result?.ok === true;
+
+	useToastOnResult(state, "Those dates are blocked.");
 
 	return (
 		<AdminCard title="Block a stretch of days">
@@ -426,13 +430,6 @@ function BlockRangeForm() {
 						disabled={pending}>
 						{pending ? "Blocking…" : "Block these dates"}
 					</Button>
-					{saved ? (
-						<span
-							role="status"
-							className="text-cocoa-soft text-sm">
-							Blocked.
-						</span>
-					) : null}
 				</div>
 			</form>
 		</AdminCard>

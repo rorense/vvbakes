@@ -227,9 +227,10 @@ export default async function HomePage() {
 				</Section>
 			) : null}
 
-			{/* Custom cakes. This is the actual business. The menu below is the
-			    easy half, so it gets a section of its own rather than a line in
-			    the hero and a textarea at the end of the order form. */}
+			{/* Custom cakes. This is the actual business, so it gets a section of
+			    its own rather than a line in the hero. It used to lead to a panel
+			    at the bottom of the order form; it now leads to the product, where
+			    the brief is written beside a photo of the thing. */}
 			<Section tone="blush">
 				<Container width="wide">
 					<div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
@@ -246,7 +247,7 @@ export default async function HomePage() {
 								sweet&rdquo; is plenty to go on.
 							</p>
 							<div className="mt-2">
-								<ButtonLink href="/order#custom">Ask about a cake</ButtonLink>
+								<ButtonLink href="/shop/custom-cake">Ask about a cake</ButtonLink>
 							</div>
 						</div>
 

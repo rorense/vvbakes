@@ -1667,11 +1667,16 @@ describe("extras", () => {
 	let candles: string;
 	let giftBox: string;
 
-	async function makeExtra(name: string, priceCents: number, sortOrder: number): Promise<string> {
+	async function makeExtra(
+		name: string,
+		priceCents: number,
+		sortOrder: number,
+		productId?: string,
+	): Promise<string> {
 		const result = await db.query<{ id: string }>(
-			`insert into extras (name, price_cents, sort_order)
-			 values ($1, $2, $3) returning id`,
-			[name, priceCents, sortOrder],
+			`insert into product_extras (product_id, name, price_cents, sort_order)
+			 values ($1, $2, $3, $4) returning id`,
+			[productId ?? cupcakes, name, priceCents, sortOrder],
 		);
 		return result.rows[0]!.id;
 	}
@@ -1704,7 +1709,7 @@ describe("extras", () => {
 		// The migration seeds nothing on purpose: a price on a public page that
 		// the owner never agreed to charge is worse than an empty list.
 		const rows = await db.query<{ n: number }>(
-			"select count(*)::int as n from extras where name not in ('Birthday candles', 'Gift box')",
+			"select count(*)::int as n from product_extras where name not in ('Birthday candles', 'Gift box')",
 		);
 		expect(rows.rows[0]!.n).toBe(0);
 	});
@@ -1794,7 +1799,7 @@ describe("extras", () => {
 	});
 
 	it("refuses a basket holding an extra that has since sold out", async () => {
-		await db.query("update extras set is_available = false where id = $1", [candles]);
+		await db.query("update product_extras set is_available = false where id = $1", [candles]);
 
 		const message = await errorOf(async () =>
 			placeOrder({
@@ -1804,12 +1809,12 @@ describe("extras", () => {
 		);
 		expect(message).toContain("EXTRA_UNAVAILABLE");
 
-		await db.query("update extras set is_available = true where id = $1", [candles]);
+		await db.query("update product_extras set is_available = true where id = $1", [candles]);
 	});
 
 	it("refuses an extra that is no longer on the list at all", async () => {
 		const gone = await makeExtra("Sparklers", 500, 9);
-		await db.query("delete from extras where id = $1", [gone]);
+		await db.query("delete from product_extras where id = $1", [gone]);
 
 		const message = await errorOf(async () =>
 			placeOrder({
@@ -1834,7 +1839,7 @@ describe("extras", () => {
 		]);
 		expect(order.total_cents).toBe(300);
 
-		await db.query("delete from extras where id = $1", [note]);
+		await db.query("delete from product_extras where id = $1", [note]);
 	});
 
 	it("keeps what a past order carried after the extra is deleted", async () => {
@@ -1845,7 +1850,7 @@ describe("extras", () => {
 			pickupDate: await dateIn(7),
 		});
 
-		await db.query("delete from extras where id = $1", [topper]);
+		await db.query("delete from product_extras where id = $1", [topper]);
 
 		// The name and the price are the order's own copy, so it still says what
 		// was bought and what it cost.
@@ -1860,6 +1865,61 @@ describe("extras", () => {
 			[order.id],
 		);
 		expect(link.rows[0]!.extra_id).toBeNull();
+	});
+
+	it("refuses an extra that belongs to a different product", async () => {
+		// The basket is localStorage and its ids are the customer's to edit. Without
+		// the product_id check in place_order, the cheap candles off one product
+		// would ride a cake priced for the good ones.
+		const brochi = await productId("brochi");
+		const theirs = await makeExtra("Brochi ribbon", 100, 1, brochi);
+
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: cupcakes, qty: 1, extra_ids: [theirs] }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("EXTRA_UNAVAILABLE");
+
+		// And it is genuinely orderable on the product that owns it, so the refusal
+		// above is about ownership rather than about the row being broken.
+		const ok = await placeOrder({
+			items: [{ product_id: brochi, qty: 1, extra_ids: [theirs] }],
+			pickupDate: await dateIn(7),
+		});
+		expect(await extrasOf(ok.id)).toEqual([
+			{ name: "Brochi ribbon", qty: 1, unit_price_cents: 100, line_total_cents: 100 },
+		]);
+
+		await db.query("delete from orders where id = $1", [ok.id]);
+		await db.query("delete from product_extras where id = $1", [theirs]);
+	});
+
+	it("takes an extra down with the product that owns it", async () => {
+		const spare = await db.query<{ id: string }>(
+			`insert into products (name, slug, unit_price_cents, sort_order)
+			 values ('Spare for extras', 'spare-for-extras', 100, 93) returning id`,
+		);
+		const spareId = spare.rows[0]!.id;
+		await makeExtra("Ribbon", 100, 1, spareId);
+
+		await db.query("delete from products where id = $1", [spareId]);
+
+		const left = await db.query("select 1 from product_extras where product_id = $1", [spareId]);
+		expect(left.rows).toHaveLength(0);
+	});
+
+	it("lets two products each have an extra of the same name", async () => {
+		const brochi = await productId("brochi");
+		// Unique is (product_id, name), not name, so this is allowed and "Candles"
+		// on the cupcakes goes on meaning the cupcakes' candles.
+		const mine = await makeExtra("Shared name", 200, 7);
+		const theirs = await makeExtra("Shared name", 900, 7, brochi);
+
+		expect(mine).not.toBe(theirs);
+
+		await db.query("delete from product_extras where id = any($1)", [[mine, theirs]]);
 	});
 
 	it("takes the extras off a line down with the order", async () => {
@@ -1881,7 +1941,7 @@ describe("extras", () => {
 
 		await db.as("anon", null, async () => {
 			// The menu is public: the picker on a product page is built from it.
-			const list = await db.query("select name from extras");
+			const list = await db.query("select name from product_extras");
 			expect(list.rows.length).toBeGreaterThan(0);
 
 			// What a named customer bought is not.
@@ -1890,7 +1950,12 @@ describe("extras", () => {
 		});
 
 		const message = await db.as("anon", null, () =>
-			errorOf(() => db.query("insert into extras (name, price_cents) values ('Free cake', 0)")),
+			errorOf(() =>
+				db.query(
+					`insert into product_extras (product_id, name, price_cents)
+					 values ((select id from products limit 1), 'Free cake', 0)`,
+				),
+			),
 		);
 		expect(message).toMatch(/row-level security|permission denied/i);
 
@@ -2169,7 +2234,9 @@ describe("the custom cake as a product", () => {
 
 	it("keeps an unpriced line's extras priced, because candles cost what candles cost", async () => {
 		const extra = await db.query<{ id: string }>(
-			"insert into extras (name, price_cents, sort_order) values ('Sparklers', 400, 9) returning id",
+			`insert into product_extras (product_id, name, price_cents, sort_order)
+			 values ($1, 'Sparklers', 400, 9) returning id`,
+			[customCake],
 		);
 		const sparklers = extra.rows[0]!.id;
 
@@ -2186,7 +2253,7 @@ describe("the custom cake as a product", () => {
 		expect(items[0]!.line_total_cents).toBe(0);
 
 		await db.query("delete from orders where id = $1", [order.id]);
-		await db.query("delete from extras where id = $1", [sparklers]);
+		await db.query("delete from product_extras where id = $1", [sparklers]);
 	});
 
 	it("snapshots price-on-request, so un-ticking it later cannot rewrite an order", async () => {

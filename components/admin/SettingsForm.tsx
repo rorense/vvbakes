@@ -2,10 +2,11 @@
 
 import { useActionState, useState } from "react";
 import { saveSettings } from "@/app/admin/(dashboard)/actions";
-import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, succeeded } from "@/lib/action-state";
-import type { Extra, Faq, PrivateSettings, Review, SiteSettings } from "@/lib/types";
+import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
+import type { Faq, PrivateSettings, Review, SiteSettings } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
-import { Field, FormError, FormSuccess, Input, Switch, Textarea } from "@/components/ui/Form";
+import { Field, FormError, Input, Switch, Textarea } from "@/components/ui/Form";
+import { useToastOnResult } from "@/components/ui/Toast";
 import { AdminCard } from "./AdminShell";
 import { DraftList } from "./DraftList";
 
@@ -14,25 +15,26 @@ export function SettingsForm({
 	privateSettings,
 	faqs,
 	reviews,
-	extras,
 	emailConfigured,
 }: {
 	settings: SiteSettings;
 	privateSettings: PrivateSettings;
 	faqs: Faq[];
 	reviews: Review[];
-	extras: Extra[];
 	emailConfigured: boolean;
 }) {
 	const [state, action, pending] = useActionState(saveSettings, EMPTY_FORM_STATE);
 	const errors = fieldErrorsFrom(state);
 	const error = errorFrom(state);
 
+	// This form is long enough that the button is usually off the top of the
+	// screen by the time it is pressed, so the answer comes to the thumb.
+	useToastOnResult(state, "Settings saved.");
+
 	const [ordersOpen, setOrdersOpen] = useState(settings.ordersOpen);
 	const [deliveryEnabled, setDeliveryEnabled] = useState(settings.deliveryEnabled);
 	const [faqRows, setFaqRows] = useState<FaqDraft[]>(() => toFaqDrafts(faqs));
 	const [reviewRows, setReviewRows] = useState<ReviewDraft[]>(() => toReviewDrafts(reviews));
-	const [extraRows, setExtraRows] = useState<ExtraDraft[]>(() => toExtraDrafts(extras));
 
 	// A pair with nothing in either box is someone who pressed "add" and changed
 	// their mind, so it is dropped rather than failed. One with a question and no
@@ -45,8 +47,6 @@ export function SettingsForm({
 		errors.faqs ?? Object.entries(errors).find(([key]) => key.startsWith("faqs."))?.[1];
 	const reviewError =
 		errors.reviews ?? Object.entries(errors).find(([key]) => key.startsWith("reviews."))?.[1];
-	const extraError =
-		errors.extras ?? Object.entries(errors).find(([key]) => key.startsWith("extras."))?.[1];
 
 	const faqsJson = JSON.stringify(
 		faqRows
@@ -62,21 +62,6 @@ export function SettingsForm({
 				detail: row.detail.trim(),
 			}))
 			.filter((row) => row.author !== "" || row.body !== "" || row.detail !== ""),
-	);
-
-	// The id travels with the row, unlike the two lists above. It is what keeps an
-	// order that carried candles pointing at the candles it carried, so a save can
-	// rename or re-price an extra without cutting past orders loose from it.
-	const extrasJson = JSON.stringify(
-		extraRows
-			.map((row) => ({
-				id: row.id,
-				name: row.name.trim(),
-				description: row.description.trim(),
-				priceCents: row.price.trim(),
-				isAvailable: row.isAvailable,
-			}))
-			.filter((row) => row.name !== "" || row.description !== "" || row.priceCents !== ""),
 	);
 
 	return (
@@ -424,81 +409,6 @@ export function SettingsForm({
 				/>
 			</AdminCard>
 
-			<AdminCard title="Extras">
-				<p className="text-cocoa-soft mb-5 text-sm">
-					Offered on every product, under the flavour pickers. Candles, a gift box, a card —
-					anything small that goes with an order. The price is per item ordered, so two cakes with
-					candles is two sets of candles. No extras, nothing shown.
-				</p>
-
-				<input
-					type="hidden"
-					name="extras"
-					value={extrasJson}
-				/>
-
-				<DraftList
-					rows={extraRows}
-					setRows={setExtraRows}
-					legend="Extras"
-					noun="extra"
-					error={extraError}
-					blank={() => ({
-						key: `new-${Date.now()}`,
-						name: "",
-						description: "",
-						price: "",
-						isAvailable: true,
-					})}
-					labelOf={(extra, index) => extra.name || `extra ${index + 1}`}
-					fields={(extra, index, update) => (
-						<>
-							<label className="flex flex-1 flex-col gap-1">
-								<span className="text-cocoa-soft text-xs">Name</span>
-								<Input
-									value={extra.name}
-									placeholder={index === 0 ? "Birthday candles" : ""}
-									onChange={(event) => update({ name: event.target.value })}
-								/>
-							</label>
-
-							<label className="flex w-full flex-col gap-1 sm:w-28">
-								<span className="text-cocoa-soft text-xs">Price</span>
-								<Input
-									value={extra.price}
-									inputMode="decimal"
-									placeholder={index === 0 ? "3" : ""}
-									onChange={(event) => update({ price: event.target.value })}
-								/>
-							</label>
-						</>
-					)}
-					body={(extra, _index, update) => (
-						<div className="flex flex-col gap-3">
-							<label className="flex flex-col gap-1">
-								<span className="text-cocoa-soft text-xs">The line underneath (optional)</span>
-								<Input
-									value={extra.description}
-									placeholder="Six, in whatever colour goes with the icing"
-									onChange={(event) => update({ description: event.target.value })}
-								/>
-							</label>
-
-							{/* Off is how something comes back later without being retyped.
-							    It takes the extra off every product at once, and refuses a
-							    basket that was filled before you switched it off rather than
-							    sending the order through without it. */}
-							<Switch
-								label="Available"
-								description="Turn off to hide it everywhere without deleting it."
-								checked={extra.isAvailable}
-								onChange={(event) => update({ isAvailable: event.target.checked })}
-							/>
-						</div>
-					)}
-				/>
-			</AdminCard>
-
 			<AdminCard title="Getting in touch">
 				<div className="grid gap-5 sm:grid-cols-2">
 					<Field
@@ -600,7 +510,6 @@ export function SettingsForm({
 			</AdminCard>
 
 			{error ? <FormError>{error}</FormError> : null}
-			{succeeded(state) ? <FormSuccess>Settings saved.</FormSuccess> : null}
 
 			<div>
 				<Button
@@ -629,35 +538,6 @@ interface ReviewDraft {
 	author: string;
 	body: string;
 	detail: string;
-}
-
-/**
- * One extra being edited. `key` is React's and belongs to the draft; `id` is the
- * database row's and is absent until the first save, which is what tells the
- * server to insert rather than update.
- *
- * The price is held as the string in the box rather than as cents, so a
- * half-typed "12." is something you can go on typing into instead of a number
- * the field has already rounded.
- */
-interface ExtraDraft {
-	key: string;
-	id?: string;
-	name: string;
-	description: string;
-	price: string;
-	isAvailable: boolean;
-}
-
-function toExtraDrafts(extras: Extra[]): ExtraDraft[] {
-	return extras.map((extra) => ({
-		key: extra.id,
-		id: extra.id,
-		name: extra.name,
-		description: extra.description ?? "",
-		price: (extra.priceCents / 100).toString(),
-		isAvailable: extra.isAvailable,
-	}));
 }
 
 function toReviewDrafts(reviews: Review[]): ReviewDraft[] {

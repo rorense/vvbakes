@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useState } from "react";
 import { saveCategory } from "@/app/admin/(dashboard)/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
 import { cn } from "@/lib/cn";
@@ -8,6 +8,7 @@ import { useSlugField } from "@/lib/use-slug-field";
 import { ACCENT_BG, ACCENTS, type Category } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Select } from "@/components/ui/Form";
+import { useToastedTransition, useToastOnResult } from "@/components/ui/Toast";
 import { AdminCard, EmptyState, ReorderButtons } from "./AdminShell";
 
 export function CategoryManager({
@@ -101,7 +102,7 @@ function CategoryRow({
 	onMove: (id: string, direction: "up" | "down") => Promise<void>;
 	onDelete: (id: string) => Promise<void>;
 }) {
-	const [pending, startTransition] = useTransition();
+	const [pending, run] = useToastedTransition();
 	const [confirming, setConfirming] = useState(false);
 	const chip = "rounded-pill border px-2.5 py-1 text-2xs font-medium";
 
@@ -130,7 +131,12 @@ function CategoryRow({
 					disabled={pending}
 					isFirst={isFirst}
 					isLast={isLast}
-					onMove={(direction) => startTransition(() => onMove(category.id, direction))}
+					onMove={(direction) =>
+						run(
+							() => onMove(category.id, direction),
+							`${category.name} didn't move. Please try again.`,
+						)
+					}
 				/>
 				<button
 					type="button"
@@ -147,7 +153,13 @@ function CategoryRow({
 							<button
 								type="button"
 								disabled={pending}
-								onClick={() => startTransition(() => onDelete(category.id))}
+								onClick={() =>
+									run(
+										() => onDelete(category.id),
+										`${category.name} couldn't be deleted. Please try again.`,
+										`${category.name} deleted.`,
+									)
+								}
 								className={cn(chip, "border-danger text-danger")}>
 								Delete
 							</button>
@@ -178,6 +190,10 @@ function CategoryForm({ category, onDone }: { category: Category | null; onDone:
 	const error = errorFrom(state);
 
 	const nameAndSlug = useSlugField(category);
+
+	// The form closes itself on a save, taking its own feedback with it, so the
+	// toast is what is left to say it worked.
+	useToastOnResult(state, category ? "Category saved." : "Category added.");
 
 	// The action revalidates the page, so a successful save re-renders the list
 	// underneath us; closing the form is what makes that visible.

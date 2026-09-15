@@ -319,6 +319,27 @@
 		}
 	}
 
+	/*
+	 * The rise a toast arrives on. See components/ui/Toast.tsx for what it says.
+	 *
+	 * It travels a little on purpose: the line appears at the bottom of the
+	 * screen, nowhere near the button that caused it, and the movement is what
+	 * ties the two together. Under reduced motion it is simply there already —
+	 * the words were always the information, the travel never was.
+	 */
+	@media (prefers-reduced-motion: no-preference) {
+		.toast-rise {
+			animation: toast-rise 160ms ease-out;
+		}
+	}
+
+	@keyframes toast-rise {
+		from {
+			opacity: 0;
+			translate: 0 0.5rem;
+		}
+	}
+
 	/* Hide scrollbars on the horizontal date/category rails without losing scroll. */
 	.rail {
 		overflow-x: auto;

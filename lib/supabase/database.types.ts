@@ -243,6 +243,7 @@ type ReviewRow = {
 
 type ExtraRow = {
 	id: string;
+	product_id: string;
 	name: string;
 	description: string | null;
 	price_cents: number;
@@ -296,11 +297,19 @@ export type Database = {
 				Update: Partial<ReviewRow>;
 				Relationships: [];
 			};
-			extras: {
+			product_extras: {
 				Row: ExtraRow;
-				Insert: Writable<ExtraRow, "name" | "price_cents">;
+				Insert: Writable<ExtraRow, "product_id" | "name" | "price_cents">;
 				Update: Partial<ExtraRow>;
-				Relationships: [];
+				Relationships: [
+					{
+						foreignKeyName: "product_extras_product_id_fkey";
+						columns: ["product_id"];
+						isOneToOne: false;
+						referencedRelation: "products";
+						referencedColumns: ["id"];
+					},
+				];
 			};
 			products: {
 				Row: ProductRow;
@@ -455,7 +464,7 @@ export type Database = {
 						foreignKeyName: "order_item_extras_extra_id_fkey";
 						columns: ["extra_id"];
 						isOneToOne: false;
-						referencedRelation: "extras";
+						referencedRelation: "product_extras";
 						referencedColumns: ["id"];
 					},
 				];

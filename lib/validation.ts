@@ -195,6 +195,26 @@ const productVariantSchema = z.object({
 	options: z.array(z.coerce.number().int().min(0)),
 });
 
+/**
+ * One extra, as the product form submits it.
+ *
+ * The id is the existing row's, when there is one, and it is what keeps a past
+ * order pointing at the extra it named. The lengths match the check constraints
+ * on `product_extras`, so something too long comes back as a field error rather
+ * than as a failed insert.
+ */
+const extraSchema = z.object({
+	id: z.string().uuid().optional(),
+	name: z
+		.string()
+		.trim()
+		.min(1, "Every extra needs a name and a price")
+		.max(60, "That name is longer than a name"),
+	description: optionalText(200),
+	priceCents: dollars,
+	isAvailable: z.boolean(),
+});
+
 export const productSchema = z
 	.object({
 		id: z.string().uuid().optional(),
@@ -247,6 +267,9 @@ export const productSchema = z
 		// not something a home bakery fills in by hand. The cap is the form's own
 		// guard said again where it cannot be skipped.
 		variants: z.array(productVariantSchema).max(60),
+		// What can be added to this product. Its own list, not a shared one, so two
+		// products may each have a "Candles" at their own price.
+		extras: z.array(extraSchema).max(20, "That is more extras than anyone will scroll past"),
 	})
 	.refine((value) => value.minPerOrder === null || value.minPerOrder % value.qtyStep === 0, {
 		message: "The minimum has to be a multiple of the step size",
@@ -265,6 +288,13 @@ export const productSchema = z
 			return new Set(names).size === names.length;
 		},
 		{ message: "Two of these have the same name", path: ["variants"] },
+	)
+	.refine(
+		(value) => {
+			const names = value.extras.map((extra) => extra.name.toLowerCase());
+			return new Set(names).size === names.length;
+		},
+		{ message: "Two of those extras have the same name", path: ["extras"] },
 	)
 	.refine(
 		(value) => {
@@ -399,93 +429,60 @@ const reviewSchema = z.object({
 	detail: optionalText(120),
 });
 
-/**
- * One extra, as the settings form submits it.
- *
- * The id is the existing row's, when there is one, and it is what keeps a past
- * order pointing at the extra it named. The lengths match the check constraints
- * on `extras`, so something too long comes back as a field error rather than as
- * a failed insert.
- */
-const extraSchema = z.object({
-	id: z.string().uuid().optional(),
-	name: z
+export const settingsSchema = z.object({
+	businessName: z.string().trim().min(1).max(60),
+	tagline: z.string().trim().min(1).max(80),
+	aboutText: optionalText(2000),
+	pickupSuburb: optionalText(120),
+	pickupInstructions: optionalText(1000),
+	pickupWindowText: optionalText(120),
+	leadTimeDays: z.coerce.number().int().min(0).max(60),
+	cutoffTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, "Use a time like 20:00"),
+	bookingWindowDays: z.coerce.number().int().min(1).max(120),
+	timezone: z.string().trim().min(1).max(60),
+	ordersOpen: z.boolean(),
+	ordersClosedMessage: optionalText(300),
+	deliveryEnabled: z.boolean(),
+	deliveryFeeCents: dollars,
+	deliveryAreaText: optionalText(300),
+	contactEmail: z
 		.string()
 		.trim()
-		.min(1, "Every extra needs a name and a price")
-		.max(60, "That name is longer than a name"),
-	description: optionalText(200),
-	priceCents: dollars,
-	isAvailable: z.boolean(),
+		.max(120)
+		.transform((value) => (value === "" ? null : value))
+		.nullable()
+		.refine(
+			(value) => value === null || z.email().safeParse(value).success,
+			"That email address doesn't look right",
+		),
+	contactPhone: optionalText(30),
+	instagramHandle: z
+		.string()
+		.trim()
+		.min(1)
+		.max(40)
+		.transform((value) => value.replace(/^@/, "")),
+	// The home page's questions, submitted as one JSON field. An empty list is
+	// valid and hides the section.
+	faqs: z.array(faqSchema).max(20, "That is more questions than anyone will read"),
+	// Kind words, same arrangement. Nothing is seeded, so an empty list is the
+	// ordinary state rather than an error.
+	reviews: z.array(reviewSchema).max(20, "That is more reviews than anyone will read"),
+	// Private half. Stored separately and never rendered on a public page.
+	bankAccountName: optionalText(80),
+	bankAccountNumber: optionalText(40),
+	pickupAddress: optionalText(300),
+	notificationEmail: z
+		.string()
+		.trim()
+		.max(120)
+		.transform((value) => (value === "" ? null : value))
+		.nullable()
+		.refine(
+			(value) => value === null || z.email().safeParse(value).success,
+			"That email address doesn't look right",
+		),
 });
-
-export const settingsSchema = z
-	.object({
-		businessName: z.string().trim().min(1).max(60),
-		tagline: z.string().trim().min(1).max(80),
-		aboutText: optionalText(2000),
-		pickupSuburb: optionalText(120),
-		pickupInstructions: optionalText(1000),
-		pickupWindowText: optionalText(120),
-		leadTimeDays: z.coerce.number().int().min(0).max(60),
-		cutoffTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, "Use a time like 20:00"),
-		bookingWindowDays: z.coerce.number().int().min(1).max(120),
-		timezone: z.string().trim().min(1).max(60),
-		ordersOpen: z.boolean(),
-		ordersClosedMessage: optionalText(300),
-		deliveryEnabled: z.boolean(),
-		deliveryFeeCents: dollars,
-		deliveryAreaText: optionalText(300),
-		contactEmail: z
-			.string()
-			.trim()
-			.max(120)
-			.transform((value) => (value === "" ? null : value))
-			.nullable()
-			.refine(
-				(value) => value === null || z.email().safeParse(value).success,
-				"That email address doesn't look right",
-			),
-		contactPhone: optionalText(30),
-		instagramHandle: z
-			.string()
-			.trim()
-			.min(1)
-			.max(40)
-			.transform((value) => value.replace(/^@/, "")),
-		// The home page's questions, submitted as one JSON field. An empty list is
-		// valid and hides the section.
-		faqs: z.array(faqSchema).max(20, "That is more questions than anyone will read"),
-		// Kind words, same arrangement. Nothing is seeded, so an empty list is the
-		// ordinary state rather than an error.
-		reviews: z.array(reviewSchema).max(20, "That is more reviews than anyone will read"),
-		// The extras offered on every product. Same arrangement again, except that
-		// these keep their ids: an order points at the extra it carried.
-		extras: z.array(extraSchema).max(20, "That is more extras than anyone will scroll past"),
-		// Private half. Stored separately and never rendered on a public page.
-		bankAccountName: optionalText(80),
-		bankAccountNumber: optionalText(40),
-		pickupAddress: optionalText(300),
-		notificationEmail: z
-			.string()
-			.trim()
-			.max(120)
-			.transform((value) => (value === "" ? null : value))
-			.nullable()
-			.refine(
-				(value) => value === null || z.email().safeParse(value).success,
-				"That email address doesn't look right",
-			),
-	})
-	.refine(
-		(value) => {
-			// Case-folded, because "Candles" and "candles" are one thing to a customer
-			// reading the picker even though the unique index would let both through.
-			const names = value.extras.map((extra) => extra.name.toLowerCase());
-			return new Set(names).size === names.length;
-		},
-		{ message: "Two of those extras have the same name", path: ["extras"] },
-	);
 
 // --- helpers ----------------------------------------------------------------
 

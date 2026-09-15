@@ -129,9 +129,13 @@ export interface ProductOptionGroup {
  * Something paid that rides along with whatever was ordered: candles, a gift
  * box, a handwritten card.
  *
- * One list for the whole shop, edited in /admin/settings and offered on every
- * product, rather than something configured per product. Priced per unit of the
- * line it is added to, so two cakes with candles is two sets of candles.
+ * Belongs to one product and is edited on that product's own page, beside its
+ * flavours and its bundle prices. Candles on a birthday cake are not candles on
+ * a pack of cookies, and the price is not the same on a six-inch and a
+ * three-tier, so there is no shop-wide list to keep in step.
+ *
+ * Priced per unit of the line it is added to, so two cakes with candles is two
+ * sets of candles.
  *
  * Not a variant and not a product: a variant is *which* cake, and a product of
  * its own would put "candles" on the order with no cake attached to it.
@@ -187,6 +191,11 @@ export interface Product {
 	 * normal state: it means one question, named by `variantLabel`.
 	 */
 	optionGroups: ProductOptionGroup[];
+	/**
+	 * What can be added to this product: candles, a gift box, a card. Empty is
+	 * the normal state and hides the picker entirely.
+	 */
+	extras: Extra[];
 	/** Object path inside the product-images bucket, not a URL. */
 	imagePath: string | null;
 	imageAlt: string | null;

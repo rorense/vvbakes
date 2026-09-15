@@ -1,6 +1,6 @@
 import { adminPrivateSettings, adminSettings } from "@/lib/admin-queries";
 import { isEmailConfigured } from "@/lib/email";
-import { getExtras, getFaqs, getReviews } from "@/lib/queries";
+import { getFaqs, getReviews } from "@/lib/queries";
 import { AdminHeader } from "@/components/admin/AdminShell";
 import { SettingsForm } from "@/components/admin/SettingsForm";
 
@@ -8,16 +8,13 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Settings" };
 
 export default async function AdminSettingsPage() {
-	const [settings, privateSettings, faqs, reviews, extras] = await Promise.all([
+	const [settings, privateSettings, faqs, reviews] = await Promise.all([
 		adminSettings(),
 		adminPrivateSettings(),
 		// Public tables with public read policies, so these are the same queries the
-		// home page and the product pages run rather than session-scoped copies of
-		// them. They return every row, switched off ones included, which is what the
-		// editor below needs.
+		// home page runs rather than session-scoped copies of them.
 		getFaqs(),
 		getReviews(),
-		getExtras(),
 	]);
 
 	return (
@@ -31,7 +28,6 @@ export default async function AdminSettingsPage() {
 				privateSettings={privateSettings}
 				faqs={faqs}
 				reviews={reviews}
-				extras={extras}
 				emailConfigured={isEmailConfigured()}
 			/>
 		</>
