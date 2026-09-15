@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 
 /**
@@ -6,6 +9,12 @@ import { cn } from "@/lib/cn";
  * phone-first: a title bar at the top, a fixed tab bar at the bottom with real
  * 44px targets, and no marketing flourishes anywhere. It shares the site's
  * colours but only the sans face.
+ *
+ * Client-side on purpose, for the tab highlight. The dashboard layout is shared
+ * by every admin route, so Next never re-renders it on a tab press — only the
+ * page below changes. A path read on the server therefore freezes at whichever
+ * page was loaded first, and the highlight stays stuck there until a full
+ * reload. `usePathname` is the reading that follows a client navigation.
  */
 
 const TABS = [
@@ -28,13 +37,9 @@ const TABS = [
 	},
 ];
 
-export function AdminShell({
-	pathname,
-	children,
-}: {
-	pathname: string;
-	children: React.ReactNode;
-}) {
+export function AdminShell({ children }: { children: React.ReactNode }) {
+	const pathname = usePathname();
+
 	return (
 		<div className="bg-paper min-h-screen">
 			<div className="mx-auto w-full max-w-4xl px-4 pt-4 pb-28 sm:px-6 sm:pb-10">{children}</div>
@@ -68,7 +73,9 @@ export function AdminShell({
 }
 
 /** Desktop gets the same sections as a plain row above the page. */
-export function AdminNav({ pathname }: { pathname: string }) {
+export function AdminNav() {
+	const pathname = usePathname();
+
 	return (
 		<nav
 			aria-label="Admin sections"

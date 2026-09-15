@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { signOut } from "@/app/admin/(auth)/login/actions";
 import { requireAdmin } from "@/lib/auth";
 import { AdminNav, AdminShell } from "@/components/admin/AdminShell";
@@ -13,12 +12,8 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
 	// bypassed or misconfigured.
 	const user = await requireAdmin();
 
-	// Next exposes the matched path on this header, which is enough to highlight
-	// the current tab without turning the whole shell into a client component.
-	const pathname = (await headers()).get("x-current-path") ?? "/admin";
-
 	return (
-		<AdminShell pathname={pathname}>
+		<AdminShell>
 			<header className="border-line mb-6 flex flex-wrap items-center justify-between gap-3 border-b pb-4">
 				<Link
 					href="/admin"
@@ -27,7 +22,7 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
 					<span className="text-cocoa-soft text-xs">admin</span>
 				</Link>
 
-				<AdminNav pathname={pathname} />
+				<AdminNav />
 
 				<div className="flex items-center gap-3">
 					<Link

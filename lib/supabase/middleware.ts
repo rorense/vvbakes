@@ -12,16 +12,9 @@ import { hasSupabaseConfig, supabaseAnonKey, supabaseUrl } from "./env";
  * table, middleware alone has historically been the wrong place to trust.
  */
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
-	// Server components can read request headers but not the request URL, and the
-	// admin shell needs the current path to highlight a tab. Adding it to the
-	// *request* headers is what makes it visible to `headers()` downstream;
-	// setting it on the response would only reach the browser.
-	const requestHeaders = new Headers(request.headers);
-	requestHeaders.set("x-current-path", request.nextUrl.pathname);
+	const passThrough = () => NextResponse.next({ request });
 
-	const withPath = () => NextResponse.next({ request: { headers: requestHeaders } });
-
-	let response = withPath();
+	let response = passThrough();
 
 	if (!hasSupabaseConfig()) return response;
 
@@ -34,7 +27,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
 				for (const { name, value } of cookiesToSet) {
 					request.cookies.set(name, value);
 				}
-				response = withPath();
+				response = passThrough();
 				for (const { name, value, options } of cookiesToSet) {
 					response.cookies.set(name, value, options);
 				}
