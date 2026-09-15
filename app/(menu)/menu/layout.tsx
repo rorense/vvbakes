@@ -15,7 +15,10 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-	title: "vvbakes menu",
+	// `absolute` opts out of the root's "%s | vvbakes" template, which would
+	// otherwise set the brand twice over: "vvbakes menu | vvbakes".
+	title: { absolute: "vvbakes menu" },
+	description: "The card handed out at the market: what's on the table, and what it costs.",
 	robots: { index: false, follow: false },
 };
 

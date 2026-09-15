@@ -53,6 +53,8 @@ const DESTINATIONS = [
 
 export const metadata: Metadata = {
 	title: "Page not found",
+	description:
+		"That page has moved or never existed. The menu, the order form and the baking dates are all one click away.",
 };
 
 export default async function NotFound() {

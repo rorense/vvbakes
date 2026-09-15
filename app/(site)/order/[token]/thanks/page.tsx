@@ -19,6 +19,7 @@ export const dynamic = "force-dynamic";
  */
 export const metadata: Metadata = {
 	title: "Thank you",
+	description: "Your request is in. I'll email to confirm the day and the price.",
 	robots: { index: false, follow: false, nocache: true },
 };
 

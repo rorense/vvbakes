@@ -28,6 +28,9 @@ export const dynamic = "force-dynamic";
  */
 export const metadata: Metadata = {
 	title: "Your order",
+	// Deliberately says nothing about who the order is for or what is in it: the
+	// link gets pasted into group chats, and this is the text that previews there.
+	description: "Where your vvbakes order has got to, and what happens next.",
 	robots: { index: false, follow: false, nocache: true },
 };
 

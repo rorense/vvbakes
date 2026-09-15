@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { allergenSentence, extraAllergens } from "@/lib/allergens";
-import { siteUrl } from "@/lib/constants";
+import { SITE_NAME, siteUrl } from "@/lib/constants";
 import { productImageUrl } from "@/lib/images";
 import { formatPrice, priceRule } from "@/lib/pricing";
 import { getCategories, getProductBySlug, getProductSlugs, getSettings } from "@/lib/queries";
@@ -42,8 +42,15 @@ export async function generateMetadata({
 		description:
 			product.description ?? `${product.name} from vvbakes. ${priceRule(product)}. Baked to order.`,
 		alternates: { canonical: `/shop/${product.slug}` },
+		// Metadata is merged a field at a time, not deeply, so an `openGraph`
+		// declared here replaces the root layout's outright rather than adding to
+		// it. The three site-wide values have to be repeated or every product page
+		// ships without them.
 		openGraph: {
-			title: `${product.name} from vvbakes`,
+			type: "website",
+			siteName: SITE_NAME,
+			locale: "en_NZ",
+			title: `${product.name} from ${SITE_NAME}`,
 			description: product.description ?? priceRule(product),
 			url: `${siteUrl()}/shop/${product.slug}`,
 			images: image ? [{ url: image }] : undefined,
