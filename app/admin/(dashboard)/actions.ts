@@ -351,19 +351,21 @@ async function saveVariants(
 	if (variantIds.some((id) => !id)) return VARIANTS_FAILED;
 
 	// --- what each combination is made of ------------------------------------
-	// Rewritten rather than diffed. A link row is two foreign keys and no
-	// identity of its own, so there is nothing in it worth preserving, and
-	// clearing them all first is what lets two combinations swap answers without
-	// a halfway state that breaks the one-answer-per-question key.
-	if (variantIds.length > 0) {
-		const { error } = await supabase
-			.from("product_variant_options")
-			.delete()
-			.in("variant_id", variantIds as string[]);
-		if (error) return VARIANTS_FAILED;
-	}
-
-	const links = variants.flatMap((variant, index) =>
+	// Cleared and rewritten, but only for the combinations whose answers have
+	// actually moved.
+	//
+	// Clearing first is what lets two combinations swap answers without a halfway
+	// state that breaks the one-answer-per-question key, so within a combination
+	// it has to stay. Doing it to *every* combination is what had to go: between
+	// the delete and the insert those rows answer no questions at all, and
+	// `place_order` refuses a combination that does not answer every question —
+	// the same guard that stops a deleted flavour being bought. A customer
+	// ordering in that window was told the flavour was unavailable when nothing
+	// of the sort was true.
+	//
+	// Repricing, renaming and selling out all leave the answers alone, which is
+	// nearly every save she will ever make, and those now touch no link at all.
+	const wanted = variants.flatMap((variant, index) =>
 		variant.options.map((chosen, group) => ({
 			variant_id: variantIds[index]!,
 			group_id: groupIds[group]!,
@@ -371,9 +373,45 @@ async function saveVariants(
 		})),
 	);
 
-	if (links.length > 0) {
-		const { error } = await supabase.from("product_variant_options").insert(links);
+	const key = (link: { variant_id: string; group_id: string }) =>
+		`${link.variant_id}:${link.group_id}`;
+
+	const current = new Map<string, string>();
+	if (variantIds.length > 0) {
+		const { data, error } = await supabase
+			.from("product_variant_options")
+			.select("variant_id, group_id, option_id")
+			.in("variant_id", variantIds as string[]);
 		if (error) return VARIANTS_FAILED;
+		for (const row of data ?? []) current.set(key(row), row.option_id);
+	}
+
+	// A combination is stale if any answer it should have differs from what it
+	// has, or if it still has an answer to a question it no longer belongs to —
+	// which is what a question being removed looks like from here.
+	const stale = new Set<string>();
+	for (const link of wanted) {
+		if (current.get(key(link)) !== link.option_id) stale.add(link.variant_id);
+	}
+	const keep = new Set(wanted.map(key));
+	for (const [held, _option] of current) {
+		if (!keep.has(held)) stale.add(held.split(":")[0]!);
+	}
+
+	if (stale.size > 0) {
+		const { error } = await supabase
+			.from("product_variant_options")
+			.delete()
+			.in("variant_id", [...stale]);
+		if (error) return VARIANTS_FAILED;
+
+		const rewritten = wanted.filter((link) => stale.has(link.variant_id));
+		if (rewritten.length > 0) {
+			const { error: insertError } = await supabase
+				.from("product_variant_options")
+				.insert(rewritten);
+			if (insertError) return VARIANTS_FAILED;
+		}
 	}
 
 	return null;
