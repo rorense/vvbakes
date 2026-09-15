@@ -216,6 +216,9 @@ export const productSchema = z
 		wantsBrief: z.boolean(),
 		tiers: z.array(priceTierSchema).max(6),
 		variantLabel: z.string().trim().min(1, "e.g. Flavour, Size").max(30),
+		// Set only by turning the variants switch off, which is the one place the
+		// form says out loud what removing them costs. See saveVariants.
+		removeVariants: z.boolean(),
 		optionGroups: z.array(productOptionGroupSchema).max(3),
 		// Three flavours by three layer counts is nine, and a fourth question is
 		// not something a home bakery fills in by hand. The cap is the form's own

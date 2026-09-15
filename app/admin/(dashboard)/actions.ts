@@ -98,6 +98,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		variantLabel: formData.get("variantLabel") ?? "Flavour",
 		optionGroups,
 		variants,
+		removeVariants: checkbox(formData, "removeVariants"),
 	});
 
 	if (!parsed.success) {
@@ -154,7 +155,13 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		if (error) return fail("The product saved, but its bundle prices didn't. Please try again.");
 	}
 
-	const variantError = await saveVariants(supabase, productId!, input.optionGroups, input.variants);
+	const variantError = await saveVariants(
+		supabase,
+		productId!,
+		input.optionGroups,
+		input.variants,
+		input.removeVariants,
+	);
 	if (variantError) return fail(variantError);
 
 	revalidateCatalogue();
@@ -223,7 +230,36 @@ async function saveVariants(
 	productId: string,
 	groups: OptionGroupInput[],
 	variants: VariantInput[],
+	removeVariants: boolean,
 ): Promise<string | null> {
+	// --- nothing is wiped by accident ----------------------------------------
+	// An empty submission means "this product is one thing at one price", and
+	// acting on it deletes every flavour the product has. That is a real thing
+	// she does, so it cannot simply be refused — but it is also what a form that
+	// has gone wrong sends, and the first statement below would carry it out
+	// before anything else had a chance to fail.
+	//
+	// So it has to be asked for. The switch is what asks: turning "This is sold
+	// in variants" off sets `removeVariants`, and the form says in red what that
+	// will cost before she saves. Any other route to an empty submission is a
+	// bug, and this is where it stops, with everything still on the shelf.
+	if (variants.length === 0 && !removeVariants) {
+		const { count, error } = await supabase
+			.from("product_variants")
+			.select("id", { count: "exact", head: true })
+			.eq("product_id", productId);
+
+		if (error) return VARIANTS_FAILED;
+
+		if ((count ?? 0) > 0) {
+			return (
+				`Nothing was priced, so saving would have removed the ${count} ` +
+				`${count === 1 ? "variant" : "variants"} this product has. Nothing was changed. ` +
+				`Give at least one a price, or turn off "This is sold in variants" to remove them on purpose.`
+			);
+		}
+	}
+
 	// --- the questions -------------------------------------------------------
 	// Deletes come first at every level, so a name freed by a removed row is
 	// available to a row that is taking it. PostgREST has no way to spell "not in

@@ -475,11 +475,21 @@ export function ProductForm({
 							/>
 						</>
 					) : savedVariantCount > 0 ? (
-						<p className="border-danger text-danger rounded-md border px-4 py-3 text-sm">
-							Saving now removes the {savedVariantCount}{" "}
-							{savedVariantCount === 1 ? "variant" : "variants"} this product has, and it goes back
-							to the one price below. Orders already placed keep the name they were given.
-						</p>
+						<>
+							{/* The one place an empty submission is meant. Without it the save
+							    refuses to act on one, so a form that goes wrong cannot quietly
+							    take every flavour off a product. See saveVariants. */}
+							<input
+								type="hidden"
+								name="removeVariants"
+								value="on"
+							/>
+							<p className="border-danger text-danger rounded-md border px-4 py-3 text-sm">
+								Saving now removes the {savedVariantCount}{" "}
+								{savedVariantCount === 1 ? "variant" : "variants"} this product has, and it goes
+								back to the one price below. Orders already placed keep the name they were given.
+							</p>
+						</>
 					) : null}
 				</div>
 			</AdminCard>

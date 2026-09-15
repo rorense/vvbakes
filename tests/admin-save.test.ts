@@ -70,7 +70,21 @@ async function replaySave(
 	productId: string,
 	groups: GroupIn[],
 	variants: VariantIn[],
+	{ removeVariants = true }: { removeVariants?: boolean } = {},
 ): Promise<{ groupIds: string[]; optionIds: string[][]; variantIds: string[] }> {
+	// 0. an empty submission is only acted on when the switch asked for it.
+	if (variants.length === 0 && !removeVariants) {
+		const held = await db.query<{ n: string }>(
+			"select count(*)::text as n from product_variants where product_id = $1",
+			[productId],
+		);
+		if (Number(held.rows[0]!.n) > 0) {
+			throw new Error(
+				`Nothing was priced, so saving would have removed the ${held.rows[0]!.n} variants this product has.`,
+			);
+		}
+	}
+
 	const kept = (rows: Array<{ id?: string }>) => rows.map((r) => r.id).filter(Boolean) as string[];
 
 	// 1. delete from product_option_groups where product_id = … and id not in (kept)
@@ -613,6 +627,8 @@ describe("what a later save takes away", () => {
 	});
 
 	it("takes the questions away again when the product goes back to one price", async () => {
+		// The switch is off, which is what sets removeVariants, so the empty
+		// submission is meant and is carried out.
 		await replaySave(cakeId, [], []);
 
 		expect(await variantRows(cakeId)).toHaveLength(0);
@@ -904,5 +920,51 @@ describe("what a customer sees while a save is in flight", () => {
 
 		// The others are untouched and still sell.
 		expect((await order(cakeId, saved.variantIds[1]!)).total_cents).toBe(5000);
+	});
+});
+
+describe("an empty submission nobody asked for", () => {
+	/**
+	 * Saving with nothing priced used to delete every flavour the product had,
+	 * because "she turned variants off" and "the form sent nothing" are the same
+	 * bytes on the wire, and the first statement of the save acted on them before
+	 * anything else could fail.
+	 *
+	 * The switch is what tells the two apart. Turning "This is sold in variants"
+	 * off is the only thing that sets `removeVariants`, and the only place the
+	 * form says in red what removing them costs. An empty submission without it
+	 * is a bug in the form, and is refused with everything still on the shelf.
+	 */
+	it("is refused, and not one row is deleted", async () => {
+		const cake = await aFlatCake(`guard-${Math.random().toString(36).slice(2, 9)}`);
+
+		const message = await errorOf(() => replaySave(cake.id, [], [], { removeVariants: false }));
+		expect(message).toContain("Nothing was priced");
+
+		const rows = await variantRows(cake.id);
+		expect(rows.map((r) => r.name)).toEqual(["Chocolate", "Carrot", "Lemon"]);
+	});
+
+	it("is carried out when the switch is what sent it", async () => {
+		const cake = await aFlatCake(`meant-${Math.random().toString(36).slice(2, 9)}`);
+
+		await replaySave(cake.id, [], [], { removeVariants: true });
+
+		expect(await variantRows(cake.id)).toHaveLength(0);
+		// And the product still sells, at its own price.
+		expect((await order(cake.id, null)).total_cents).toBe(4500);
+	});
+
+	it("says nothing about a product that never had variants", async () => {
+		const made = await db.query<{ id: string }>(
+			`insert into products (name, slug, unit_price_cents, unit_label, sort_order)
+			 values ('Plain', $1, 500, 'each', 81) returning id`,
+			[`plain-${Math.random().toString(36).slice(2, 9)}`],
+		);
+		const plainId = made.rows[0]!.id;
+
+		// Nothing to lose, so an empty submission is simply the truth.
+		await replaySave(plainId, [], [], { removeVariants: false });
+		expect(await variantRows(plainId)).toHaveLength(0);
 	});
 });
