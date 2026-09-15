@@ -29,11 +29,14 @@ const MENU_ITEMS: ReadonlyArray<{ name: string; prices: readonly string[] }> = [
 
 /**
  * Cached like the other public pages rather than rendered per request. A market
- * stall is the worst network this site ever sees, and the account number changes
- * about never, so five minutes of staleness costs nothing and a fast card is
- * worth a lot.
+ * stall is the worst network this site ever sees, and a fast card is worth a
+ * lot.
+ *
+ * The account number changing is the one case this must not get wrong, and the
+ * timer is no longer what carries it: `revalidateCatalogue()` purges this path
+ * on every settings save. Same window as the home page, for the reason there.
  */
-export const revalidate = 300;
+export const revalidate = 3600;
 
 export default async function MenuPage() {
 	const { bankAccountName, bankAccountNumber } = await getPrivateSettings();

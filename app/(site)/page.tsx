@@ -22,8 +22,19 @@ import { Sticker } from "@/components/ui/Sticker";
 import { ProductCard } from "@/components/site/ProductCard";
 import { PublicCalendar } from "@/components/site/PublicCalendar";
 
-// Revalidated on a timer and on demand whenever the admin changes the catalogue.
-export const revalidate = 300;
+/**
+ * Revalidated on demand: every admin mutation ends in `revalidateCatalogue()`,
+ * which purges this page, so an edit is live on the very next request rather
+ * than whenever a timer happens to come round.
+ *
+ * The timer is only the backstop for a change that never went through the admin
+ * — a row edited straight in Supabase — and it is deliberately long, which is
+ * the opposite of the obvious move. An expired window does not make the next
+ * visitor wait for a fresh render; it hands them the stale page and regenerates
+ * behind them. So the window is not how quickly an edit shows, it is how often
+ * someone eats a stale load, and at 300 that was every five minutes for nothing.
+ */
+export const revalidate = 3600;
 
 /**
  * The home page inherits its title and description from the root layout, but a

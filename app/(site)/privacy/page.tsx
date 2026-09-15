@@ -7,8 +7,8 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 
 // Settings supply the business name and the contact address, so this is cached
 // on the same timer as the rest of the public site and revalidated by hand when
-// the admin saves settings.
-export const revalidate = 300;
+// the admin saves settings. Same window as the home page, for the reason there.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
 	title: "Privacy",

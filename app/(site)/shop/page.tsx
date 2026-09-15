@@ -8,7 +8,8 @@ import { Container, Section } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { ProductCard } from "@/components/site/ProductCard";
 
-export const revalidate = 300;
+// Same window as the home page, and for the reason written there.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
 	title: "Shop",

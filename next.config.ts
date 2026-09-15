@@ -87,6 +87,20 @@ const nextConfig: NextConfig = {
 			// to roughly 400 KB each. The 1 MB default would refuse the second one.
 			bodySizeLimit: "4mb",
 		},
+		/**
+		 * The client-side router cache, switched off.
+		 *
+		 * Next keeps prefetched RSC payloads in the browser and reuses them for
+		 * `<Link>` navigations — by default for 300 seconds on a static route.
+		 * That timer runs in the visitor's own tab, where `revalidatePath()` cannot
+		 * reach it, so a catalogue edit could be live on the server and still not
+		 * show. Saving a product and then clicking through to the shop hit exactly
+		 * that, and looked like the save itself being slow.
+		 *
+		 * Zero means every navigation asks the server. The server's answer is still
+		 * a cached page, so this costs a request, not a database read.
+		 */
+		staleTimes: { static: 0, dynamic: 0 },
 	},
 	/**
 	 * The share cards read the brand fonts and the logo off disk rather than

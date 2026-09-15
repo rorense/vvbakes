@@ -18,7 +18,8 @@ import {
 	VariantPhoto,
 } from "@/components/order/VariantChoice";
 
-export const revalidate = 300;
+// Same window as the home page, and for the reason written there.
+export const revalidate = 3600;
 
 export async function generateStaticParams() {
 	const slugs = await getProductSlugs();

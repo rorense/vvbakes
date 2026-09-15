@@ -35,6 +35,10 @@ function revalidateCatalogue(): void {
 	// The privacy page prints the business name and the contact address, so a
 	// settings save has to reach it too.
 	revalidatePath("/privacy", "page");
+	// The market card is unlisted and its prices are hard-coded, but it quotes the
+	// bank account, and the day that changes is the day it must not still be
+	// showing the old one.
+	revalidatePath("/menu", "page");
 	revalidatePath("/sitemap.xml");
 }
 
