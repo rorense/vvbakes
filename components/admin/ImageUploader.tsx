@@ -1,11 +1,22 @@
 "use client";
 
-import imageCompression from "browser-image-compression";
 import Image from "next/image";
 import { useId, useRef, useState } from "react";
 import { productImagePath, productImageUrl } from "@/lib/images";
 import { createClient } from "@/lib/supabase/client";
 import { PRODUCT_IMAGE_BUCKET } from "@/lib/constants";
+
+/**
+ * Pulled in only once a file is actually chosen.
+ *
+ * The encoder is around 50 KB of the page's JavaScript and most visits never
+ * attach a photo at all, so a static import would spend that on everyone to
+ * serve the few who do. Fetched here the cost lands on the one interaction that
+ * needs it, behind a spinner that was going to be shown regardless.
+ */
+async function loadCompressor() {
+	return (await import("browser-image-compression")).default;
+}
 
 /**
  * Uploads a product photo straight from the browser to Supabase Storage.
@@ -50,7 +61,7 @@ export function ImageUploader({
 		setMessage(null);
 
 		try {
-			const compressed = await imageCompression(file, {
+			const compressed = await (await loadCompressor())(file, {
 				maxWidthOrHeight: 1600,
 				maxSizeMB: 0.6,
 				fileType: "image/webp",

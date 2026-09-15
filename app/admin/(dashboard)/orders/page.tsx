@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { adminOrders, adminSettings } from "@/lib/admin-queries";
+import { ORDERS_PER_PAGE, adminOrders, adminSettings } from "@/lib/admin-queries";
 import { cn } from "@/lib/cn";
 import { formatDateShort, isIsoDate } from "@/lib/dates";
 import { STATUS_TONES } from "@/lib/order-status";
@@ -25,31 +25,59 @@ const STATUSES: OrderStatus[] = ["new", "confirmed", "ready", "collected", "canc
 export default async function AdminOrdersPage({
 	searchParams,
 }: {
-	searchParams: Promise<{ status?: string; date?: string; q?: string }>;
+	searchParams: Promise<{ status?: string; date?: string; q?: string; page?: string }>;
 }) {
-	const { status, date, q } = await searchParams;
+	const { status, date, q, page } = await searchParams;
 
-	const activeStatus =
+	const activeStatus: OrderStatus | "all" | "open" =
 		status === "all" || status === "open" || STATUSES.includes(status as OrderStatus)
-			? status
+			? (status as OrderStatus | "all" | "open")
 			: "open";
+
+	const activeDate = isIsoDate(date ?? "") ? date : undefined;
+	const search = q?.trim() || undefined;
+
+	// A junk or negative ?page= lands on the first page rather than an error.
+	const parsedPage = Number.parseInt(page ?? "", 10);
+	const activePage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 0;
 
 	// The filters come from the URL, not from settings, so neither read has to
 	// wait for the other.
-	const [settings, orders] = await Promise.all([
+	const [settings, { orders, hasMore }] = await Promise.all([
 		adminSettings(),
 		adminOrders({
-			status: activeStatus as OrderStatus | "all" | "open",
-			date: isIsoDate(date ?? "") ? date : undefined,
-			search: q?.trim() || undefined,
+			status: activeStatus,
+			date: activeDate,
+			search,
+			page: activePage,
 		}),
 	]);
+
+	/** A link back to this same list, keeping every filter, on another page. */
+	function pageHref(target: number): string {
+		const params = new URLSearchParams({ status: activeStatus });
+		if (activeDate) params.set("date", activeDate);
+		if (search) params.set("q", search);
+		if (target > 0) params.set("page", String(target));
+		return `/admin/orders?${params}`;
+	}
+
+	// Counting from one reads better than "page 0", and the running total tells
+	// the owner where they are without a count query behind it.
+	const firstShown = activePage * ORDERS_PER_PAGE + 1;
+	const lastShown = activePage * ORDERS_PER_PAGE + orders.length;
 
 	return (
 		<>
 			<AdminHeader
 				title="Orders"
-				description={`${orders.length} ${orders.length === 1 ? "order" : "orders"} shown`}
+				description={
+					orders.length === 0
+						? "No orders shown"
+						: activePage === 0 && !hasMore
+							? `${orders.length} ${orders.length === 1 ? "order" : "orders"} shown`
+							: `Orders ${firstShown}–${lastShown}`
+				}
 			/>
 
 			<div className="mb-6 flex flex-col gap-4">
@@ -104,13 +132,27 @@ export default async function AdminOrdersPage({
 
 			{orders.length === 0 ? (
 				<EmptyState>
-					No orders match that.{" "}
-					<Link
-						href="/admin/orders?status=all"
-						className="underline underline-offset-4">
-						Show everything
-					</Link>
-					.
+					{activePage > 0 ? (
+						<>
+							Nothing on this page.{" "}
+							<Link
+								href={pageHref(0)}
+								className="underline underline-offset-4">
+								Back to the first
+							</Link>
+							.
+						</>
+					) : (
+						<>
+							No orders match that.{" "}
+							<Link
+								href="/admin/orders?status=all"
+								className="underline underline-offset-4">
+								Show everything
+							</Link>
+							.
+						</>
+					)}
 				</EmptyState>
 			) : (
 				<ul className="hairline-list">
@@ -153,6 +195,35 @@ export default async function AdminOrdersPage({
 					))}
 				</ul>
 			)}
+
+			{activePage > 0 || hasMore ? (
+				<nav
+					aria-label="Order pages"
+					className="border-line mt-6 flex items-center justify-between gap-3 border-t pt-4">
+					{activePage > 0 ? (
+						<Link
+							href={pageHref(activePage - 1)}
+							rel="prev"
+							className="border-line hover:border-cocoa rounded-pill tap-safe border px-4 py-2 text-sm font-medium">
+							&larr; Newer
+						</Link>
+					) : (
+						// Holds the gap so "Older" does not slide left on the first page.
+						<span />
+					)}
+
+					{hasMore ? (
+						<Link
+							href={pageHref(activePage + 1)}
+							rel="next"
+							className="border-line hover:border-cocoa rounded-pill tap-safe border px-4 py-2 text-sm font-medium">
+							Older &rarr;
+						</Link>
+					) : (
+						<span />
+					)}
+				</nav>
+			) : null}
 
 			<p className="text-cocoa-soft mt-6 text-xs">
 				Pickup dates are in {settings.timezone.replace("_", " ")}.

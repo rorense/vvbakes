@@ -153,21 +153,43 @@ export interface OrderFilters {
 	status?: OrderStatus | "all" | "open";
 	date?: IsoDate;
 	search?: string;
+	/** How many to a page. */
 	limit?: number;
+	/** Zero-based. Out-of-range pages come back empty rather than throwing. */
+	page?: number;
+}
+
+/** How many orders one page of the list holds. */
+export const ORDERS_PER_PAGE = 50;
+
+export interface OrderPage {
+	orders: OrderSummary[];
+	/** Whether another page exists after this one. */
+	hasMore: boolean;
 }
 
 /**
  * Not cached: the filters arrive as a fresh object literal every render, which
  * `cache` compares by identity, so it would never hit anyway.
+ *
+ * Paged rather than capped. The old fixed limit of 100 was invisible from the
+ * page: a year in, "Everything" would quietly stop at the hundredth order and
+ * the ones before it could not be reached at all. Asking for one row more than
+ * a page holds is how `hasMore` is known without a second `count` query, which
+ * on a filtered `or` search is not free.
  */
-export async function adminOrders(filters: OrderFilters = {}): Promise<OrderSummary[]> {
+export async function adminOrders(filters: OrderFilters = {}): Promise<OrderPage> {
 	const supabase = await createClient();
+
+	const perPage = filters.limit ?? ORDERS_PER_PAGE;
+	const page = Math.max(0, filters.page ?? 0);
+	const from = page * perPage;
 
 	let query = supabase
 		.from("orders")
 		.select("*, order_items (id)")
 		.order("created_at", { ascending: false })
-		.limit(filters.limit ?? 100);
+		.range(from, from + perPage); // One extra row, to see if there is a next page.
 
 	if (filters.status && filters.status !== "all") {
 		if (filters.status === "open") {
@@ -193,12 +215,18 @@ export async function adminOrders(filters: OrderFilters = {}): Promise<OrderSumm
 
 	const { data } = await query;
 
-	return (data ?? []).map((row) => {
-		const { order_items, ...rest } = row as typeof row & { order_items?: Array<{ id: string }> };
-		const order = toOrder(rest as never);
-		const { items: _items, ...summary } = order;
-		return { ...summary, itemCount: order_items?.length ?? 0 };
-	});
+	const rows = data ?? [];
+	const hasMore = rows.length > perPage;
+
+	return {
+		hasMore,
+		orders: rows.slice(0, perPage).map((row) => {
+			const { order_items, ...rest } = row as typeof row & { order_items?: Array<{ id: string }> };
+			const order = toOrder(rest as never);
+			const { items: _items, ...summary } = order;
+			return { ...summary, itemCount: order_items?.length ?? 0 };
+		}),
+	};
 }
 
 /**

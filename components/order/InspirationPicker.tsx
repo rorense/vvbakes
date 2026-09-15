@@ -1,6 +1,5 @@
 "use client";
 
-import imageCompression from "browser-image-compression";
 import { useId, useRef, useState } from "react";
 import { MAX_INSPIRATION_PHOTOS } from "@/lib/constants";
 
@@ -14,6 +13,18 @@ export interface InspirationPhoto {
 	 * Whatever is still held when the page goes away dies with the document.
 	 */
 	preview: string;
+}
+
+/**
+ * Pulled in only once a file is actually chosen.
+ *
+ * The encoder is around 50 KB of the page's JavaScript and most visits never
+ * attach a photo at all, so a static import would spend that on everyone to
+ * serve the few who do. Fetched here the cost lands on the one interaction that
+ * needs it, behind a spinner that was going to be shown regardless.
+ */
+async function loadCompressor() {
+	return (await import("browser-image-compression")).default;
 }
 
 /**
@@ -54,9 +65,11 @@ export function InspirationPicker({
 		const tooMany = chosen.length > accepted.length;
 
 		try {
+			const compress = await loadCompressor();
+
 			const added = await Promise.all(
 				accepted.map(async (file) => {
-					const compressed = await imageCompression(file, {
+					const compressed = await compress(file, {
 						maxWidthOrHeight: 1400,
 						maxSizeMB: 0.4,
 						fileType: "image/webp",
