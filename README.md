@@ -30,6 +30,7 @@ enough to work on the design. Ordering and the admin need a real database.
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier over the whole repo |
 | `npm run icons` | Regenerates every icon from `assets/logo-source.png` |
+| `npm run og:fonts` | Re-downloads the two brand fonts the share cards draw with |
 | `npm run emails:preview` | Renders all five emails to `.email-preview/` |
 
 ---

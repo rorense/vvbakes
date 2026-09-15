@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { allergenSentence, extraAllergens } from "@/lib/allergens";
 import { SITE_NAME, siteUrl } from "@/lib/constants";
-import { productImageUrl } from "@/lib/images";
 import { formatPrice, priceRule } from "@/lib/pricing";
 import { getCategories, getProductBySlug, getProductSlugs, getSettings } from "@/lib/queries";
 import { Container, Section } from "@/components/ui/Container";
@@ -35,8 +34,6 @@ export async function generateMetadata({
 	const product = await getProductBySlug(slug);
 	if (!product) return { title: "Not found" };
 
-	const image = productImageUrl(product.imagePath);
-
 	return {
 		title: product.name,
 		description:
@@ -46,6 +43,10 @@ export async function generateMetadata({
 		// declared here replaces the root layout's outright rather than adding to
 		// it. The three site-wide values have to be repeated or every product page
 		// ships without them.
+		//
+		// `images` is deliberately absent: opengraph-image.tsx next door draws the
+		// card. Naming the key here at all, even as undefined, is enough for Next
+		// to treat the images as declared and skip that file.
 		openGraph: {
 			type: "website",
 			siteName: SITE_NAME,
@@ -53,7 +54,6 @@ export async function generateMetadata({
 			title: `${product.name} from ${SITE_NAME}`,
 			description: product.description ?? priceRule(product),
 			url: `${siteUrl()}/shop/${product.slug}`,
-			images: image ? [{ url: image }] : undefined,
 		},
 	};
 }

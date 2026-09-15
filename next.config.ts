@@ -24,6 +24,16 @@ const nextConfig: NextConfig = {
 			bodySizeLimit: "4mb",
 		},
 	},
+	/**
+	 * The share cards read the brand fonts and the logo off disk rather than
+	 * importing them, so nothing in the module graph points at those files and
+	 * tracing leaves them behind. A card for a product page or an order link is
+	 * drawn on demand, not at build, and would find nothing to draw with.
+	 */
+	outputFileTracingIncludes: {
+		"/opengraph-image": ["./assets/fonts/**", "./public/logo.png"],
+		"/**/opengraph-image": ["./assets/fonts/**", "./public/logo.png"],
+	},
 	poweredByHeader: false,
 	async headers() {
 		return [

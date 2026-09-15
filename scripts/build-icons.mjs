@@ -5,7 +5,11 @@
  *   app/apple-icon.png            – 180px, cream background (iOS ignores alpha)
  *   public/icon-192.png / -512.png – PWA manifest icons
  *   public/email-logo.png         – 144px on cream, for the email header
- *   app/opengraph-image.png       – 1200x630 social card
+ *
+ * The social share cards are not here. They are drawn at request time by the
+ * opengraph-image routes, from lib/og.tsx, because a card carries the name of
+ * whichever page was shared and products come and go without anyone running a
+ * script.
  *
  * Run with: npm run icons
  */
@@ -71,34 +75,6 @@ async function main() {
 		.flatten({ background: PAPER })
 		.png()
 		.toFile(await out(join(root, "public", "email-logo.png")));
-
-	// Open Graph card: logo centred on paper with the wordmark underneath.
-	const OG_W = 1200;
-	const OG_H = 630;
-	const badge = await sharp(trimmed).resize({ height: 340 }).png().toBuffer();
-	const badgeMeta = await sharp(badge).metadata();
-	const caption = Buffer.from(
-		`<svg xmlns="http://www.w3.org/2000/svg" width="${OG_W}" height="120">
-			<text x="50%" y="52" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
-				font-size="52" font-weight="600" fill="${COCOA}">vvbakes</text>
-			<text x="50%" y="96" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
-				font-size="26" font-style="italic" fill="${COCOA}" opacity="0.75">inspired desserts</text>
-		</svg>`,
-	);
-
-	await sharp({
-		create: { width: OG_W, height: OG_H, channels: 4, background: PAPER },
-	})
-		.composite([
-			{
-				input: badge,
-				top: 90,
-				left: Math.round((OG_W - (badgeMeta.width ?? 340)) / 2),
-			},
-			{ input: caption, top: 460, left: 0 },
-		])
-		.png()
-		.toFile(await out(join(root, "app", "opengraph-image.png")));
 
 	// A tiny dot pattern used behind hero and category bands.
 	await writeFile(
