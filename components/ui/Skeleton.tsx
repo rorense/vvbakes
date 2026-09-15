@@ -38,7 +38,9 @@ export function SkeletonScreen({
 }) {
 	return (
 		<div aria-busy="true">
-			<span className="sr-only" role="status">
+			<span
+				className="sr-only"
+				role="status">
 				{label}
 			</span>
 			{children}

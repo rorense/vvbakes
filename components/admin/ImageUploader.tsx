@@ -61,7 +61,9 @@ export function ImageUploader({
 		setMessage(null);
 
 		try {
-			const compressed = await (await loadCompressor())(file, {
+			const compressed = await (
+				await loadCompressor()
+			)(file, {
 				maxWidthOrHeight: 1600,
 				maxSizeMB: 0.6,
 				fileType: "image/webp",
