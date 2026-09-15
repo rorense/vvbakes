@@ -2,12 +2,7 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { formatDateLong } from "@/lib/dates";
 import type { PublicCalendarMonth } from "@/lib/types";
-import {
-	CALENDAR_COLUMNS,
-	DAY_STATE,
-	LEGEND_COPY,
-	LEGEND_STATES,
-} from "@/components/ui/calendar-states";
+import { CALENDAR_COLUMNS, CalendarLegend, DAY_STATE } from "@/components/ui/calendar-states";
 
 export function PublicCalendar({
 	months,
@@ -105,19 +100,7 @@ export function PublicCalendar({
 			</div>
 
 			<div className="flex flex-col gap-3">
-				<ul className="flex flex-wrap gap-x-5 gap-y-2">
-					{LEGEND_STATES.map((state) => (
-						<li
-							key={state}
-							className="text-cocoa-soft flex items-center gap-2 text-xs">
-							<span
-								className={cn("size-3.5 shrink-0 rounded-sm", DAY_STATE[state].className)}
-								aria-hidden="true"
-							/>
-							{LEGEND_COPY[state]}
-						</li>
-					))}
-				</ul>
+				<CalendarLegend />
 
 				{hasAnyAvailable ? (
 					<p className="text-cocoa-soft text-xs">

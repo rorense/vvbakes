@@ -12,6 +12,7 @@
  * same blank square to someone scanning, and they mean very different things to
  * someone deciding whether to bother asking.
  */
+import { cn } from "@/lib/cn";
 import { MONDAY_FIRST } from "@/lib/dates";
 import { WEEKDAY_NAMES, type PublicDayState } from "@/lib/types";
 
@@ -57,3 +58,29 @@ export const LEGEND_COPY: Partial<Record<PublicDayState, string>> = {
 	full: "Fully booked",
 	"too-soon": "Not enough notice",
 };
+
+/**
+ * The key under a calendar grid.
+ *
+ * Both calendars carried an identical copy of this, which is the one thing the
+ * file above exists to stop: a swatch is only useful if it is the same colour
+ * as the day it is explaining, and two copies are two things to keep in step
+ * with DAY_STATE rather than one.
+ */
+export function CalendarLegend() {
+	return (
+		<ul className="flex flex-wrap gap-x-5 gap-y-2">
+			{LEGEND_STATES.map((state) => (
+				<li
+					key={state}
+					className="text-cocoa-soft flex items-center gap-2 text-xs">
+					<span
+						className={cn("size-3.5 shrink-0 rounded-sm", DAY_STATE[state].className)}
+						aria-hidden="true"
+					/>
+					{LEGEND_COPY[state]}
+				</li>
+			))}
+		</ul>
+	);
+}
