@@ -147,6 +147,122 @@ report(
 
 // --- schema and seed --------------------------------------------------------
 
+/**
+ * Every table the site reads or writes.
+ *
+ * Checked through the service key, which bypasses row level security, so an
+ * error here means the table genuinely is not there rather than that the caller
+ * was not allowed to see it.
+ *
+ * This list is the whole point of the section. The reads below it only touch
+ * the handful of tables that existed when this script was written, so a project
+ * missing everything added since — variants, questions, reviews, rate limits —
+ * used to pass every check and then fall over on the first page load.
+ */
+const TABLES = [
+	"admins",
+	"categories",
+	"products",
+	"product_price_tiers",
+	"product_variants",
+	"faqs",
+	"reviews",
+	"site_settings",
+	"site_settings_private",
+	"availability_rules",
+	"availability_overrides",
+	"orders",
+	"order_items",
+	"order_events",
+	"rate_limits",
+];
+
+const missingTables = [];
+for (const table of TABLES) {
+	// `limit(0)` rather than `{ head: true }`: a HEAD request for a table that
+	// does not exist comes back 204 with no error attached, so the obvious way to
+	// write this silently passes on exactly the thing it is here to catch. A GET
+	// that asks for no rows transfers just as little and returns a real 404.
+	const probe = await admin.from(table).select("*").limit(0);
+	if (probe.error) missingTables.push(table);
+}
+
+report(
+	missingTables.length === 0,
+	`Every table is there ${dim(`(${TABLES.length} checked)`)}`,
+	`Missing: ${missingTables.join(", ")}.\n` +
+		"        Run `npx supabase db push`. A migration has not been applied.",
+);
+
+/**
+ * The functions, probed with arguments that do nothing.
+ *
+ * An empty id array renumbers no rows, a sweep only removes rate-limit rows
+ * that have already expired, and clearing a bucket nothing has ever written to
+ * deletes nothing. `record_attempt` is deliberately not called: it is the one
+ * that writes, and it ships in the same migration as the two beside it.
+ */
+const FUNCTIONS = [
+	["is_admin", {}],
+	["order_counts_between", { p_from: "2020-01-01", p_to: "2020-01-02" }],
+	["reorder_products", { p_ids: [] }],
+	["reorder_categories", { p_ids: [] }],
+	["sweep_rate_limits", {}],
+	["clear_attempts", { p_bucket: "setup-probe", p_key: "setup-probe" }],
+];
+
+const missingFunctions = [];
+for (const [name, args] of FUNCTIONS) {
+	const probe = await admin.rpc(name, args);
+	// Only "no such function" counts. Anything else is a live function that did
+	// not like being handed nothing, which is not what is being asked here.
+	if (probe.error?.code === "PGRST202" || probe.error?.message?.includes("does not exist")) {
+		missingFunctions.push(name);
+	}
+}
+
+report(
+	missingFunctions.length === 0,
+	`Every database function is installed ${dim(`(${FUNCTIONS.length} checked)`)}`,
+	`Missing: ${missingFunctions.join(", ")}.\n` +
+		"        Run `npx supabase db push`. A migration has not been applied.",
+);
+
+const categories = await anon.from("categories").select("id");
+report(
+	(categories.data?.length ?? 0) > 0,
+	`Categories are seeded ${dim(`(${categories.data?.length ?? 0} found)`)}`,
+	"Run supabase/seed.sql in the SQL Editor.",
+);
+
+// The shop reads products and their variants as one joined select, so a missing
+// or unreadable product_variants does not degrade the page — it empties it.
+const variants = await anon
+	.from("products")
+	.select("slug, product_price_tiers (qty), product_variants (id)")
+	.limit(1);
+report(
+	!variants.error,
+	"Products can be read with their prices and variants",
+	`${variants.error?.message ?? ""}\n` +
+		"        The shop reads all three as one query, so this failing empties the\n" +
+		"        whole catalogue rather than dropping a flavour.",
+);
+
+// Both are legitimately empty on a new shop; what matters is that the public can
+// read them at all, since the home page drops the section rather than erroring.
+for (const [table, what] of [
+	["faqs", "questions"],
+	["reviews", "reviews"],
+]) {
+	const probe = await anon.from(table).select("id");
+	report(
+		!probe.error,
+		`The ${what} can be read publicly ${dim(`(${probe.data?.length ?? 0} found)`)}`,
+		probe.error?.message,
+	);
+}
+
 const products = await anon.from("products").select("slug");
 report(!products.error, "Products can be read publicly", products.error?.message);
 report(
@@ -206,6 +322,41 @@ report(
 	Boolean(anonPlace.error),
 	"The public key cannot place orders directly",
 	"place_order should be refused for anon. Re-run the functions migration.",
+);
+
+// Reordering is `security invoker`, so row level security would stop a stranger
+// actually moving anything — but execute was granted to PUBLIC once, and anon
+// inherits PUBLIC, so it was callable by anyone until that was revoked. Worth
+// checking, because nothing about the site looks different when it regresses.
+for (const name of ["reorder_products", "reorder_categories"]) {
+	const probe = await anon.rpc(name, { p_ids: [] });
+	report(
+		Boolean(probe.error),
+		`The public key cannot call ${name}`,
+		`${name} should be refused for anon. Re-run the reorder grants migration.`,
+	);
+}
+
+// The attempt counter is what stands between the order form and a bot. It fails
+// open by design, so if anon could empty it, the brake would come off silently.
+// Keyed on (bucket, key); there is no id column to ask for.
+const anonRateLimits = await anon.from("rate_limits").select("bucket").limit(1);
+report(
+	!anonRateLimits.error && anonRateLimits.data?.length === 0,
+	"Rate limit rows are hidden from the public key",
+	anonRateLimits.error
+		? anonRateLimits.error.message
+		: "The anon key can read rate limits. Check that the rate limit migration ran.",
+);
+
+const anonClear = await anon.rpc("clear_attempts", {
+	p_bucket: "setup-probe",
+	p_key: "setup-probe",
+});
+report(
+	Boolean(anonClear.error),
+	"The public key cannot clear rate limit attempts",
+	"clear_attempts should be refused for anon, or the spam brake can be reset at will.",
 );
 
 const adminOrders = await admin.from("orders").select("id").limit(1);
