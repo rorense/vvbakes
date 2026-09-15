@@ -124,6 +124,20 @@ export interface Faq {
 	sortOrder: number;
 }
 
+/**
+ * Something a customer said, as the baker chose to quote it.
+ *
+ * `detail` is the line under the name: an occasion, a suburb, a month. Optional,
+ * because plenty of reviews are just a name.
+ */
+export interface Review {
+	id: string;
+	author: string;
+	body: string;
+	detail: string | null;
+	sortOrder: number;
+}
+
 export interface SiteSettings {
 	businessName: string;
 	tagline: string;

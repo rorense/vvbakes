@@ -184,6 +184,16 @@ type FaqRow = {
 	updated_at: string;
 };
 
+type ReviewRow = {
+	id: string;
+	author: string;
+	body: string;
+	detail: string | null;
+	sort_order: number;
+	created_at: string;
+	updated_at: string;
+};
+
 /** Columns a client may write, with server-defaulted ones optional. */
 type Writable<Row, Required extends keyof Row = never> = Partial<Row> & Pick<Row, Required>;
 
@@ -209,6 +219,12 @@ export type Database = {
 				Row: FaqRow;
 				Insert: Writable<FaqRow, "question" | "answer">;
 				Update: Partial<FaqRow>;
+				Relationships: [];
+			};
+			reviews: {
+				Row: ReviewRow;
+				Insert: Writable<ReviewRow, "author" | "body">;
+				Update: Partial<ReviewRow>;
 				Relationships: [];
 			};
 			products: {

@@ -17,6 +17,7 @@ import {
 	type OrderItem,
 	type PriceTier,
 	type PrivateSettings,
+	type Review,
 	type Product,
 	type ProductVariant,
 	type SiteSettings,
@@ -26,6 +27,7 @@ import {
 type Tables = Database["public"]["Tables"];
 type CategoryRow = Tables["categories"]["Row"];
 type FaqRow = Tables["faqs"]["Row"];
+type ReviewRow = Tables["reviews"]["Row"];
 type ProductRow = Tables["products"]["Row"];
 type TierRow = Tables["product_price_tiers"]["Row"];
 type VariantRow = Tables["product_variants"]["Row"];
@@ -64,6 +66,16 @@ export function toFaq(row: FaqRow): Faq {
 		id: row.id,
 		question: row.question,
 		answer: row.answer,
+		sortOrder: row.sort_order,
+	};
+}
+
+export function toReview(row: ReviewRow): Review {
+	return {
+		id: row.id,
+		author: row.author,
+		body: row.body,
+		detail: row.detail,
 		sortOrder: row.sort_order,
 	};
 }

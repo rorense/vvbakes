@@ -9,6 +9,7 @@ import {
 	getCategories,
 	getFaqs,
 	getFeaturedProducts,
+	getReviews,
 	getSettings,
 } from "@/lib/queries";
 import { ButtonLink } from "@/components/ui/Button";
@@ -76,8 +77,14 @@ const STEPS = [
 ];
 
 export default async function HomePage() {
-	const [{ settings, products, rules, overrides, counts }, featured, categories, faqs] =
-		await Promise.all([getAvailabilityInputs(), getFeaturedProducts(), getCategories(), getFaqs()]);
+	const [{ settings, products, rules, overrides, counts }, featured, categories, faqs, reviews] =
+		await Promise.all([
+			getAvailabilityInputs(),
+			getFeaturedProducts(),
+			getCategories(),
+			getFaqs(),
+			getReviews(),
+		]);
 
 	const availability = computeAvailability({
 		settings,
@@ -272,6 +279,39 @@ export default async function HomePage() {
 									product={product}
 									priority={index === 0}
 								/>
+							))}
+						</div>
+					</Container>
+				</Section>
+			) : null}
+
+			{/* Kind words. Between seeing the cakes and being asked to order one,
+			    which is where someone decides whether to trust a home kitchen with
+			    a birthday. Written in /admin/settings, and nothing is seeded, so a
+			    site that has collected none simply does not have this band. */}
+			{reviews.length > 0 ? (
+				<Section
+					tone="butter"
+					id="reviews">
+					<Container width="wide">
+						<div className="mb-10 flex flex-col gap-2">
+							<SectionLabel>Kind words</SectionLabel>
+							<h2 className="font-display text-3xl">What people said after</h2>
+						</div>
+
+						<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+							{reviews.map((review) => (
+								<figure
+									key={review.id}
+									className="border-line bg-paper flex flex-col gap-4 rounded-lg border p-6">
+									<blockquote className="font-display text-lg leading-relaxed">
+										&ldquo;{review.body}&rdquo;
+									</blockquote>
+									<figcaption className="text-cocoa-soft mt-auto text-sm">
+										{review.author}
+										{review.detail ? <span className="block text-xs">{review.detail}</span> : null}
+									</figcaption>
+								</figure>
 							))}
 						</div>
 					</Container>

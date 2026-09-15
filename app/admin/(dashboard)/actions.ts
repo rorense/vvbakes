@@ -32,6 +32,9 @@ function revalidateCatalogue(): void {
 	revalidatePath("/shop", "page");
 	revalidatePath("/shop/[slug]", "page");
 	revalidatePath("/order", "page");
+	// The privacy page prints the business name and the contact address, so a
+	// settings save has to reach it too.
+	revalidatePath("/privacy", "page");
 	revalidatePath("/sitemap.xml");
 }
 
@@ -434,6 +437,13 @@ export async function saveSettings(_previous: State, formData: FormData): Promis
 		return fail("The questions couldn't be read. Please try again.");
 	}
 
+	let reviews: unknown = [];
+	try {
+		reviews = JSON.parse(String(formData.get("reviews") ?? "[]"));
+	} catch {
+		return fail("The reviews couldn't be read. Please try again.");
+	}
+
 	const parsed = settingsSchema.safeParse({
 		businessName: formData.get("businessName") ?? "",
 		tagline: formData.get("tagline") ?? "",
@@ -458,6 +468,7 @@ export async function saveSettings(_previous: State, formData: FormData): Promis
 		pickupAddress: formData.get("pickupAddress") ?? "",
 		notificationEmail: formData.get("notificationEmail") ?? "",
 		faqs,
+		reviews,
 	});
 
 	if (!parsed.success) {
@@ -510,6 +521,9 @@ export async function saveSettings(_previous: State, formData: FormData): Promis
 	const faqError = await saveFaqs(supabase, input.faqs);
 	if (faqError) return fail(faqError);
 
+	const reviewError = await saveReviews(supabase, input.reviews);
+	if (reviewError) return fail(reviewError);
+
 	revalidateCatalogue();
 	revalidatePath("/admin/settings");
 	return ok();
@@ -542,6 +556,32 @@ async function saveFaqs(
 		})),
 	);
 	if (error) return "The settings saved, but the questions didn't. Please try again.";
+
+	return null;
+}
+
+/**
+ * The same arrangement for the reviews: replaced outright, ordered by position
+ * in the list.
+ */
+async function saveReviews(
+	supabase: Awaited<ReturnType<typeof createClient>>,
+	reviews: Array<{ author: string; body: string; detail: string | null }>,
+): Promise<string | null> {
+	const { error: clearError } = await supabase.from("reviews").delete().not("id", "is", null);
+	if (clearError) return "The settings saved, but the reviews didn't. Please try again.";
+
+	if (reviews.length === 0) return null;
+
+	const { error } = await supabase.from("reviews").insert(
+		reviews.map((review, index) => ({
+			author: review.author,
+			body: review.body,
+			detail: review.detail,
+			sort_order: index + 1,
+		})),
+	);
+	if (error) return "The settings saved, but the reviews didn't. Please try again.";
 
 	return null;
 }

@@ -168,6 +168,14 @@ describe("seed data", () => {
 		expect(result.rows[0]!.count).toBe(5);
 	});
 
+	it("ships no reviews at all", async () => {
+		// Deliberate, and worth a test so that a later "helpful" seed has to argue
+		// with this line first: a placeholder review is a sentence attributed to
+		// someone who never said it, on a real bakery's public page.
+		const result = await db.query<{ count: number }>("select count(*)::int as count from reviews");
+		expect(result.rows[0]!.count).toBe(0);
+	});
+
 	it("is idempotent", async () => {
 		const seed = await import("node:fs/promises").then((fs) =>
 			fs.readFile("supabase/seed.sql", "utf8"),
@@ -1129,6 +1137,30 @@ describe("row level security", () => {
 			const deleted = await db.query("delete from faqs");
 			expect(deleted.affectedRows ?? 0).toBe(0);
 		});
+	});
+
+	it("lets anonymous visitors read the reviews but never write them", async () => {
+		await db.query(
+			"insert into reviews (author, body, sort_order) values ('A customer', 'The cake was lovely', 1)",
+		);
+
+		await db.as("anon", null, async () => {
+			const rows = await db.query("select author from reviews");
+			expect(rows.rows).toHaveLength(1);
+
+			const updated = await db.query("update reviews set body = 'not what they said'");
+			expect(updated.affectedRows ?? 0).toBe(0);
+
+			const deleted = await db.query("delete from reviews");
+			expect(deleted.affectedRows ?? 0).toBe(0);
+		});
+
+		const message = await db.as("anon", null, () =>
+			errorOf(() =>
+				db.query("insert into reviews (author, body) values ('Mallory', 'Five stars, allegedly')"),
+			),
+		);
+		expect(message).toMatch(/row-level security|permission denied/i);
 	});
 
 	it("hides orders from anonymous visitors", async () => {

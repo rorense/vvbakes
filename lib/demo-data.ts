@@ -15,6 +15,7 @@ import type {
 	Category,
 	Faq,
 	Product,
+	Review,
 	SiteSettings,
 	Weekday,
 } from "./types";
@@ -183,6 +184,16 @@ export const DEMO_FAQS: Faq[] = [
 		sortOrder: 5,
 	},
 ];
+
+/**
+ * Empty, and staying empty.
+ *
+ * Everything else here is placeholder content so a fresh clone looks like a
+ * bakery. A placeholder review would be a sentence put in the mouth of someone
+ * who never said it, which is a different thing from a placeholder price. The
+ * band is hidden until the owner has a real one.
+ */
+export const DEMO_REVIEWS: Review[] = [];
 
 export const DEMO_RULES: AvailabilityRule[] = ([0, 1, 2, 3, 4, 5, 6] as Weekday[]).map(
 	(weekday) => ({

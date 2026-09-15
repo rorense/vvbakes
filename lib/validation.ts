@@ -259,6 +259,27 @@ const faqSchema = z.object({
 		.max(1500, "One of those answers is too long. Trim it a little."),
 });
 
+/**
+ * One customer review.
+ *
+ * The lengths match the check constraints on `reviews`. `detail` is the line
+ * under the name and is genuinely optional, so it becomes null rather than an
+ * empty string.
+ */
+const reviewSchema = z.object({
+	author: z
+		.string()
+		.trim()
+		.min(1, "Every review needs a name and something they said")
+		.max(80, "That name is longer than a name"),
+	body: z
+		.string()
+		.trim()
+		.min(1, "Every review needs a name and something they said")
+		.max(800, "One of those reviews is too long. Quote the best part of it."),
+	detail: optionalText(120),
+});
+
 export const settingsSchema = z.object({
 	businessName: z.string().trim().min(1).max(60),
 	tagline: z.string().trim().min(1).max(80),
@@ -295,6 +316,9 @@ export const settingsSchema = z.object({
 	// The home page's questions, submitted as one JSON field. An empty list is
 	// valid and hides the section.
 	faqs: z.array(faqSchema).max(20, "That is more questions than anyone will read"),
+	// Kind words, same arrangement. Nothing is seeded, so an empty list is the
+	// ordinary state rather than an error.
+	reviews: z.array(reviewSchema).max(20, "That is more reviews than anyone will read"),
 	// Private half. Stored separately and never rendered on a public page.
 	bankAccountName: optionalText(80),
 	bankAccountNumber: optionalText(40),

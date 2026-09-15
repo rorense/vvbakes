@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { saveSettings } from "@/app/admin/(dashboard)/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, succeeded } from "@/lib/action-state";
-import type { Faq, PrivateSettings, SiteSettings } from "@/lib/types";
+import type { Faq, PrivateSettings, Review, SiteSettings } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, FormSuccess, Input, Switch, Textarea } from "@/components/ui/Form";
 import { AdminCard, ReorderButtons } from "./AdminShell";
@@ -12,11 +12,13 @@ export function SettingsForm({
 	settings,
 	privateSettings,
 	faqs,
+	reviews,
 	emailConfigured,
 }: {
 	settings: SiteSettings;
 	privateSettings: PrivateSettings;
 	faqs: Faq[];
+	reviews: Review[];
 	emailConfigured: boolean;
 }) {
 	const [state, action, pending] = useActionState(saveSettings, EMPTY_FORM_STATE);
@@ -25,7 +27,8 @@ export function SettingsForm({
 
 	const [ordersOpen, setOrdersOpen] = useState(settings.ordersOpen);
 	const [deliveryEnabled, setDeliveryEnabled] = useState(settings.deliveryEnabled);
-	const [faqRows, setFaqRows] = useState<FaqDraft[]>(() => toDrafts(faqs));
+	const [faqRows, setFaqRows] = useState<FaqDraft[]>(() => toFaqDrafts(faqs));
+	const [reviewRows, setReviewRows] = useState<ReviewDraft[]>(() => toReviewDrafts(reviews));
 
 	// A pair with nothing in either box is someone who pressed "add" and changed
 	// their mind, so it is dropped rather than failed. One with a question and no
@@ -36,11 +39,23 @@ export function SettingsForm({
 	// those messages are written to make sense without it.
 	const faqError =
 		errors.faqs ?? Object.entries(errors).find(([key]) => key.startsWith("faqs."))?.[1];
+	const reviewError =
+		errors.reviews ?? Object.entries(errors).find(([key]) => key.startsWith("reviews."))?.[1];
 
 	const faqsJson = JSON.stringify(
 		faqRows
 			.map((row) => ({ question: row.question.trim(), answer: row.answer.trim() }))
 			.filter((row) => row.question !== "" || row.answer !== ""),
+	);
+
+	const reviewsJson = JSON.stringify(
+		reviewRows
+			.map((row) => ({
+				author: row.author.trim(),
+				body: row.body.trim(),
+				detail: row.detail.trim(),
+			}))
+			.filter((row) => row.author !== "" || row.body !== "" || row.detail !== ""),
 	);
 
 	return (
@@ -311,6 +326,25 @@ export function SettingsForm({
 				/>
 			</AdminCard>
 
+			<AdminCard title="Kind words">
+				<p className="text-cocoa-soft mb-5 text-sm">
+					Shown on the home page above &ldquo;How it works&rdquo;. Use the name the customer would
+					be happy to see on a public page. No reviews, no section.
+				</p>
+
+				<input
+					type="hidden"
+					name="reviews"
+					value={reviewsJson}
+				/>
+
+				<ReviewFieldset
+					reviews={reviewRows}
+					setReviews={setReviewRows}
+					error={reviewError}
+				/>
+			</AdminCard>
+
 			<AdminCard title="Getting in touch">
 				<div className="grid gap-5 sm:grid-cols-2">
 					<Field
@@ -432,7 +466,7 @@ interface FaqDraft {
 	answer: string;
 }
 
-function toDrafts(faqs: Faq[]): FaqDraft[] {
+function toFaqDrafts(faqs: Faq[]): FaqDraft[] {
 	return faqs.map((faq) => ({ key: faq.id, question: faq.question, answer: faq.answer }));
 }
 
@@ -521,6 +555,122 @@ function FaqFieldset({
 					onClick={() => setFaqs([...faqs, { key: `new-${Date.now()}`, question: "", answer: "" }])}
 					className="border-line hover:border-cocoa rounded-pill w-fit border px-4 py-2 text-sm font-medium">
 					Add {faqs.length === 0 ? "a question" : "another question"}
+				</button>
+			) : null}
+		</fieldset>
+	);
+}
+
+interface ReviewDraft {
+	key: string;
+	author: string;
+	body: string;
+	detail: string;
+}
+
+function toReviewDrafts(reviews: Review[]): ReviewDraft[] {
+	return reviews.map((review) => ({
+		key: review.id,
+		author: review.author,
+		body: review.body,
+		detail: review.detail ?? "",
+	}));
+}
+
+/**
+ * The home page's reviews, arranged the same way the questions are.
+ *
+ * Nothing is prefilled and nothing is suggested. What goes in here is a real
+ * thing a real customer said, and a placeholder would be neither.
+ */
+function ReviewFieldset({
+	reviews,
+	setReviews,
+	error,
+}: {
+	reviews: ReviewDraft[];
+	setReviews: (next: ReviewDraft[]) => void;
+	error?: string;
+}) {
+	const update = (index: number, patch: Partial<ReviewDraft>) => {
+		const next = [...reviews];
+		next[index] = { ...next[index]!, ...patch };
+		setReviews(next);
+	};
+
+	const move = (index: number, direction: -1 | 1) => {
+		const to = index + direction;
+		if (to < 0 || to >= reviews.length) return;
+		const next = [...reviews];
+		[next[index], next[to]] = [next[to]!, next[index]!];
+		setReviews(next);
+	};
+
+	return (
+		<fieldset className="flex flex-col gap-3">
+			<legend className="sr-only">Customer reviews</legend>
+
+			{reviews.map((review, index) => (
+				<div
+					key={review.key}
+					className="border-line flex flex-col gap-3 rounded-md border p-3">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+						<label className="flex flex-1 flex-col gap-1">
+							<span className="text-cocoa-soft text-xs">Name</span>
+							<Input
+								value={review.author}
+								onChange={(event) => update(index, { author: event.target.value })}
+							/>
+						</label>
+
+						<label className="flex flex-1 flex-col gap-1">
+							<span className="text-cocoa-soft text-xs">Underneath the name</span>
+							<Input
+								value={review.detail}
+								placeholder={index === 0 ? "Wedding cake, March" : ""}
+								onChange={(event) => update(index, { detail: event.target.value })}
+							/>
+						</label>
+
+						<div className="flex items-center justify-end gap-3">
+							<ReorderButtons
+								label={review.author || `review ${index + 1}`}
+								layout="row"
+								isFirst={index === 0}
+								isLast={index === reviews.length - 1}
+								onMove={(direction) => move(index, direction === "up" ? -1 : 1)}
+							/>
+
+							<button
+								type="button"
+								onClick={() => setReviews(reviews.filter((_, i) => i !== index))}
+								className="border-line hover:border-danger hover:text-danger min-h-11 rounded-md border px-3 text-sm">
+								Remove
+							</button>
+						</div>
+					</div>
+
+					<label className="flex flex-col gap-1">
+						<span className="text-cocoa-soft text-xs">What they said</span>
+						<Textarea
+							rows={3}
+							value={review.body}
+							onChange={(event) => update(index, { body: event.target.value })}
+						/>
+					</label>
+				</div>
+			))}
+
+			{error ? <p className="text-danger text-xs font-medium">{error}</p> : null}
+
+			{reviews.length < 20 ? (
+				<button
+					type="button"
+					onClick={() =>
+						setReviews([...reviews, { key: `new-${Date.now()}`, author: "", body: "", detail: "" }])
+					}
+					className="border-line hover:border-cocoa rounded-pill w-fit border px-4 py-2 text-sm font-medium">
+					Add {reviews.length === 0 ? "a review" : "another review"}
 				</button>
 			) : null}
 		</fieldset>

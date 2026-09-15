@@ -355,6 +355,19 @@ They are plain text on purpose. A lead time or a delivery area typed into an
 answer will not follow the setting it duplicates, so answer the question and
 leave the numbers to the pickup panel and the calendar further up the page.
 
+### Kind words
+
+Customer reviews work the same way: rows in `reviews`, edited in **Settings →
+Kind words**, shown on the home page between the menu and "How it works". A
+name, what they said, and an optional line underneath for the occasion.
+
+Nothing is seeded, and nothing should be. Every other table here ships
+placeholder content so a fresh clone looks like a bakery; a placeholder review
+is a sentence attributed to somebody who never said it, on a public page under
+a real business's name. The band is hidden while the table is empty, so the site
+is complete without reviews and grows the section the day a real one is added.
+Use the name the customer would be happy to see published.
+
 ---
 
 ## Verifying it works

@@ -6,12 +6,13 @@ import {
 	DEMO_FAQS,
 	DEMO_OVERRIDES,
 	DEMO_PRODUCTS,
+	DEMO_REVIEWS,
 	DEMO_RULES,
 	DEMO_SETTINGS,
 } from "./demo-data";
 import { countsFromRows } from "./availability";
 import { addDays, todayIn, type IsoDate } from "./dates";
-import { toCategory, toFaq, toOverride, toProduct, toRule, toSettings } from "./mappers";
+import { toCategory, toFaq, toOverride, toProduct, toReview, toRule, toSettings } from "./mappers";
 import { createPublicClient } from "./supabase/public";
 import { hasSupabaseConfig } from "./supabase/env";
 import type {
@@ -21,6 +22,7 @@ import type {
 	CategoryWithProducts,
 	Faq,
 	Product,
+	Review,
 	SiteSettings,
 } from "./types";
 
@@ -113,6 +115,29 @@ export const getFaqs = cache(async (): Promise<Faq[]> => {
 		return [];
 	}
 	return (data ?? []).map(toFaq);
+});
+
+/**
+ * The reviews the owner has chosen to show, in her order.
+ *
+ * Empty until she types one in, and empty is the normal state of a new site
+ * rather than a failure: the home page drops the band instead of asking for
+ * kind words it has not been given.
+ */
+export const getReviews = cache(async (): Promise<Review[]> => {
+	if (isDemoMode()) return DEMO_REVIEWS;
+
+	const supabase = createPublicClient();
+	const { data, error } = await supabase
+		.from("reviews")
+		.select("*")
+		.order("sort_order", { ascending: true });
+
+	if (error) {
+		console.error("[vvbakes] could not read the reviews", error);
+		return [];
+	}
+	return (data ?? []).map(toReview);
 });
 
 const PRODUCT_SELECT =
