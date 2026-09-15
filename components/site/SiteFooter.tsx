@@ -68,9 +68,16 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
 					<p className="text-cocoa-soft text-xs">
 						Custom cakes and small-batch bakes. I confirm by email, then you pay by bank transfer.
 					</p>
-					<p className="text-cocoa-soft text-xs">
-						&copy; {year} {settings.businessName}
-					</p>
+					<div className="text-cocoa-soft flex items-center gap-4 text-xs">
+						<Link
+							href="/privacy"
+							className="hover:underline">
+							Privacy
+						</Link>
+						<p>
+							&copy; {year} {settings.businessName}
+						</p>
+					</div>
 				</div>
 			</Container>
 		</footer>
