@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { saveProduct } from "@/app/admin/(dashboard)/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, succeeded } from "@/lib/action-state";
 import { cn } from "@/lib/cn";
+import { moveItem, patchItem } from "@/lib/list-edit";
 import { formatPrice, priceForQty } from "@/lib/pricing";
 import { useSlugField } from "@/lib/use-slug-field";
 import { allergenSentence } from "@/lib/allergens";
@@ -602,7 +603,7 @@ function VariantFieldset({
 	const noun = (variantLabel || "Flavour").toLowerCase();
 
 	const update = (index: number, patch: Partial<VariantDraft>) => {
-		setVariants(variants.map((variant, i) => (i === index ? { ...variant, ...patch } : variant)));
+		setVariants(patchItem(variants, index, patch));
 	};
 
 	// Rebuilt from ALLERGENS rather than pushed onto, so a variant's list is
@@ -617,11 +618,7 @@ function VariantFieldset({
 	};
 
 	const move = (index: number, direction: -1 | 1) => {
-		const to = index + direction;
-		if (to < 0 || to >= variants.length) return;
-		const next = [...variants];
-		[next[index], next[to]] = [next[to]!, next[index]!];
-		setVariants(next);
+		setVariants(moveItem(variants, index, direction));
 	};
 
 	return (

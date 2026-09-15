@@ -6,7 +6,8 @@ import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, succeeded } from "@/lib/a
 import type { Faq, PrivateSettings, Review, SiteSettings } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, FormSuccess, Input, Switch, Textarea } from "@/components/ui/Form";
-import { AdminCard, ReorderButtons } from "./AdminShell";
+import { AdminCard } from "./AdminShell";
+import { DraftList } from "./DraftList";
 
 export function SettingsForm({
 	settings,
@@ -319,10 +320,34 @@ export function SettingsForm({
 					value={faqsJson}
 				/>
 
-				<FaqFieldset
-					faqs={faqRows}
-					setFaqs={setFaqRows}
+				<DraftList
+					rows={faqRows}
+					setRows={setFaqRows}
+					legend="Questions"
+					noun="question"
 					error={faqError}
+					blank={() => ({ key: `new-${Date.now()}`, question: "", answer: "" })}
+					labelOf={(faq, index) => faq.question || `question ${index + 1}`}
+					fields={(faq, index, update) => (
+						<label className="flex flex-1 flex-col gap-1">
+							<span className="text-cocoa-soft text-xs">Question</span>
+							<Input
+								value={faq.question}
+								placeholder={index === 0 ? "Do you do gluten free?" : ""}
+								onChange={(event) => update({ question: event.target.value })}
+							/>
+						</label>
+					)}
+					body={(faq, _index, update) => (
+						<label className="flex flex-col gap-1">
+							<span className="text-cocoa-soft text-xs">Answer</span>
+							<Textarea
+								rows={3}
+								value={faq.answer}
+								onChange={(event) => update({ answer: event.target.value })}
+							/>
+						</label>
+					)}
 				/>
 			</AdminCard>
 
@@ -338,10 +363,44 @@ export function SettingsForm({
 					value={reviewsJson}
 				/>
 
-				<ReviewFieldset
-					reviews={reviewRows}
-					setReviews={setReviewRows}
+				<DraftList
+					rows={reviewRows}
+					setRows={setReviewRows}
+					legend="Customer reviews"
+					noun="review"
 					error={reviewError}
+					blank={() => ({ key: `new-${Date.now()}`, author: "", body: "", detail: "" })}
+					labelOf={(review, index) => review.author || `review ${index + 1}`}
+					fields={(review, index, update) => (
+						<>
+							<label className="flex flex-1 flex-col gap-1">
+								<span className="text-cocoa-soft text-xs">Name</span>
+								<Input
+									value={review.author}
+									onChange={(event) => update({ author: event.target.value })}
+								/>
+							</label>
+
+							<label className="flex flex-1 flex-col gap-1">
+								<span className="text-cocoa-soft text-xs">Underneath the name</span>
+								<Input
+									value={review.detail}
+									placeholder={index === 0 ? "Wedding cake, March" : ""}
+									onChange={(event) => update({ detail: event.target.value })}
+								/>
+							</label>
+						</>
+					)}
+					body={(review, _index, update) => (
+						<label className="flex flex-col gap-1">
+							<span className="text-cocoa-soft text-xs">What they said</span>
+							<Textarea
+								rows={3}
+								value={review.body}
+								onChange={(event) => update({ body: event.target.value })}
+							/>
+						</label>
+					)}
 				/>
 			</AdminCard>
 
@@ -470,97 +529,6 @@ function toFaqDrafts(faqs: Faq[]): FaqDraft[] {
 	return faqs.map((faq) => ({ key: faq.id, question: faq.question, answer: faq.answer }));
 }
 
-/**
- * The home page's questions, edited in place and submitted as one JSON field.
- *
- * The order of the list is the order on the page, so the arrows are the whole
- * ordering story: there is no sort number to keep in step, and no saved row to
- * match on, because a save replaces the list outright.
- */
-function FaqFieldset({
-	faqs,
-	setFaqs,
-	error,
-}: {
-	faqs: FaqDraft[];
-	setFaqs: (next: FaqDraft[]) => void;
-	error?: string;
-}) {
-	const update = (index: number, patch: Partial<FaqDraft>) => {
-		const next = [...faqs];
-		next[index] = { ...next[index]!, ...patch };
-		setFaqs(next);
-	};
-
-	const move = (index: number, direction: -1 | 1) => {
-		const to = index + direction;
-		if (to < 0 || to >= faqs.length) return;
-		const next = [...faqs];
-		[next[index], next[to]] = [next[to]!, next[index]!];
-		setFaqs(next);
-	};
-
-	return (
-		<fieldset className="flex flex-col gap-3">
-			<legend className="sr-only">Questions</legend>
-
-			{faqs.map((faq, index) => (
-				<div
-					key={faq.key}
-					className="border-line flex flex-col gap-3 rounded-md border p-3">
-					<div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-						<label className="flex flex-1 flex-col gap-1">
-							<span className="text-cocoa-soft text-xs">Question</span>
-							<Input
-								value={faq.question}
-								placeholder={index === 0 ? "Do you do gluten free?" : ""}
-								onChange={(event) => update(index, { question: event.target.value })}
-							/>
-						</label>
-
-						<div className="flex items-center justify-end gap-3">
-							<ReorderButtons
-								label={faq.question || `question ${index + 1}`}
-								layout="row"
-								isFirst={index === 0}
-								isLast={index === faqs.length - 1}
-								onMove={(direction) => move(index, direction === "up" ? -1 : 1)}
-							/>
-
-							<button
-								type="button"
-								onClick={() => setFaqs(faqs.filter((_, i) => i !== index))}
-								className="border-line hover:border-danger hover:text-danger min-h-11 rounded-md border px-3 text-sm">
-								Remove
-							</button>
-						</div>
-					</div>
-
-					<label className="flex flex-col gap-1">
-						<span className="text-cocoa-soft text-xs">Answer</span>
-						<Textarea
-							rows={3}
-							value={faq.answer}
-							onChange={(event) => update(index, { answer: event.target.value })}
-						/>
-					</label>
-				</div>
-			))}
-
-			{error ? <p className="text-danger text-xs font-medium">{error}</p> : null}
-
-			{faqs.length < 20 ? (
-				<button
-					type="button"
-					onClick={() => setFaqs([...faqs, { key: `new-${Date.now()}`, question: "", answer: "" }])}
-					className="border-line hover:border-cocoa rounded-pill w-fit border px-4 py-2 text-sm font-medium">
-					Add {faqs.length === 0 ? "a question" : "another question"}
-				</button>
-			) : null}
-		</fieldset>
-	);
-}
-
 interface ReviewDraft {
 	key: string;
 	author: string;
@@ -575,104 +543,4 @@ function toReviewDrafts(reviews: Review[]): ReviewDraft[] {
 		body: review.body,
 		detail: review.detail ?? "",
 	}));
-}
-
-/**
- * The home page's reviews, arranged the same way the questions are.
- *
- * Nothing is prefilled and nothing is suggested. What goes in here is a real
- * thing a real customer said, and a placeholder would be neither.
- */
-function ReviewFieldset({
-	reviews,
-	setReviews,
-	error,
-}: {
-	reviews: ReviewDraft[];
-	setReviews: (next: ReviewDraft[]) => void;
-	error?: string;
-}) {
-	const update = (index: number, patch: Partial<ReviewDraft>) => {
-		const next = [...reviews];
-		next[index] = { ...next[index]!, ...patch };
-		setReviews(next);
-	};
-
-	const move = (index: number, direction: -1 | 1) => {
-		const to = index + direction;
-		if (to < 0 || to >= reviews.length) return;
-		const next = [...reviews];
-		[next[index], next[to]] = [next[to]!, next[index]!];
-		setReviews(next);
-	};
-
-	return (
-		<fieldset className="flex flex-col gap-3">
-			<legend className="sr-only">Customer reviews</legend>
-
-			{reviews.map((review, index) => (
-				<div
-					key={review.key}
-					className="border-line flex flex-col gap-3 rounded-md border p-3">
-					<div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-						<label className="flex flex-1 flex-col gap-1">
-							<span className="text-cocoa-soft text-xs">Name</span>
-							<Input
-								value={review.author}
-								onChange={(event) => update(index, { author: event.target.value })}
-							/>
-						</label>
-
-						<label className="flex flex-1 flex-col gap-1">
-							<span className="text-cocoa-soft text-xs">Underneath the name</span>
-							<Input
-								value={review.detail}
-								placeholder={index === 0 ? "Wedding cake, March" : ""}
-								onChange={(event) => update(index, { detail: event.target.value })}
-							/>
-						</label>
-
-						<div className="flex items-center justify-end gap-3">
-							<ReorderButtons
-								label={review.author || `review ${index + 1}`}
-								layout="row"
-								isFirst={index === 0}
-								isLast={index === reviews.length - 1}
-								onMove={(direction) => move(index, direction === "up" ? -1 : 1)}
-							/>
-
-							<button
-								type="button"
-								onClick={() => setReviews(reviews.filter((_, i) => i !== index))}
-								className="border-line hover:border-danger hover:text-danger min-h-11 rounded-md border px-3 text-sm">
-								Remove
-							</button>
-						</div>
-					</div>
-
-					<label className="flex flex-col gap-1">
-						<span className="text-cocoa-soft text-xs">What they said</span>
-						<Textarea
-							rows={3}
-							value={review.body}
-							onChange={(event) => update(index, { body: event.target.value })}
-						/>
-					</label>
-				</div>
-			))}
-
-			{error ? <p className="text-danger text-xs font-medium">{error}</p> : null}
-
-			{reviews.length < 20 ? (
-				<button
-					type="button"
-					onClick={() =>
-						setReviews([...reviews, { key: `new-${Date.now()}`, author: "", body: "", detail: "" }])
-					}
-					className="border-line hover:border-cocoa rounded-pill w-fit border px-4 py-2 text-sm font-medium">
-					Add {reviews.length === 0 ? "a review" : "another review"}
-				</button>
-			) : null}
-		</fieldset>
-	);
 }
