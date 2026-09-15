@@ -277,6 +277,17 @@ export function ProductForm({
 	// behaved when every row was left blank.
 	const submittedGroups = filledVariants.length > 0 ? filledGroups : [];
 
+	// Which of the product's existing combinations this save would remove: one
+	// whose price has been cleared, or one whose answer has been taken away.
+	// Named out loud below so it is never a surprise, and named in the
+	// submission because the save refuses to delete a row nobody listed.
+	const submittedIds = new Set(
+		filledVariants.map((combination) => cellFor(combination).id).filter(Boolean),
+	);
+	const removedVariants = (product?.variants ?? []).filter(
+		(variant) => !submittedIds.has(variant.id),
+	);
+
 	// The product still needs a price of its own: the column is not null, and a
 	// product built out of variants from the start has never had one typed into
 	// it. The cheapest variant stands in, so taking every variant away later
@@ -352,6 +363,11 @@ export function ProductForm({
 				type="hidden"
 				name="optionGroups"
 				value={optionGroupsJson}
+			/>
+			<input
+				type="hidden"
+				name="removedVariants"
+				value={JSON.stringify(removedVariants.map((variant) => variant.id))}
 			/>
 			<input
 				type="hidden"
@@ -473,6 +489,13 @@ export function ProductForm({
 								setCells={setCells}
 								error={errors.variants}
 							/>
+							{removedVariants.length > 0 ? (
+								<p className="border-danger text-danger rounded-md border px-4 py-3 text-sm">
+									Saving now removes {removedVariants.map((variant) => variant.name).join(", ")}. A
+									combination with no price is one you don&rsquo;t make. Orders already placed keep
+									the name they were given.
+								</p>
+							) : null}
 						</>
 					) : savedVariantCount > 0 ? (
 						<>

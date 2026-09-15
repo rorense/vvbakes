@@ -66,23 +66,34 @@ interface VariantIn {
  * Returns the ids it ended up with, the way the real one does, so a test can
  * feed them back in on a second save exactly as the form would.
  */
+function kept0(rows: Array<{ id?: string }>): string[] {
+	return rows.map((r) => r.id).filter(Boolean) as string[];
+}
+
 async function replaySave(
 	productId: string,
 	groups: GroupIn[],
 	variants: VariantIn[],
-	{ removeVariants = true }: { removeVariants?: boolean } = {},
+	{
+		removeVariants = true,
+		removedVariants = null,
+	}: { removeVariants?: boolean; removedVariants?: string[] | null } = {},
 ): Promise<{ groupIds: string[]; optionIds: string[][]; variantIds: string[] }> {
-	// 0. an empty submission is only acted on when the switch asked for it.
-	if (variants.length === 0 && !removeVariants) {
-		const held = await db.query<{ n: string }>(
-			"select count(*)::text as n from product_variants where product_id = $1",
-			[productId],
+	// 0. nothing is removed that the form did not name. The real save reads the
+	//    product's rows and refuses any it would delete that is not listed.
+	const submittedIds = kept0(variants);
+	const held = await db.query<{ id: string; name: string }>(
+		"select id, name from product_variants where product_id = $1",
+		[productId],
+	);
+	const asked = new Set(removedVariants ?? held.rows.map((r) => r.id));
+	const unexpected = held.rows.filter(
+		(row) => !submittedIds.includes(row.id) && !asked.has(row.id) && !removeVariants,
+	);
+	if (unexpected.length > 0) {
+		throw new Error(
+			`Saving would have removed ${unexpected.map((r) => r.name).join(", ")}, which the form did not ask for.`,
 		);
-		if (Number(held.rows[0]!.n) > 0) {
-			throw new Error(
-				`Nothing was priced, so saving would have removed the ${held.rows[0]!.n} variants this product has.`,
-			);
-		}
 	}
 
 	const kept = (rows: Array<{ id?: string }>) => rows.map((r) => r.id).filter(Boolean) as string[];
@@ -938,8 +949,12 @@ describe("an empty submission nobody asked for", () => {
 	it("is refused, and not one row is deleted", async () => {
 		const cake = await aFlatCake(`guard-${Math.random().toString(36).slice(2, 9)}`);
 
-		const message = await errorOf(() => replaySave(cake.id, [], [], { removeVariants: false }));
-		expect(message).toContain("Nothing was priced");
+		// A form that sends nothing and names nothing: the shape a bug has.
+		const message = await errorOf(() =>
+			replaySave(cake.id, [], [], { removeVariants: false, removedVariants: [] }),
+		);
+		expect(message).toContain("Chocolate, Carrot, Lemon");
+		expect(message).toContain("did not ask for");
 
 		const rows = await variantRows(cake.id);
 		expect(rows.map((r) => r.name)).toEqual(["Chocolate", "Carrot", "Lemon"]);
@@ -964,7 +979,71 @@ describe("an empty submission nobody asked for", () => {
 		const plainId = made.rows[0]!.id;
 
 		// Nothing to lose, so an empty submission is simply the truth.
-		await replaySave(plainId, [], [], { removeVariants: false });
+		await replaySave(plainId, [], [], { removeVariants: false, removedVariants: [] });
 		expect(await variantRows(plainId)).toHaveLength(0);
+	});
+});
+
+describe("one flavour lost to a blank price", () => {
+	/**
+	 * A combination with no price is one she does not make, which is how a hole
+	 * is left in a matrix — so a blank cannot simply be refused. But blanking the
+	 * price of a flavour that already exists deletes the row an order points at,
+	 * and it used to do that in silence, one flavour at a time.
+	 *
+	 * Now the form names what a save will remove, in red, before she saves, and
+	 * sends that list with it. Anything the save would delete that is not on the
+	 * list is a form that has gone wrong, and is refused.
+	 */
+	let cakeId: string;
+	let before: string[];
+
+	beforeEach(async () => {
+		const cake = await aFlatCake(`blank-${Math.random().toString(36).slice(2, 9)}`);
+		cakeId = cake.id;
+		before = cake.variantIds;
+	});
+
+	/** The save the form makes when Lemon's price box has been cleared. */
+	function withoutLemon(removedVariants: string[] | null) {
+		return replaySave(
+			cakeId,
+			[
+				{
+					name: "Flavour",
+					options: [{ name: "Chocolate" }, { name: "Carrot" }, { name: "Lemon" }],
+				},
+			],
+			[
+				{ id: before[0], name: "Chocolate", unitPriceCents: 4500, options: [0] },
+				{ id: before[1], name: "Carrot", unitPriceCents: 5000, options: [1] },
+			],
+			{ removeVariants: false, removedVariants },
+		);
+	}
+
+	it("is refused when the form did not name it", async () => {
+		const message = await errorOf(() => withoutLemon([]));
+		expect(message).toContain("Lemon");
+		expect(message).toContain("did not ask for");
+
+		// Still three on the shelf.
+		const rows = await variantRows(cakeId);
+		expect(rows.map((r) => r.name)).toEqual(["Chocolate", "Carrot", "Lemon"]);
+	});
+
+	it("goes through when the form named it, which is what the red line says", async () => {
+		await withoutLemon([before[2]!]);
+
+		const rows = await variantRows(cakeId);
+		expect(rows.map((r) => r.name)).toEqual(["Chocolate", "Carrot"]);
+	});
+
+	it("does not touch the flavours she kept", async () => {
+		await withoutLemon([before[2]!]);
+
+		const rows = await variantRows(cakeId);
+		expect(rows.map((r) => r.id)).toEqual([before[0], before[1]]);
+		expect(rows.map((r) => r.unit_price_cents)).toEqual([4500, 5000]);
 	});
 });

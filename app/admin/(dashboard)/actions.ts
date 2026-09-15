@@ -68,9 +68,11 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 
 	let variants: unknown = [];
 	let optionGroups: unknown = [];
+	let removedVariants: unknown = [];
 	try {
 		variants = JSON.parse(String(formData.get("variants") ?? "[]"));
 		optionGroups = JSON.parse(String(formData.get("optionGroups") ?? "[]"));
+		removedVariants = JSON.parse(String(formData.get("removedVariants") ?? "[]"));
 	} catch {
 		return fail("The variants couldn't be read. Please try again.");
 	}
@@ -99,6 +101,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		optionGroups,
 		variants,
 		removeVariants: checkbox(formData, "removeVariants"),
+		removedVariants,
 	});
 
 	if (!parsed.success) {
@@ -161,6 +164,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		input.optionGroups,
 		input.variants,
 		input.removeVariants,
+		input.removedVariants,
 	);
 	if (variantError) return fail(variantError);
 
@@ -231,6 +235,7 @@ async function saveVariants(
 	groups: OptionGroupInput[],
 	variants: VariantInput[],
 	removeVariants: boolean,
+	removedVariants: string[],
 ): Promise<string | null> {
 	// --- nothing is wiped by accident ----------------------------------------
 	// An empty submission means "this product is one thing at one price", and
@@ -243,21 +248,25 @@ async function saveVariants(
 	// in variants" off sets `removeVariants`, and the form says in red what that
 	// will cost before she saves. Any other route to an empty submission is a
 	// bug, and this is where it stops, with everything still on the shelf.
-	if (variants.length === 0 && !removeVariants) {
-		const { count, error } = await supabase
-			.from("product_variants")
-			.select("id", { count: "exact", head: true })
-			.eq("product_id", productId);
+	const submitted = new Set(ids(variants));
+	const { data: held, error: heldError } = await supabase
+		.from("product_variants")
+		.select("id, name")
+		.eq("product_id", productId);
+	if (heldError) return VARIANTS_FAILED;
 
-		if (error) return VARIANTS_FAILED;
+	const asked = new Set(removedVariants);
+	const unexpected = (held ?? []).filter(
+		(row) => !submitted.has(row.id) && !asked.has(row.id) && !removeVariants,
+	);
 
-		if ((count ?? 0) > 0) {
-			return (
-				`Nothing was priced, so saving would have removed the ${count} ` +
-				`${count === 1 ? "variant" : "variants"} this product has. Nothing was changed. ` +
-				`Give at least one a price, or turn off "This is sold in variants" to remove them on purpose.`
-			);
-		}
+	if (unexpected.length > 0) {
+		const names = unexpected.map((row) => row.name).join(", ");
+		return (
+			`Saving would have removed ${names}, which the form did not ask for. ` +
+			`Nothing was changed. Give ${unexpected.length === 1 ? "it" : "them"} a price, or ` +
+			`turn off "This is sold in variants" to remove them all on purpose.`
+		);
 	}
 
 	// --- the questions -------------------------------------------------------
