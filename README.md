@@ -235,6 +235,13 @@ Nothing about a price or a date is trusted from the browser. That matters most
 in the case where two people load the last slot at the same time: without the
 lock they would both see one space free and both be accepted.
 
+Once the order is written the browser is sent to `/order/<token>/thanks`, which
+says the request landed and hands over the status link. It is a page of its own
+rather than a banner on the form so the acknowledgement survives a reload, and
+it redirects to `/order/<token>` for any order that is no longer new: a
+bookmark opened a week later should show where the order actually got to rather
+than thank someone a second time.
+
 Prices are also computed in the browser so the form can show a running total.
 `lib/pricing.ts` and the SQL function are two implementations of the same rule,
 so a test runs both across many quantities and tier shapes and fails if they
@@ -410,7 +417,7 @@ account number. It should not be there.
 
 ```
 app/
-  (site)/        the public site: home, shop, product pages, order form, status page
+  (site)/        the public site: home, shop, product pages, order form, thanks, status page
   (menu)/menu/   the unlisted market card, unchanged from the original
   admin/         sign-in, dashboard, products, categories, calendar, orders, settings
   api/cron/      the daily keep-alive

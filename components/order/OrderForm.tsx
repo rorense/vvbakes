@@ -148,11 +148,13 @@ export function OrderForm({
 	const chosenDate = dates.find((date) => date.date === chosenDateValue) ?? dates[0] ?? null;
 	const pickupDate = chosenDate?.date ?? "";
 
-	// On success, empty the cart and hand over to the status page.
+	// On success, empty the cart and hand over to the thank-you page, which is
+	// the status page's front door: it says the request landed, then sends
+	// people on to the status link they'll come back to later.
 	useEffect(() => {
 		if (state.result?.ok) {
 			clearCart();
-			router.push(`/order/${state.result.data.token}`);
+			router.push(`/order/${state.result.data.token}/thanks`);
 		}
 	}, [state.result, router]);
 
