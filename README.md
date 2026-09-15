@@ -420,7 +420,7 @@ data, the owner account, the security boundary, storage and email. Then:
 
 ```bash
 npm test          # migrations, RLS policies, pricing, availability,
-                  # analytics redaction. 153 tests
+                  # analytics redaction
 npm run typecheck
 npm run build
 ```
@@ -487,7 +487,8 @@ app/
   (site)/        the public site: home, shop, product pages, order form, thanks, status page
   (menu)/menu/   the unlisted market card, unchanged from the original
   admin/         sign-in, dashboard, products, categories, calendar, orders, settings
-  api/cron/      the daily keep-alive
+  api/cron/      the daily keep-alive, which also sweeps spent rate-limit rows
+  api/webhooks/  what Resend says about an email after it accepted it
 components/
   ui/            buttons, fields, the arch photo frame, the hairline list
   site/          header, footer, product cards
@@ -516,4 +517,5 @@ Things the site is ready for but which need content or a decision:
 - **Descriptions and allergens** for each product.
 - **Real pickup details**: suburb, full address, times, and how much notice you
   need. The seeded values are placeholders.
-- **A domain**, which also unlocks proper email sending.
+- **Switch the shop on in search.** `SEARCH_INDEXING` in `lib/constants.ts` is
+  still `false`, so every page carries `noindex`. Flip it and deploy to launch.

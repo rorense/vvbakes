@@ -127,11 +127,6 @@ export function computeAvailability(input: AvailabilityInput): AvailabilityWindo
 	return { ordersOpen: true, closedMessage: null, earliest, latest, dates };
 }
 
-/** The next date anyone could pick up, for the home page's "next pickup" line. */
-export function nextPickupDate(input: AvailabilityInput): PickableDate | null {
-	return computeAvailability(input).dates[0] ?? null;
-}
-
 /**
  * Builds a month grid for the admin calendar, Monday-first, padded out with the
  * neighbouring months' days so the grid is always complete rectangles.

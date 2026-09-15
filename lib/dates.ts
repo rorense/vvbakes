@@ -174,31 +174,3 @@ export function addMonths(date: IsoDate, months: number): IsoDate {
 	d.setUTCMonth(d.getUTCMonth() + months);
 	return fromUtcDate(d);
 }
-
-/**
- * Groups dates into the weeks they belong to, Monday first. The order form uses
- * this to lay pickup dates out in rows that look like a calendar rather than one
- * long undifferentiated rail.
- */
-export function groupByWeek<T extends { date: IsoDate }>(items: T[]): T[][] {
-	const weeks: T[][] = [];
-	let current: T[] = [];
-	let currentKey: string | null = null;
-
-	for (const item of items) {
-		// Monday of that item's week.
-		const day = weekdayOf(item.date);
-		const offset = day === 0 ? -6 : 1 - day;
-		const key = addDays(item.date, offset);
-
-		if (key !== currentKey) {
-			if (current.length > 0) weeks.push(current);
-			current = [];
-			currentKey = key;
-		}
-		current.push(item);
-	}
-
-	if (current.length > 0) weeks.push(current);
-	return weeks;
-}

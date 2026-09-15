@@ -5,18 +5,10 @@ import { saveCategory } from "@/app/admin/(dashboard)/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
 import { cn } from "@/lib/cn";
 import { useSlugField } from "@/lib/use-slug-field";
-import { ACCENTS, type Accent, type Category } from "@/lib/types";
+import { ACCENT_BG, ACCENTS, type Category } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Select } from "@/components/ui/Form";
 import { AdminCard, EmptyState, ReorderButtons } from "./AdminShell";
-
-const SWATCH: Record<Accent, string> = {
-	rose: "bg-rose",
-	blush: "bg-blush",
-	butter: "bg-butter",
-	mint: "bg-mint",
-	peach: "bg-peach",
-};
 
 export function CategoryManager({
 	categories,
@@ -117,7 +109,10 @@ function CategoryRow({
 		<li className={cn("flex items-center justify-between gap-4 py-4", pending && "opacity-60")}>
 			<div className="flex min-w-0 items-center gap-3">
 				<span
-					className={cn("border-line size-8 shrink-0 rounded-md border", SWATCH[category.accent])}
+					className={cn(
+						"border-line size-8 shrink-0 rounded-md border",
+						ACCENT_BG[category.accent],
+					)}
 					aria-hidden="true"
 				/>
 				<div className="flex min-w-0 flex-col gap-0.5">

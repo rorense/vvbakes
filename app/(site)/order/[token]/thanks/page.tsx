@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { formatDateLong } from "@/lib/dates";
+import { firstName } from "@/lib/names";
 import { getOrderByToken } from "@/lib/orders";
 import { getSettings } from "@/lib/queries";
 import { ArchFrame } from "@/components/ui/ArchFrame";
@@ -22,9 +23,6 @@ export const metadata: Metadata = {
 	description: "Your request is in. I'll email to confirm the day and the price.",
 	robots: { index: false, follow: false, nocache: true },
 };
-
-/** How the emails address a customer. Kept the same here. */
-const firstName = (full: string) => full.trim().split(/\s+/)[0] ?? full;
 
 /**
  * The moment after the order form is sent.

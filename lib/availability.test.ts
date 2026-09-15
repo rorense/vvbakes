@@ -4,11 +4,10 @@ import {
 	buildPublicCalendar,
 	computeAvailability,
 	earliestPickupDate,
-	nextPickupDate,
 	orderErrorMessage,
 	type AvailabilityInput,
 } from "./availability";
-import { addDays, formatDateShort, groupByWeek, todayIn, weekdayOf } from "./dates";
+import { addDays, formatDateShort, todayIn, weekdayOf } from "./dates";
 import type { AvailabilityOverride, AvailabilityRule, Weekday } from "./types";
 
 const NZ = "Pacific/Auckland";
@@ -225,23 +224,6 @@ describe("computeAvailability", () => {
 	});
 });
 
-describe("nextPickupDate", () => {
-	it("is the first bookable day", () => {
-		expect(nextPickupDate(input())?.date).toBe("2026-09-16");
-	});
-
-	it("skips past a blocked first day", () => {
-		const overrides: AvailabilityOverride[] = [
-			{ date: "2026-09-16", isOpen: false, capacity: null, note: null },
-		];
-		expect(nextPickupDate(input({ overrides }))?.date).toBe("2026-09-17");
-	});
-
-	it("is null when nothing is bookable", () => {
-		expect(nextPickupDate(input({ rules: closedAllWeek() }))).toBeNull();
-	});
-});
-
 describe("buildCalendarMonth", () => {
 	const options = {
 		month: "2026-09-15",
@@ -308,23 +290,6 @@ describe("buildCalendarMonth", () => {
 	it("handles February in a leap year", () => {
 		const days = buildCalendarMonth({ ...options, month: "2028-02-10" });
 		expect(days.filter((d) => d.inMonth)).toHaveLength(29);
-	});
-});
-
-describe("groupByWeek", () => {
-	it("splits a run of dates at each Monday", () => {
-		const dates = ["2026-09-16", "2026-09-17", "2026-09-20", "2026-09-21", "2026-09-22"].map(
-			(date) => ({ date }),
-		);
-		const weeks = groupByWeek(dates);
-		expect(weeks.map((w) => w.map((d) => d.date))).toEqual([
-			["2026-09-16", "2026-09-17", "2026-09-20"], // Wed, Thu, Sun, one week
-			["2026-09-21", "2026-09-22"], // the following Mon, Tue
-		]);
-	});
-
-	it("returns nothing for an empty list", () => {
-		expect(groupByWeek([])).toEqual([]);
 	});
 });
 

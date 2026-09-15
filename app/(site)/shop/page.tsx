@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { getCatalogue, getSettings } from "@/lib/queries";
-import type { Accent } from "@/lib/types";
+import { ACCENT_BG } from "@/lib/types";
 import { ButtonLink } from "@/components/ui/Button";
 import { Container, Section } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
@@ -15,14 +15,6 @@ export const metadata: Metadata = {
 	description:
 		"The ready-made half of vvbakes: cupcakes, cookies and Indonesian cakes, baked for the day you collect them. Custom cakes are made to order separately.",
 	alternates: { canonical: "/shop" },
-};
-
-const BAND: Record<Accent, string> = {
-	rose: "bg-rose",
-	blush: "bg-blush",
-	butter: "bg-butter",
-	mint: "bg-mint",
-	peach: "bg-peach",
 };
 
 export default async function ShopPage() {
@@ -84,7 +76,7 @@ export default async function ShopPage() {
 					key={category.id}
 					id={category.slug}
 					aria-labelledby={`${category.slug}-heading`}
-					className={cn("relative overflow-hidden py-14 sm:py-20", BAND[category.accent])}>
+					className={cn("relative overflow-hidden py-14 sm:py-20", ACCENT_BG[category.accent])}>
 					<div
 						className="dot-field pointer-events-none absolute inset-0"
 						aria-hidden="true"

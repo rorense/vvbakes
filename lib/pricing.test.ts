@@ -9,7 +9,6 @@ import {
 	priceForQty,
 	priceProduct,
 	priceRule,
-	stepQty,
 } from "./pricing";
 import type { PriceTier, Product, ProductVariant } from "./types";
 
@@ -121,31 +120,6 @@ describe("priceRule", () => {
 	it("keeps cents when a price is not a whole number of dollars", () => {
 		expect(formatPrice(250)).toBe("$2.50");
 		expect(formatPrice(300)).toBe("$3");
-	});
-});
-
-describe("stepQty", () => {
-	it("steps by one for a normal product", () => {
-		const p = product();
-		expect(stepQty(p, 1, 1)).toBe(2);
-		expect(stepQty(p, 2, -1)).toBe(1);
-	});
-
-	it("steps by the product's step size", () => {
-		const p = product({ qtyStep: 2 });
-		expect(stepQty(p, 2, 1)).toBe(4);
-		expect(stepQty(p, 4, -1)).toBe(2);
-	});
-
-	it("returns zero when stepping below the minimum, which removes the line", () => {
-		expect(stepQty(product(), 1, -1)).toBe(0);
-		expect(stepQty(product({ qtyStep: 2 }), 2, -1)).toBe(0);
-	});
-
-	it("does not cap a line, because nothing caps one any more", () => {
-		const p = product({ minPerOrder: 6 });
-		expect(stepQty(p, 6, 1)).toBe(7);
-		expect(stepQty(p, 60, 1)).toBe(61);
 	});
 });
 

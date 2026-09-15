@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { placeOrder } from "@/app/(site)/order/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
-import { clearCart, useCart } from "@/lib/cart";
+import { cartLineKey, clearCart, useCart } from "@/lib/cart";
 import { cn } from "@/lib/cn";
 import { formatDateShort, type IsoDate } from "@/lib/dates";
 import {
@@ -111,7 +111,7 @@ export function OrderForm({
 					}
 
 					return {
-						key: `${product.id}:${variant?.id ?? ""}`,
+						key: cartLineKey(product.id, variant?.id),
 						product,
 						variant,
 						qty: line.qty,
@@ -293,13 +293,9 @@ export function OrderForm({
 									label={
 										line.variant ? `${line.product.name}, ${line.variant.name}` : line.product.name
 									}
-									onChange={(next) =>
-										setQty(
-											line.product.id,
-											next < minQty(line.product) ? 0 : next,
-											line.variant?.id ?? null,
-										)
-									}
+									// The stepper never goes below its own min, so this cannot
+									// reach zero. Emptying a line is what "Remove" is for.
+									onChange={(next) => setQty(line.product.id, next, line.variant?.id ?? null)}
 								/>
 								<p className="font-display w-16 text-right text-lg">
 									{formatMoney(line.totalCents)}

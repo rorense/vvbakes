@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import { fallbackAccent, productImageUrl, variantImageAlt } from "@/lib/images";
 import { isOrderable, priceRule } from "@/lib/pricing";
 import {
+	ACCENT_BG,
 	ALLERGEN_LABELS,
 	type Accent,
 	type Allergen,
@@ -11,14 +12,6 @@ import {
 	type ProductVariant,
 } from "@/lib/types";
 import { Badge, Chip } from "@/components/ui/Badge";
-
-const ACCENT_TILE: Record<Accent, string> = {
-	rose: "bg-rose",
-	blush: "bg-blush",
-	butter: "bg-butter",
-	mint: "bg-mint",
-	peach: "bg-peach",
-};
 
 /**
  * A product photo, or, until there is one, the vvbakes badge on a pastel tile.
@@ -69,7 +62,7 @@ export function ProductImage({
 		<div
 			className={cn(
 				"flex h-full w-full items-center justify-center overflow-hidden",
-				ACCENT_TILE[fallbackAccent(product, behind)],
+				ACCENT_BG[fallbackAccent(product, behind)],
 				className,
 			)}
 			aria-hidden="true">

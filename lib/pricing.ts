@@ -223,17 +223,6 @@ export function minOrderQty(product: Product): number {
 }
 
 /**
- * The next valid quantity in the given direction, clamped to the product's
- * step. Returns 0 when stepping below one step's worth, which the cart treats
- * as "remove this line".
- */
-export function stepQty(product: Product, current: number, direction: 1 | -1): number {
-	const next = current + product.qtyStep * direction;
-	if (next < product.qtyStep) return 0;
-	return next;
-}
-
-/**
  * True when `qty` is something the database will accept for this one line.
  *
  * The per-order minimum is deliberately not checked here. It is a rule about

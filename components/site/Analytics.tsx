@@ -11,16 +11,18 @@ import { redactUrl } from "@/lib/analytics";
 /**
  * Both scripts re-register their handler whenever its identity changes, so
  * these are defined once here rather than inline in the JSX.
+ *
+ * The two packages type their event differently but agree on the one field that
+ * matters, so the rule is written once against that field and each script gets
+ * its own correctly-typed handler over the top.
  */
-function beforeSendView(event: AnalyticsEvent): AnalyticsEvent | null {
+function redact<T extends { url: string }>(event: T): T | null {
 	const url = redactUrl(event.url);
 	return url === null ? null : { ...event, url };
 }
 
-const beforeSendVital: BeforeSendMiddleware = (event) => {
-	const url = redactUrl(event.url);
-	return url === null ? null : { ...event, url };
-};
+const beforeSendView = (event: AnalyticsEvent): AnalyticsEvent | null => redact(event);
+const beforeSendVital: BeforeSendMiddleware = (event) => redact(event);
 
 /**
  * Vercel Web Analytics: how many people came, and to which pages.

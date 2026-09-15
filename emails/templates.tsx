@@ -1,5 +1,6 @@
 import { Section, Text } from "@react-email/components";
 import { formatDateLong } from "@/lib/dates";
+import { firstName } from "@/lib/names";
 import { formatMoney } from "@/lib/pricing";
 import type { Order, PrivateSettings, SiteSettings } from "@/lib/types";
 import {
@@ -21,8 +22,6 @@ export interface EmailContext {
 	privateSettings: PrivateSettings;
 	siteUrl: string;
 }
-
-const firstName = (full: string) => full.trim().split(/\s+/)[0] ?? full;
 
 /** Where the customer can always look their order up. */
 const statusUrl = (ctx: EmailContext) => `${ctx.siteUrl}/order/${ctx.order.token}`;

@@ -11,6 +11,23 @@ export type Fulfilment = "pickup" | "delivery";
 export type Accent = "rose" | "blush" | "butter" | "mint" | "peach";
 export const ACCENTS: readonly Accent[] = ["rose", "blush", "butter", "mint", "peach"];
 
+/**
+ * The background class for an accent. Written out rather than interpolated
+ * because Tailwind reads these as literal strings out of the source, and
+ * `bg-${accent}` is not something it can see.
+ *
+ * One table, used by the shop's category bands, the product card's fallback
+ * tile and the admin's colour swatches. Three copies used to disagree the
+ * moment any one of them was tweaked.
+ */
+export const ACCENT_BG: Record<Accent, string> = {
+	rose: "bg-rose",
+	blush: "bg-blush",
+	butter: "bg-butter",
+	mint: "bg-mint",
+	peach: "bg-peach",
+};
+
 export const ALLERGENS = ["gluten", "dairy", "egg", "nuts", "peanuts", "soy", "sesame"] as const;
 export type Allergen = (typeof ALLERGENS)[number];
 

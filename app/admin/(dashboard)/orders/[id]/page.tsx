@@ -191,14 +191,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 
 				{order.notes ? (
 					<AdminCard title="What they said">
-						{order.notes ? (
-							<div className="mb-4">
-								<p className="text-cocoa-soft text-2xs font-medium tracking-widest uppercase">
-									Allergies and notes
-								</p>
-								<p className="mt-1 text-sm">{order.notes}</p>
-							</div>
-						) : null}
+						<p className="text-cocoa-soft text-2xs font-medium tracking-widest uppercase">
+							Allergies and notes
+						</p>
+						<p className="mt-1 text-sm">{order.notes}</p>
 					</AdminCard>
 				) : null}
 

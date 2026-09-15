@@ -45,9 +45,10 @@ interface ResendWebhookBody {
 function describeReason(type: HandledEvent, data: ResendWebhookBody["data"]): string {
 	if (type === "email.complained") return "marked as spam by the recipient";
 	const bounce = data?.bounce;
-	return (
-		bounce?.message ?? [bounce?.type, bounce?.subType].filter(Boolean).join(" / ") ?? "bounced"
-	);
+	// `||`, not `??`: join() returns "" for an empty list rather than nullish, so
+	// `??` would hand the admin a bounce with no reason on it at all.
+	const classified = [bounce?.type, bounce?.subType].filter(Boolean).join(" / ");
+	return bounce?.message || classified || "bounced";
 }
 
 export async function POST(request: Request) {
