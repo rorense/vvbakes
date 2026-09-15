@@ -27,7 +27,7 @@ export function PickupCalendar({
 	leadTimeDays,
 }: {
 	months: PublicCalendarMonth[];
-	/** The dates actually bookable, which carry how many slots are left. */
+	/** The dates actually bookable. */
 	dates: PickableDate[];
 	value: string;
 	onChange: (date: IsoDate) => void;
@@ -147,13 +147,10 @@ export function PickupCalendar({
 									<span className="sr-only">
 										{formatDateLong(day.date)}
 										{day.note ? `, ${day.note}` : ""}
-										{slot.remaining <= 2
-											? `, ${slot.remaining} ${slot.remaining === 1 ? "spot" : "spots"} left`
-											: ""}
 									</span>
-									{/* A dot rather than the wording: there is no room for
-									    either the note or the count in a square this size. */}
-									{day.note || slot.remaining <= 2 ? (
+									{/* A dot rather than the wording: there is no room for the
+									    note in a square this size. */}
+									{day.note ? (
 										<span
 											aria-hidden="true"
 											className="text-2xs absolute bottom-1 leading-none opacity-60">
@@ -177,11 +174,6 @@ export function PickupCalendar({
 					<span className="text-cocoa-soft">You&rsquo;ve chosen </span>
 					<strong className="font-medium">{formatDateLong(chosen.date)}</strong>
 					{chosen.note ? <span className="text-cocoa-soft">. {chosen.note}</span> : null}
-					{chosen.remaining <= 2 ? (
-						<span className="text-cocoa-soft">
-							. Only {chosen.remaining} {chosen.remaining === 1 ? "spot" : "spots"} left that day
-						</span>
-					) : null}
 				</p>
 			) : null}
 
