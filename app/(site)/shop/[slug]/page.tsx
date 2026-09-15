@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,6 +11,7 @@ import { Container, Section } from "@/components/ui/Container";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { ArchFrame } from "@/components/ui/ArchFrame";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { BreadcrumbJsonLd, type Crumb } from "@/components/site/BreadcrumbJsonLd";
 import { AddToOrder } from "@/components/order/AddToOrder";
 import {
 	VariantAllergens,
@@ -61,6 +63,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
 	const category = categories.find((c) => c.id === product.categoryId) ?? null;
 
+	// One array drives both the visible trail and the structured data below it.
+	// Google wants the markup to describe the path a visitor can see, so the two
+	// are built from the same source rather than written out twice.
+	const crumbs: Crumb[] = [
+		{ name: "Shop", href: "/shop" },
+		...(category ? [{ name: category.name, href: `/shop#${category.slug}` }] : []),
+		{ name: product.name, href: `/shop/${product.slug}` },
+	];
+
 	return (
 		<Section
 			tone="paper"
@@ -70,29 +81,30 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 					aria-label="Breadcrumb"
 					className="text-cocoa-soft mb-8 text-xs">
 					<ol className="flex flex-wrap items-center gap-2">
-						<li>
-							<Link
-								href="/shop"
-								className="underline-offset-4 hover:underline">
-								Shop
-							</Link>
-						</li>
-						{category ? (
-							<>
-								<li aria-hidden="true">/</li>
-								<li>
-									<Link
-										href={`/shop#${category.slug}`}
-										className="underline-offset-4 hover:underline">
-										{category.name}
-									</Link>
-								</li>
-							</>
-						) : null}
-						<li aria-hidden="true">/</li>
-						<li aria-current="page">{product.name}</li>
+						{crumbs.map((crumb, index) => {
+							// The page you are on is named, not linked.
+							const current = index === crumbs.length - 1;
+
+							return (
+								<Fragment key={crumb.href}>
+									{index > 0 ? <li aria-hidden="true">/</li> : null}
+									<li aria-current={current ? "page" : undefined}>
+										{current ? (
+											crumb.name
+										) : (
+											<Link
+												href={crumb.href}
+												className="underline-offset-4 hover:underline">
+												{crumb.name}
+											</Link>
+										)}
+									</li>
+								</Fragment>
+							);
+						})}
 					</ol>
 				</nav>
+				<BreadcrumbJsonLd crumbs={crumbs} />
 
 				{/* The photo and the picker sit in opposite columns and have to agree
 				    on which variant is showing, so the choice lives in a provider
