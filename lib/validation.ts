@@ -114,22 +114,46 @@ const priceTierSchema = z.object({
 	priceCents: dollars,
 });
 
-/**
- * One flavour, size or filling.
- *
- * The id is the existing row's, when there is one. It is what stops a save
- * re-creating every variant under new ids and cutting past orders loose from
- * the flavour they named.
- */
-const productVariantSchema = z.object({
+/** One answer to one of a product's questions: "Chocolate", "3 layers". */
+const productOptionSchema = z.object({
 	id: z.string().uuid().optional(),
 	name: z.string().trim().min(1, "Give this one a name").max(60),
-	unitPriceCents: dollars,
 	/** Empty falls back to the product's photo. */
 	imagePath: optionalText(400),
 	/** Added to the product's allergens, never a replacement for them. */
 	allergens: z.array(z.enum(ALLERGENS)),
 	isAvailable: z.boolean(),
+});
+
+/** One question, with its answers: "Flavour" — chocolate, carrot, red velvet. */
+const productOptionGroupSchema = z.object({
+	id: z.string().uuid().optional(),
+	name: z.string().trim().min(1, "Give this one a name").max(30),
+	options: z.array(productOptionSchema).min(1, "A question needs an answer").max(20),
+});
+
+/**
+ * One combination a customer can buy, with the price they pay for it.
+ *
+ * The id is the existing row's, when there is one. It is what stops a save
+ * re-creating every variant under new ids and cutting past orders loose from
+ * the flavour they named.
+ *
+ * `options` says which answer this combination gives to each question, as an
+ * index into that question's answers. Indexes rather than ids because most of
+ * the answers in a first save do not have ids yet — they are being created by
+ * the same submission — and a position is something the form can always name.
+ */
+const productVariantSchema = z.object({
+	id: z.string().uuid().optional(),
+	name: z.string().trim().min(1, "Give this one a name").max(120),
+	unitPriceCents: dollars,
+	/** Empty falls back to an answer's photo, then to the product's. */
+	imagePath: optionalText(400),
+	/** Added to the product's allergens, never a replacement for them. */
+	allergens: z.array(z.enum(ALLERGENS)),
+	isAvailable: z.boolean(),
+	options: z.array(z.coerce.number().int().min(0)),
 });
 
 export const productSchema = z
@@ -166,7 +190,11 @@ export const productSchema = z
 		sortOrder: z.coerce.number().int().min(0).max(9999),
 		tiers: z.array(priceTierSchema).max(6),
 		variantLabel: z.string().trim().min(1, "e.g. Flavour, Size").max(30),
-		variants: z.array(productVariantSchema).max(20),
+		optionGroups: z.array(productOptionGroupSchema).max(3),
+		// Three flavours by three layer counts is nine, and a fourth question is
+		// not something a home bakery fills in by hand. The cap is the form's own
+		// guard said again where it cannot be skipped.
+		variants: z.array(productVariantSchema).max(60),
 	})
 	.refine((value) => value.minPerOrder === null || value.minPerOrder % value.qtyStep === 0, {
 		message: "The minimum has to be a multiple of the step size",
@@ -185,6 +213,45 @@ export const productSchema = z
 			return new Set(names).size === names.length;
 		},
 		{ message: "Two of these have the same name", path: ["variants"] },
+	)
+	.refine(
+		(value) => {
+			const names = value.optionGroups.map((group) => group.name.toLowerCase());
+			return new Set(names).size === names.length;
+		},
+		{ message: "Two of these questions have the same name", path: ["optionGroups"] },
+	)
+	.refine(
+		(value) =>
+			value.optionGroups.every((group) => {
+				const names = group.options.map((option) => option.name.toLowerCase());
+				return new Set(names).size === names.length;
+			}),
+		{ message: "Two answers to one question have the same name", path: ["optionGroups"] },
+	)
+	// Questions and combinations arrive together or not at all. A product with
+	// questions nobody can buy an answer to, or combinations that answer nothing,
+	// is a half-written product rather than a state the shop knows how to render.
+	.refine((value) => value.optionGroups.length > 0 === value.variants.length > 0, {
+		message: "Something went wrong reading the variants. Please try again.",
+		path: ["variants"],
+	})
+	// Every combination answers every question exactly once, with an answer that
+	// exists. The form builds these itself, so a mismatch is a bug rather than
+	// something the owner typed, and it is refused rather than half-saved.
+	.refine(
+		(value) =>
+			value.variants.every(
+				(variant) =>
+					variant.options.length === value.optionGroups.length &&
+					variant.options.every(
+						(index, group) => index < (value.optionGroups[group]?.options.length ?? 0),
+					),
+			),
+		{
+			message: "Something went wrong reading the variants. Please try again.",
+			path: ["variants"],
+		},
 	);
 
 // --- admin: categories ------------------------------------------------------

@@ -13,6 +13,7 @@ import {
 	formatMoney,
 	hasVariants,
 	isValidQty,
+	isVariantAvailable,
 	minOrderQty,
 	minQty,
 	priceProduct,
@@ -102,11 +103,17 @@ export function OrderForm({
 
 					const variant = findVariant(product, line.variantId);
 					// A flavoured product needs one that still exists and is still on
-					// sale. A plain one is checked against the id the cart actually
-					// holds, not against `variant`, which is null either way: a saved
-					// line naming a flavour the owner has since removed altogether
-					// would otherwise sail through here and be refused on submit.
-					if (hasVariants(product) ? !variant?.isAvailable : Boolean(line.variantId)) {
+					// sale, answers included: a combination whose flavour has since
+					// sold out is gone even though its own switch is still on. A plain
+					// product is checked against the id the cart actually holds, not
+					// against `variant`, which is null either way: a saved line naming
+					// a flavour the owner has since removed altogether would otherwise
+					// sail through here and be refused on submit.
+					if (
+						hasVariants(product)
+							? !variant || !isVariantAvailable(product, variant)
+							: Boolean(line.variantId)
+					) {
 						return null;
 					}
 

@@ -12,7 +12,16 @@ import {
 } from "./demo-data";
 import { countsFromRows } from "./availability";
 import { addDays, todayIn, type IsoDate } from "./dates";
-import { toCategory, toFaq, toOverride, toProduct, toReview, toRule, toSettings } from "./mappers";
+import {
+	PRODUCT_SELECT,
+	toCategory,
+	toFaq,
+	toOverride,
+	toProduct,
+	toReview,
+	toRule,
+	toSettings,
+} from "./mappers";
 import { createPublicClient } from "./supabase/public";
 import { hasSupabaseConfig } from "./supabase/env";
 import type {
@@ -139,9 +148,6 @@ export const getReviews = cache(async (): Promise<Review[]> => {
 	}
 	return (data ?? []).map(toReview);
 });
-
-const PRODUCT_SELECT =
-	"*, product_price_tiers (qty, price_cents), product_variants (id, name, unit_price_cents, image_path, allergens, is_available, sort_order)";
 
 const getProducts = cache(async (): Promise<Product[]> => {
 	if (isDemoMode()) return DEMO_PRODUCTS;

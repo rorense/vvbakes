@@ -71,6 +71,32 @@ type ProductVariantRow = {
 	updated_at: string;
 };
 
+type ProductOptionGroupRow = {
+	id: string;
+	product_id: string;
+	name: string;
+	sort_order: number;
+	created_at: string;
+	updated_at: string;
+};
+
+type ProductOptionRow = {
+	id: string;
+	group_id: string;
+	name: string;
+	image_path: string | null;
+	allergens: string[];
+	is_available: boolean;
+	sort_order: number;
+	created_at: string;
+	updated_at: string;
+};
+
+type ProductVariantOptionRow = {
+	variant_id: string;
+	group_id: string;
+	option_id: string;
+};
 type SiteSettingsRow = {
 	id: number;
 	business_name: string;
@@ -265,6 +291,55 @@ export type Database = {
 						columns: ["product_id"];
 						isOneToOne: false;
 						referencedRelation: "products";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			product_option_groups: {
+				Row: ProductOptionGroupRow;
+				Insert: Writable<ProductOptionGroupRow, "product_id" | "name">;
+				Update: Partial<ProductOptionGroupRow>;
+				Relationships: [
+					{
+						foreignKeyName: "product_option_groups_product_id_fkey";
+						columns: ["product_id"];
+						isOneToOne: false;
+						referencedRelation: "products";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			product_options: {
+				Row: ProductOptionRow;
+				Insert: Writable<ProductOptionRow, "group_id" | "name">;
+				Update: Partial<ProductOptionRow>;
+				Relationships: [
+					{
+						foreignKeyName: "product_options_group_id_fkey";
+						columns: ["group_id"];
+						isOneToOne: false;
+						referencedRelation: "product_option_groups";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			product_variant_options: {
+				Row: ProductVariantOptionRow;
+				Insert: Writable<ProductVariantOptionRow, "variant_id" | "group_id" | "option_id">;
+				Update: Partial<ProductVariantOptionRow>;
+				Relationships: [
+					{
+						foreignKeyName: "product_variant_options_variant_id_fkey";
+						columns: ["variant_id"];
+						isOneToOne: false;
+						referencedRelation: "product_variants";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "product_variant_options_option_id_group_id_fkey";
+						columns: ["option_id"];
+						isOneToOne: false;
+						referencedRelation: "product_options";
 						referencedColumns: ["id"];
 					},
 				];

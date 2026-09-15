@@ -19,6 +19,8 @@ import {
 	type PrivateSettings,
 	type Review,
 	type Product,
+	type ProductOption,
+	type ProductOptionGroup,
 	type ProductVariant,
 	type SiteSettings,
 	type Weekday,
@@ -31,6 +33,8 @@ type ReviewRow = Tables["reviews"]["Row"];
 type ProductRow = Tables["products"]["Row"];
 type TierRow = Tables["product_price_tiers"]["Row"];
 type VariantRow = Tables["product_variants"]["Row"];
+type OptionGroupRow = Tables["product_option_groups"]["Row"];
+type OptionRow = Tables["product_options"]["Row"];
 type SettingsRow = Tables["site_settings"]["Row"];
 type PrivateRow = Tables["site_settings_private"]["Row"];
 type RuleRow = Tables["availability_rules"]["Row"];
@@ -87,7 +91,27 @@ function toPriceTier(row: Pick<TierRow, "qty" | "price_cents">): PriceTier {
 type VariantColumns = Pick<
 	VariantRow,
 	"id" | "name" | "unit_price_cents" | "image_path" | "allergens" | "is_available" | "sort_order"
+> & {
+	product_variant_options?: Array<{ option_id: string }> | null;
+};
+
+type OptionColumns = Pick<
+	OptionRow,
+	"id" | "name" | "image_path" | "allergens" | "is_available" | "sort_order"
 >;
+
+type OptionGroupColumns = Pick<OptionGroupRow, "id" | "name" | "sort_order"> & {
+	product_options?: OptionColumns[] | null;
+};
+
+/**
+ * Embedded rows arrive in whatever order PostgREST felt like. The owner put
+ * these in an order and every page has to keep it, so each level is sorted on
+ * the way through rather than wherever it happens to be rendered.
+ */
+function bySortOrder<T extends { sortOrder: number; name: string }>(a: T, b: T): number {
+	return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name);
+}
 
 function toProductVariant(row: VariantColumns): ProductVariant {
 	return {
@@ -98,13 +122,51 @@ function toProductVariant(row: VariantColumns): ProductVariant {
 		allergens: toAllergens(row.allergens),
 		isAvailable: row.is_available,
 		sortOrder: row.sort_order,
+		optionIds: (row.product_variant_options ?? []).map((link) => link.option_id),
 	};
 }
+
+function toProductOption(row: OptionColumns): ProductOption {
+	return {
+		id: row.id,
+		name: row.name,
+		imagePath: row.image_path,
+		allergens: toAllergens(row.allergens),
+		isAvailable: row.is_available,
+		sortOrder: row.sort_order,
+	};
+}
+
+function toProductOptionGroup(row: OptionGroupColumns): ProductOptionGroup {
+	return {
+		id: row.id,
+		name: row.name,
+		sortOrder: row.sort_order,
+		options: (row.product_options ?? []).map(toProductOption).sort(bySortOrder),
+	};
+}
+
+/**
+ * Everything a product page needs in one round trip, including the questions it
+ * asks and the answers each variant is made of.
+ *
+ * Kept here rather than in the two query modules that use it because the shape
+ * and `toProduct` have to agree: a column added to one and forgotten in the
+ * other is a field that silently reads as undefined.
+ *
+ * One string literal on one long line, deliberately. postgrest-js parses this
+ * at the type level to work out what a row comes back as, and it can only do
+ * that with a literal: build it by joining an array and every query typed off
+ * it degrades to `GenericStringError` with no explanation worth reading.
+ */
+export const PRODUCT_SELECT =
+	"*, product_price_tiers (qty, price_cents), product_variants (id, name, unit_price_cents, image_path, allergens, is_available, sort_order, product_variant_options (option_id)), product_option_groups (id, name, sort_order, product_options (id, name, image_path, allergens, is_available, sort_order))";
 
 export function toProduct(
 	row: ProductRow & {
 		product_price_tiers?: Array<Pick<TierRow, "qty" | "price_cents">> | null;
 		product_variants?: VariantColumns[] | null;
+		product_option_groups?: OptionGroupColumns[] | null;
 	},
 ): Product {
 	return {
@@ -119,11 +181,8 @@ export function toProduct(
 		minPerOrder: row.min_per_order,
 		tiers: (row.product_price_tiers ?? []).map(toPriceTier).sort((a, b) => a.qty - b.qty),
 		variantLabel: row.variant_label,
-		variants: (row.product_variants ?? [])
-			.map(toProductVariant)
-			// Embedded rows arrive in whatever order PostgREST felt like. The owner
-			// put these in an order and the page has to keep it.
-			.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
+		variants: (row.product_variants ?? []).map(toProductVariant).sort(bySortOrder),
+		optionGroups: (row.product_option_groups ?? []).map(toProductOptionGroup).sort(bySortOrder),
 		imagePath: row.image_path,
 		imageAlt: row.image_alt,
 		isAvailable: row.is_available,

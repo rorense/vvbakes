@@ -4,6 +4,7 @@ import { cache } from "react";
 import { countsFromRows } from "./availability";
 import type { IsoDate } from "./dates";
 import {
+	PRODUCT_SELECT,
 	toCategory,
 	toOrder,
 	toOrderEvent,
@@ -44,9 +45,6 @@ import type {
  * would be served again afterwards and the owner would watch a confirmed order
  * still say "new". See the comment on it below.
  */
-
-const PRODUCT_SELECT =
-	"*, product_price_tiers (qty, price_cents), product_variants (id, name, unit_price_cents, image_path, allergens, is_available, sort_order)";
 
 export const adminProducts = cache(async (): Promise<Product[]> => {
 	const supabase = await createClient();

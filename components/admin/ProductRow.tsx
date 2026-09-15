@@ -3,8 +3,24 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
+import { optionGroups } from "@/lib/pricing";
 import type { Product } from "@/lib/types";
 import { ReorderButtons } from "./AdminShell";
+
+/**
+ * What this product asks for, in a few words: "3 flavours" for one question,
+ * "3 flavours × 3 layers" for two. The grid this describes is what the owner
+ * has to fill in, so the shape of it is more use at a glance than a count of
+ * the rows it came to.
+ */
+function variantSummary(product: Product): string {
+	return optionGroups(product)
+		.map((group) => {
+			const noun = group.name.toLowerCase();
+			return `${group.options.length} ${noun}${group.options.length === 1 ? "" : "s"}`;
+		})
+		.join(" × ");
+}
 
 /**
  * One row of the product list, with the controls the owner actually reaches for:
@@ -50,11 +66,7 @@ export function ProductRow({
 					<p className="text-cocoa-soft text-xs">
 						{categoryName ?? "No category"} · {priceLabel}
 						{product.qtyStep > 1 ? ` · sold in ${product.qtyStep}s` : ""}
-						{product.variants.length > 0
-							? ` · ${product.variants.length} ${product.variantLabel.toLowerCase()}${
-									product.variants.length === 1 ? "" : "s"
-								}`
-							: ""}
+						{product.variants.length > 0 ? ` · ${variantSummary(product)}` : ""}
 					</p>
 				</div>
 

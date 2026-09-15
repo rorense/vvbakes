@@ -1,16 +1,30 @@
 import { describe, expect, it } from "vitest";
 import {
+	defaultSelection,
 	defaultVariant,
 	findVariant,
 	formatPrice,
 	isOrderable,
+	isOptionSelectable,
 	isValidQty,
+	isVariantAvailable,
 	minOrderQty,
+	optionGroups,
 	priceForQty,
 	priceProduct,
 	priceRule,
+	selectionFor,
+	variantFor,
+	variantOptionIds,
+	variantOptions,
 } from "./pricing";
-import type { PriceTier, Product, ProductVariant } from "./types";
+import type {
+	PriceTier,
+	Product,
+	ProductOption,
+	ProductOptionGroup,
+	ProductVariant,
+} from "./types";
 
 function product(overrides: Partial<Product> = {}): Product {
 	return {
@@ -26,6 +40,7 @@ function product(overrides: Partial<Product> = {}): Product {
 		tiers: [],
 		variantLabel: "Flavour",
 		variants: [],
+		optionGroups: [],
 		imagePath: null,
 		imageAlt: null,
 		isAvailable: true,
@@ -176,6 +191,7 @@ function variant(
 		allergens: [],
 		isAvailable: true,
 		sortOrder: 0,
+		optionIds: [],
 		...overrides,
 	};
 }
@@ -278,3 +294,199 @@ describe("variants", () => {
 		expect(priceRule(p)).toBe("$45 – $55 each");
 	});
 });
+
+function option(
+	overrides: Partial<ProductOption> & Pick<ProductOption, "id" | "name">,
+): ProductOption {
+	return {
+		imagePath: null,
+		allergens: [],
+		isAvailable: true,
+		sortOrder: 0,
+		...overrides,
+	};
+}
+
+/**
+ * A cake that asks two questions: three flavours by two layer counts.
+ *
+ * Deliberately not a full matrix. "Lemon, 3 layers" is missing, because a hole
+ * is a thing the owner is allowed to leave and the picker has to cope with.
+ */
+const FLAVOUR: ProductOptionGroup = {
+	id: "group-flavour",
+	name: "Flavour",
+	sortOrder: 0,
+	options: [
+		option({ id: "chocolate", name: "Chocolate", sortOrder: 0 }),
+		option({ id: "carrot", name: "Carrot", allergens: ["nuts"], sortOrder: 1 }),
+		option({ id: "lemon", name: "Lemon", sortOrder: 2 }),
+	],
+};
+
+const LAYERS: ProductOptionGroup = {
+	id: "group-layers",
+	name: "Layers",
+	sortOrder: 1,
+	options: [
+		option({ id: "two", name: "2 layers", sortOrder: 0 }),
+		option({ id: "three", name: "3 layers", sortOrder: 1 }),
+	],
+};
+
+const MATRIX: ProductVariant[] = [
+	variant({ name: "Chocolate · 2 layers", unitPriceCents: 4500, optionIds: ["chocolate", "two"] }),
+	variant({
+		name: "Chocolate · 3 layers",
+		unitPriceCents: 6500,
+		optionIds: ["chocolate", "three"],
+	}),
+	variant({ name: "Carrot · 2 layers", unitPriceCents: 5000, optionIds: ["carrot", "two"] }),
+	variant({ name: "Carrot · 3 layers", unitPriceCents: 7000, optionIds: ["carrot", "three"] }),
+	variant({ name: "Lemon · 2 layers", unitPriceCents: 4800, optionIds: ["lemon", "two"] }),
+];
+
+function matrixCake(overrides: Partial<Product> = {}): Product {
+	return product({
+		unitPriceCents: 4500,
+		unitLabel: "cake",
+		optionGroups: [FLAVOUR, LAYERS],
+		variants: MATRIX,
+		...overrides,
+	});
+}
+
+describe("one question, stored as none", () => {
+	it("reads a flat list of flavours as a single group named by the label", () => {
+		const p = product({ variantLabel: "Flavour", variants: CAKE_FLAVOURS });
+		const groups = optionGroups(p);
+
+		expect(groups).toHaveLength(1);
+		expect(groups[0]!.name).toBe("Flavour");
+		// Empty, because there is no row behind it. That is what the admin form
+		// reads to know these answers still have to be created.
+		expect(groups[0]!.id).toBe("");
+		expect(groups[0]!.options.map((o) => o.name)).toEqual(["Chocolate", "Carrot", "Red velvet"]);
+	});
+
+	it("makes each flavour its own answer, so the two resolve back to each other", () => {
+		const p = product({ variants: CAKE_FLAVOURS });
+
+		for (const flavour of CAKE_FLAVOURS) {
+			expect(variantOptionIds(p, flavour)).toEqual([flavour.id]);
+			expect(variantFor(p, selectionFor(p, flavour))).toBe(flavour);
+		}
+	});
+
+	it("has nothing to say about a product sold as one thing", () => {
+		expect(optionGroups(product())).toEqual([]);
+		expect(defaultSelection(product())).toEqual({});
+		expect(variantFor(product(), {})).toBeNull();
+	});
+
+	it("leaves availability exactly where it was", () => {
+		const soldOut = variant({ name: "Chocolate", isAvailable: false });
+		const p = product({ variants: [soldOut, ...CAKE_FLAVOURS.slice(1)] });
+
+		expect(isVariantAvailable(p, soldOut)).toBe(false);
+		expect(isVariantAvailable(p, CAKE_FLAVOURS[1]!)).toBe(true);
+	});
+});
+
+describe("two questions", () => {
+	it("resolves a pair of answers to the combination they name", () => {
+		const p = matrixCake();
+		const chosen = variantFor(p, { "group-flavour": "carrot", "group-layers": "three" });
+
+		expect(chosen?.name).toBe("Carrot · 3 layers");
+		expect(priceProduct(p, 1, chosen).totalCents).toBe(7000);
+	});
+
+	it("resolves nothing for a combination she does not make", () => {
+		const p = matrixCake();
+		expect(variantFor(p, { "group-flavour": "lemon", "group-layers": "three" })).toBeNull();
+	});
+
+	it("resolves nothing until every question is answered", () => {
+		const p = matrixCake();
+		expect(variantFor(p, { "group-flavour": "carrot" })).toBeNull();
+	});
+
+	it("starts the picker on a combination that can actually be bought", () => {
+		const p = matrixCake();
+		const start = defaultSelection(p);
+
+		expect(variantFor(p, start)?.name).toBe("Chocolate · 2 layers");
+	});
+
+	it("takes every combination of an answer down when the answer sells out", () => {
+		const p = matrixCake({
+			optionGroups: [
+				{
+					...FLAVOUR,
+					options: FLAVOUR.options.map((o) =>
+						o.id === "carrot" ? { ...o, isAvailable: false } : o,
+					),
+				},
+				LAYERS,
+			],
+		});
+
+		const names = availableVariantNames(p);
+		expect(names).not.toContain("Carrot · 2 layers");
+		expect(names).not.toContain("Carrot · 3 layers");
+		expect(names).toContain("Chocolate · 2 layers");
+	});
+
+	it("takes down one combination without touching the rest of its flavour", () => {
+		const p = matrixCake({
+			variants: MATRIX.map((v) =>
+				v.name === "Chocolate · 3 layers" ? { ...v, isAvailable: false } : v,
+			),
+		});
+
+		const names = availableVariantNames(p);
+		expect(names).not.toContain("Chocolate · 3 layers");
+		expect(names).toContain("Chocolate · 2 layers");
+	});
+
+	it("greys out an answer that does not go with what is already picked", () => {
+		const p = matrixCake();
+
+		// Lemon and 2 layers is a cake; lemon and 3 layers is not.
+		const lemon = { "group-flavour": "lemon", "group-layers": "two" };
+		expect(isOptionSelectable(p, lemon, "group-layers", "three")).toBe(false);
+		expect(isOptionSelectable(p, lemon, "group-layers", "two")).toBe(true);
+
+		// And picking the flavour is never blocked by the flavour already picked.
+		expect(isOptionSelectable(p, lemon, "group-flavour", "chocolate")).toBe(true);
+	});
+
+	it("stops offering a combination that has lost one of its answers", () => {
+		// She deleted the flavour. The link went with it and left the combination
+		// answering one of two questions, which no picker can name.
+		const orphan = variant({ name: "Ghost · 2 layers", optionIds: ["two"] });
+		const p = matrixCake({ variants: [...MATRIX, orphan] });
+
+		expect(isVariantAvailable(p, orphan)).toBe(false);
+		expect(availableVariantNames(p)).not.toContain("Ghost · 2 layers");
+		// And it does not drag the advertised range around with it either.
+		expect(priceRule(p)).toBe("$45 – $70 / cake");
+	});
+
+	it("gathers the answers a combination is made of, in question order", () => {
+		const p = matrixCake();
+		const carrotThree = variantFor(p, { "group-flavour": "carrot", "group-layers": "three" })!;
+
+		expect(variantOptions(p, carrotThree).map((o) => o.name)).toEqual(["Carrot", "3 layers"]);
+	});
+
+	it("quotes the range across every combination on sale", () => {
+		expect(priceRule(matrixCake())).toBe("$45 – $70 / cake");
+	});
+});
+
+/** The names of the combinations a customer could put in a basket right now. */
+function availableVariantNames(p: Product): string[] {
+	return p.variants.filter((v) => isVariantAvailable(p, v)).map((v) => v.name);
+}

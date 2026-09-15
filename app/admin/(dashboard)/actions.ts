@@ -67,8 +67,10 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 	}
 
 	let variants: unknown = [];
+	let optionGroups: unknown = [];
 	try {
 		variants = JSON.parse(String(formData.get("variants") ?? "[]"));
+		optionGroups = JSON.parse(String(formData.get("optionGroups") ?? "[]"));
 	} catch {
 		return fail("The variants couldn't be read. Please try again.");
 	}
@@ -92,6 +94,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		sortOrder: formData.get("sortOrder") ?? 0,
 		tiers,
 		variantLabel: formData.get("variantLabel") ?? "Flavour",
+		optionGroups,
 		variants,
 	});
 
@@ -147,7 +150,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		if (error) return fail("The product saved, but its bundle prices didn't. Please try again.");
 	}
 
-	const variantError = await saveVariants(supabase, productId!, input.variants, input.variantLabel);
+	const variantError = await saveVariants(supabase, productId!, input.optionGroups, input.variants);
 	if (variantError) return fail(variantError);
 
 	revalidateCatalogue();
@@ -155,68 +158,226 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 	return ok();
 }
 
+type OptionInput = {
+	id?: string;
+	name: string;
+	imagePath: string | null;
+	allergens: string[];
+	isAvailable: boolean;
+};
+
+type OptionGroupInput = { id?: string; name: string; options: OptionInput[] };
+
+type VariantInput = {
+	id?: string;
+	name: string;
+	unitPriceCents: number;
+	imagePath: string | null;
+	allergens: string[];
+	isAvailable: boolean;
+	/** One index per question, into that question's answers. */
+	options: number[];
+};
+
+const VARIANTS_FAILED = "The product saved, but its variants didn't. Please try again.";
+
+/** A clash on one of the unique-name indexes, said in words she can act on. */
+function nameClash(message: string): string | null {
+	if (message.includes("product_variants_product_id_name_key")) {
+		return "Two of those combinations came out with the same name. Rename one and save again.";
+	}
+	if (message.includes("product_option_groups_product_id_name_key")) {
+		return "Two of those questions have the same name. Rename one and save again.";
+	}
+	if (message.includes("product_options_group_id_name_key")) {
+		return "Two answers to one question have the same name. Rename one and save again.";
+	}
+	return null;
+}
+
 /**
- * Brings the product's variants into line with what the form submitted.
+ * Brings the product's questions, answers and priced combinations into line
+ * with what the form submitted.
  *
- * Not replaced wholesale the way bundle prices are, because a variant has an
- * identity that outlives the form: `order_items` points at the row it was
- * ordered from. Deleting and re-inserting would give every flavour a new id on
- * every save and quietly null out that pointer on every past order. So rows the
- * form still names are updated in place, rows it dropped are deleted, and only
- * genuinely new flavours are inserted.
+ * None of it is replaced wholesale the way bundle prices are, because all three
+ * have an identity that outlives the form. A variant's is the one that matters
+ * most — `order_items` points at the row it was ordered from, so deleting and
+ * re-inserting would hand every combination a new id on every save and quietly
+ * cut every past order loose from what it named. Groups and options are kept by
+ * id for a smaller reason: a variant's link row names them, and churning them
+ * would rebuild every link on every save for nothing.
+ *
+ * So rows the form still names are updated in place, rows it dropped are
+ * deleted, and only genuinely new ones are inserted. Deletes cascade the way
+ * the schema says: dropping a question takes its answers and every link to them
+ * with it, and dropping a combination takes its links.
  *
  * Returns a message on failure, or null when it worked.
  */
 async function saveVariants(
 	supabase: Awaited<ReturnType<typeof createClient>>,
 	productId: string,
-	variants: Array<{
-		id?: string;
-		name: string;
-		unitPriceCents: number;
-		imagePath: string | null;
-		allergens: string[];
-		isAvailable: boolean;
-	}>,
-	variantLabel: string,
+	groups: OptionGroupInput[],
+	variants: VariantInput[],
 ): Promise<string | null> {
-	const keep = variants.map((variant) => variant.id).filter((id): id is string => Boolean(id));
+	// --- the questions -------------------------------------------------------
+	// Deletes come first at every level, so a name freed by a removed row is
+	// available to a row that is taking it. PostgREST has no way to spell "not in
+	// the empty set", so clearing the lot and filtering down to the survivors
+	// have to be separate calls.
+	const keptGroups = ids(groups);
+	const groupsGone = supabase.from("product_option_groups").delete().eq("product_id", productId);
+	const { error: groupsDeleteError } =
+		keptGroups.length > 0
+			? await groupsGone.not("id", "in", `(${keptGroups.join(",")})`)
+			: await groupsGone;
+	if (groupsDeleteError) return VARIANTS_FAILED;
 
-	const remove = supabase.from("product_variants").delete().eq("product_id", productId);
-	// `.not("id", "in", "()")` is not valid PostgREST, so the two cases differ.
-	const { error: deleteError } =
-		keep.length > 0 ? await remove.not("id", "in", `(${keep.join(",")})`) : await remove;
+	const groupRows = groups.map((group, index) => ({
+		id: group.id,
+		product_id: productId,
+		name: group.name,
+		sort_order: index,
+	}));
 
-	if (deleteError) {
-		return "The product saved, but its variants didn't. Please try again.";
+	const existingGroups = groupRows.filter((row) => row.id);
+	if (existingGroups.length > 0) {
+		const { error } = await supabase.from("product_option_groups").upsert(existingGroups);
+		if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
 	}
 
-	// The order the owner put them in is the order they appear in the picker.
-	for (const [index, variant] of variants.entries()) {
-		const row = {
-			product_id: productId,
-			name: variant.name,
-			unit_price_cents: variant.unitPriceCents,
-			image_path: variant.imagePath,
-			allergens: variant.allergens,
-			is_available: variant.isAvailable,
-			sort_order: index,
-		};
+	const mintedGroups = new Map<string, string>();
+	const freshGroups = groupRows.filter((row) => !row.id).map(({ id: _id, ...row }) => row);
+	if (freshGroups.length > 0) {
+		const { data, error } = await supabase
+			.from("product_option_groups")
+			.insert(freshGroups)
+			.select("id, name");
+		if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
+		for (const row of data ?? []) mintedGroups.set(row.name, row.id);
+	}
 
-		const { error } = variant.id
-			? await supabase.from("product_variants").update(row).eq("id", variant.id)
-			: await supabase.from("product_variants").insert(row);
+	const groupIds = groups.map((group) => group.id ?? mintedGroups.get(group.name));
+	if (groupIds.some((id) => !id)) return VARIANTS_FAILED;
 
-		if (error) {
-			// Also what a straight swap of two names looks like, since the rows are
-			// written one at a time and the halfway state has a duplicate in it.
-			return error.message.includes("product_variants_product_id_name_key")
-				? `Two of those ${variantLabel.toLowerCase()}s clashed on a name. Rename one and save again.`
-				: "The product saved, but its variants didn't. Please try again.";
+	// --- their answers -------------------------------------------------------
+	const optionIds: string[][] = [];
+
+	for (const [index, group] of groups.entries()) {
+		const groupId = groupIds[index]!;
+
+		const keptOptions = ids(group.options);
+		const optionsGone = supabase.from("product_options").delete().eq("group_id", groupId);
+		const { error: optionsDeleteError } =
+			keptOptions.length > 0
+				? await optionsGone.not("id", "in", `(${keptOptions.join(",")})`)
+				: await optionsGone;
+		if (optionsDeleteError) return VARIANTS_FAILED;
+
+		const optionRows = group.options.map((option, at) => ({
+			id: option.id,
+			group_id: groupId,
+			name: option.name,
+			image_path: option.imagePath,
+			allergens: option.allergens,
+			is_available: option.isAvailable,
+			sort_order: at,
+		}));
+
+		const existing = optionRows.filter((row) => row.id);
+		if (existing.length > 0) {
+			const { error } = await supabase.from("product_options").upsert(existing);
+			if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
 		}
+
+		const minted = new Map<string, string>();
+		const fresh = optionRows.filter((row) => !row.id).map(({ id: _id, ...row }) => row);
+		if (fresh.length > 0) {
+			const { data, error } = await supabase
+				.from("product_options")
+				.insert(fresh)
+				.select("id, name");
+			if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
+			for (const row of data ?? []) minted.set(row.name, row.id);
+		}
+
+		const saved = group.options.map((option) => option.id ?? minted.get(option.name));
+		if (saved.some((id) => !id)) return VARIANTS_FAILED;
+		optionIds.push(saved as string[]);
+	}
+
+	// --- the combinations ----------------------------------------------------
+	const keptVariants = ids(variants);
+	const variantsGone = supabase.from("product_variants").delete().eq("product_id", productId);
+	const { error: variantsDeleteError } =
+		keptVariants.length > 0
+			? await variantsGone.not("id", "in", `(${keptVariants.join(",")})`)
+			: await variantsGone;
+	if (variantsDeleteError) return VARIANTS_FAILED;
+
+	const variantRows = variants.map((variant, index) => ({
+		id: variant.id,
+		product_id: productId,
+		name: variant.name,
+		unit_price_cents: variant.unitPriceCents,
+		image_path: variant.imagePath,
+		allergens: variant.allergens,
+		is_available: variant.isAvailable,
+		sort_order: index,
+	}));
+
+	const existingVariants = variantRows.filter((row) => row.id);
+	if (existingVariants.length > 0) {
+		const { error } = await supabase.from("product_variants").upsert(existingVariants);
+		if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
+	}
+
+	const mintedVariants = new Map<string, string>();
+	const freshVariants = variantRows.filter((row) => !row.id).map(({ id: _id, ...row }) => row);
+	if (freshVariants.length > 0) {
+		const { data, error } = await supabase
+			.from("product_variants")
+			.insert(freshVariants)
+			.select("id, name");
+		if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
+		for (const row of data ?? []) mintedVariants.set(row.name, row.id);
+	}
+
+	const variantIds = variants.map((variant) => variant.id ?? mintedVariants.get(variant.name));
+	if (variantIds.some((id) => !id)) return VARIANTS_FAILED;
+
+	// --- what each combination is made of ------------------------------------
+	// Rewritten rather than diffed. A link row is two foreign keys and no
+	// identity of its own, so there is nothing in it worth preserving, and
+	// clearing them all first is what lets two combinations swap answers without
+	// a halfway state that breaks the one-answer-per-question key.
+	if (variantIds.length > 0) {
+		const { error } = await supabase
+			.from("product_variant_options")
+			.delete()
+			.in("variant_id", variantIds as string[]);
+		if (error) return VARIANTS_FAILED;
+	}
+
+	const links = variants.flatMap((variant, index) =>
+		variant.options.map((chosen, group) => ({
+			variant_id: variantIds[index]!,
+			group_id: groupIds[group]!,
+			option_id: optionIds[group]![chosen]!,
+		})),
+	);
+
+	if (links.length > 0) {
+		const { error } = await supabase.from("product_variant_options").insert(links);
+		if (error) return VARIANTS_FAILED;
 	}
 
 	return null;
+}
+
+/** The database ids among a list of form rows, skipping the ones not saved yet. */
+function ids(rows: Array<{ id?: string }>): string[] {
+	return rows.map((row) => row.id).filter((id): id is string => Boolean(id));
 }
 
 export async function toggleProductFlag(

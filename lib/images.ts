@@ -1,5 +1,5 @@
 import { INSPIRATION_IMAGE_BUCKET, PRODUCT_IMAGE_BUCKET } from "./constants";
-import type { Accent, Product, ProductVariant } from "./types";
+import type { Accent, Product, ProductOption, ProductVariant } from "./types";
 
 /**
  * Public URL for an object in one of the image buckets.
@@ -79,18 +79,41 @@ export function productImageAlt(product: Pick<Product, "name" | "imageAlt">): st
 }
 
 /**
+ * The photo a chosen combination actually shows.
+ *
+ * Three places can supply one, and they are tried from most specific to least:
+ * the combination's own, then the answers it is made of, then the product's. A
+ * product that asks two questions puts the photo on the flavour rather than on
+ * all nine rows, so it is the answer that usually wins; the combination's own
+ * is still there for the one row that deserves its own picture.
+ */
+export function variantImagePath(
+	product: Pick<Product, "imagePath">,
+	variant: Pick<ProductVariant, "imagePath"> | null,
+	options: ReadonlyArray<Pick<ProductOption, "imagePath">> = [],
+): string | null {
+	return (
+		variant?.imagePath ?? options.find((option) => option.imagePath)?.imagePath ?? product.imagePath
+	);
+}
+
+/**
  * Alt text for whichever photo a variant actually ends up showing.
  *
- * A variant with a photo of its own does not get the product's alt text: that
- * sentence describes the product's picture, and this is a different picture.
- * The variant name is the only thing that separates them, so it is what the
- * sentence is built from. A variant without a photo is showing the product's,
- * and gets the product's words with it.
+ * A variant showing a photo of its own does not get the product's alt text:
+ * that sentence describes the product's picture, and this is a different
+ * picture. The variant name is the only thing that separates them, so it is
+ * what the sentence is built from. A variant falling back to the product's
+ * photo gets the product's words with it.
  */
 export function variantImageAlt(
-	product: Pick<Product, "name" | "imageAlt">,
+	product: Pick<Product, "name" | "imageAlt" | "imagePath">,
 	variant: Pick<ProductVariant, "name" | "imagePath"> | null,
+	options: ReadonlyArray<Pick<ProductOption, "imagePath">> = [],
 ): string {
-	if (!variant?.imagePath) return productImageAlt(product);
+	if (!variant) return productImageAlt(product);
+
+	const shown = variantImagePath(product, variant, options);
+	if (!shown || shown === product.imagePath) return productImageAlt(product);
 	return `${product.name}, ${variant.name}, from vvbakes`;
 }

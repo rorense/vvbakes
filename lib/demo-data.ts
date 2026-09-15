@@ -55,6 +55,7 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		tiers: [],
 		variantLabel: "Flavour",
 		variants: [],
+		optionGroups: [],
 		imagePath: null,
 		imageAlt: null,
 		isAvailable: true,

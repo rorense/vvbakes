@@ -1377,3 +1377,255 @@ describe("the email delivery trail", () => {
 		expect(found.rows.map((row) => row.order_id)).toContain(order.id);
 	});
 });
+
+/**
+ * A product that asks two questions rather than one: three flavours by two
+ * layer counts, priced one combination at a time.
+ *
+ * The flat-variant tests above are the other half of this. Nothing there has a
+ * row in any of these tables, and the fact that they still pass unchanged is
+ * the point: asking a second question is something a product opts into, not
+ * something every product had done to it.
+ */
+describe("variants made of several answers", () => {
+	let cakeId: string;
+	let flavourGroup: string;
+	let layerGroup: string;
+	const optionIds: Record<string, string> = {};
+	const variantIds: Record<string, string> = {};
+
+	async function makeOption(groupId: string, name: string, sortOrder: number): Promise<string> {
+		const result = await db.query<{ id: string }>(
+			`insert into product_options (group_id, name, sort_order) values ($1, $2, $3) returning id`,
+			[groupId, name, sortOrder],
+		);
+		return result.rows[0]!.id;
+	}
+
+	/** A priced combination, linked to the answers it is made of. */
+	async function makeVariant(name: string, cents: number, answers: string[]): Promise<string> {
+		const created = await db.query<{ id: string }>(
+			`insert into product_variants (product_id, name, unit_price_cents) values ($1, $2, $3)
+			 returning id`,
+			[cakeId, name, cents],
+		);
+		const variantId = created.rows[0]!.id;
+
+		for (const answer of answers) {
+			await db.query(
+				`insert into product_variant_options (variant_id, group_id, option_id)
+				 select $1, o.group_id, o.id from product_options o where o.id = $2`,
+				[variantId, answer],
+			);
+		}
+		return variantId;
+	}
+
+	beforeAll(async () => {
+		await openEveryDay(50);
+
+		const created = await db.query<{ id: string }>(
+			`insert into products (name, slug, unit_price_cents, unit_label, sort_order)
+			 values ('Layer Cake', 'layer-cake', 4500, 'cake', 91)
+			 returning id`,
+		);
+		cakeId = created.rows[0]!.id;
+
+		const groups = await db.query<{ id: string; name: string }>(
+			`insert into product_option_groups (product_id, name, sort_order) values
+				($1, 'Flavour', 0), ($1, 'Layers', 1)
+			 returning id, name`,
+			[cakeId],
+		);
+		flavourGroup = groups.rows.find((row) => row.name === "Flavour")!.id;
+		layerGroup = groups.rows.find((row) => row.name === "Layers")!.id;
+
+		optionIds.chocolate = await makeOption(flavourGroup, "Chocolate", 0);
+		optionIds.carrot = await makeOption(flavourGroup, "Carrot", 1);
+		optionIds.two = await makeOption(layerGroup, "2 layers", 0);
+		optionIds.three = await makeOption(layerGroup, "3 layers", 1);
+
+		variantIds.chocolateTwo = await makeVariant("Chocolate · 2 layers", 4500, [
+			optionIds.chocolate!,
+			optionIds.two!,
+		]);
+		variantIds.chocolateThree = await makeVariant("Chocolate · 3 layers", 6500, [
+			optionIds.chocolate!,
+			optionIds.three!,
+		]);
+		variantIds.carrotTwo = await makeVariant("Carrot · 2 layers", 5000, [
+			optionIds.carrot!,
+			optionIds.two!,
+		]);
+	});
+
+	it("charges the combination's own price", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cakeId, variant_id: variantIds.chocolateThree!, qty: 1 }],
+			pickupDate: await dateIn(7),
+		});
+		expect(order.total_cents).toBe(6500);
+	});
+
+	it("writes the whole combination's name onto the order", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cakeId, variant_id: variantIds.carrotTwo!, qty: 1 }],
+			pickupDate: await dateIn(7),
+		});
+
+		const items = await db.query<{ variant_name: string }>(
+			"select variant_name from order_items where order_id = $1",
+			[order.id],
+		);
+		expect(items.rows[0]!.variant_name).toBe("Carrot · 2 layers");
+	});
+
+	it("takes every combination of an answer down when the answer sells out", async () => {
+		await db.query("update product_options set is_available = false where id = $1", [
+			optionIds.chocolate,
+		]);
+
+		// The combination's own switch is untouched and still on, which is exactly
+		// the basket that would have slipped through without the extra check.
+		for (const variantId of [variantIds.chocolateTwo!, variantIds.chocolateThree!]) {
+			const message = await errorOf(async () =>
+				placeOrder({
+					items: [{ product_id: cakeId, variant_id: variantId, qty: 1 }],
+					pickupDate: await dateIn(7),
+				}),
+			);
+			expect(message).toContain("VARIANT_UNAVAILABLE");
+		}
+
+		// And nothing else goes down with it.
+		const carrot = await placeOrder({
+			items: [{ product_id: cakeId, variant_id: variantIds.carrotTwo!, qty: 1 }],
+			pickupDate: await dateIn(7),
+		});
+		expect(carrot.total_cents).toBe(5000);
+
+		await db.query("update product_options set is_available = true where id = $1", [
+			optionIds.chocolate,
+		]);
+	});
+
+	it("counts the whole product for a minimum, however it was split up", async () => {
+		await db.query("update products set min_per_order = 2 where id = $1", [cakeId]);
+
+		const split = await placeOrder({
+			items: [
+				{ product_id: cakeId, variant_id: variantIds.chocolateTwo!, qty: 1 },
+				{ product_id: cakeId, variant_id: variantIds.carrotTwo!, qty: 1 },
+			],
+			pickupDate: await dateIn(7),
+		});
+		expect(split.total_cents).toBe(9500);
+
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: cakeId, variant_id: variantIds.carrotTwo!, qty: 1 }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("QTY_BELOW_MINIMUM");
+
+		await db.query("update products set min_per_order = null where id = $1", [cakeId]);
+	});
+
+	it("refuses a combination that answers one question twice", async () => {
+		const message = await errorOf(async () =>
+			db.query(
+				`insert into product_variant_options (variant_id, group_id, option_id)
+				 values ($1, $2, $3)`,
+				[variantIds.carrotTwo, flavourGroup, optionIds.chocolate],
+			),
+		);
+		expect(message).toContain("product_variant_options_pkey");
+	});
+
+	it("refuses an answer filed under a question it does not belong to", async () => {
+		// Half-built on purpose: a combination that already answered the layers
+		// question would trip the key above before the foreign key was reached.
+		const half = await makeVariant("Half built", 100, [optionIds.chocolate!]);
+
+		const message = await errorOf(async () =>
+			db.query(
+				`insert into product_variant_options (variant_id, group_id, option_id)
+				 values ($1, $2, $3)`,
+				[half, layerGroup, optionIds.carrot],
+			),
+		);
+		expect(message).toContain("product_variant_options_option_id_group_id_fkey");
+
+		await db.query("delete from product_variants where id = $1", [half]);
+	});
+
+	it("stops selling a combination that has lost one of its answers", async () => {
+		const lemon = await makeOption(flavourGroup, "Lemon", 9);
+		const lemonTwo = await makeVariant("Lemon · 2 layers", 4800, [lemon, optionIds.two!]);
+
+		await db.query("delete from product_options where id = $1", [lemon]);
+
+		// Deleting the answer takes the link to it and nothing else, so the
+		// combination is still here, still switched on, and now answers one of the
+		// two questions the product asks.
+		const links = await db.query("select 1 from product_variant_options where variant_id = $1", [
+			lemonTwo,
+		]);
+		expect(links.rows).toHaveLength(1);
+
+		// A basket filled before she deleted the flavour still knows the id. It
+		// cannot be allowed to buy something the page can no longer describe.
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: cakeId, variant_id: lemonTwo, qty: 1 }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("VARIANT_UNAVAILABLE");
+
+		await db.query("delete from product_variants where id = $1", [lemonTwo]);
+	});
+
+	it("takes the whole question down with the product", async () => {
+		const spare = await db.query<{ id: string }>(
+			`insert into products (name, slug, unit_price_cents, sort_order)
+			 values ('Spare', 'spare-cake', 100, 92) returning id`,
+		);
+		const spareId = spare.rows[0]!.id;
+		await db.query(`insert into product_option_groups (product_id, name) values ($1, 'Size')`, [
+			spareId,
+		]);
+
+		await db.query("delete from products where id = $1", [spareId]);
+
+		const left = await db.query("select 1 from product_option_groups where product_id = $1", [
+			spareId,
+		]);
+		expect(left.rows).toHaveLength(0);
+	});
+
+	it("carries a combination name longer than a single answer's onto the order", async () => {
+		// Two 60-character answers joined is 123 characters, which is what the
+		// widened columns are for. One character under the limit on both ends.
+		const long = await makeOption(layerGroup, "L".repeat(60), 8);
+		const name = `${"C".repeat(57)} · ${"L".repeat(60)}`;
+		expect(name).toHaveLength(120);
+
+		const longVariant = await makeVariant(name, 9900, [optionIds.carrot!, long]);
+
+		const order = await placeOrder({
+			items: [{ product_id: cakeId, variant_id: longVariant, qty: 1 }],
+			pickupDate: await dateIn(7),
+		});
+
+		const items = await db.query<{ variant_name: string }>(
+			"select variant_name from order_items where order_id = $1",
+			[order.id],
+		);
+		expect(items.rows[0]!.variant_name).toBe(name);
+
+		await db.query("delete from product_options where id = $1", [long]);
+		await db.query("delete from product_variants where id = $1", [longVariant]);
+	});
+});

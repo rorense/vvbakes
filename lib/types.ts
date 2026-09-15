@@ -82,6 +82,47 @@ export interface ProductVariant {
 	/** One flavour can sell out without taking the rest of the product with it. */
 	isAvailable: boolean;
 	sortOrder: number;
+	/**
+	 * Which answer this variant gives to each of the product's questions, when
+	 * the product asks more than one. Empty for a product that asks one, where
+	 * the variant *is* the answer. See `optionGroups` in lib/pricing.ts.
+	 */
+	optionIds: string[];
+}
+
+/**
+ * One answer to one of a product's questions: "Chocolate", "3 layers".
+ *
+ * The photo and the allergens belong here rather than on the variant because
+ * they belong to the answer: the walnuts are in the carrot cake at every number
+ * of layers, and a nine-row matrix should not ask for the same photo nine
+ * times.
+ */
+export interface ProductOption {
+	id: string;
+	name: string;
+	/** Object path in the product-images bucket. Null falls back, see ProductVariant. */
+	imagePath: string | null;
+	/** Added to the product's allergens, never a replacement for them. */
+	allergens: Allergen[];
+	/** Off takes every combination made of this answer with it. */
+	isAvailable: boolean;
+	sortOrder: number;
+}
+
+/**
+ * One question a product asks before it can be ordered: "Flavour", "Layers".
+ *
+ * A product that asks a single question stores no groups at all — the question
+ * is `variantLabel` and the answers are the variants themselves. `optionGroups`
+ * in lib/pricing.ts is the only place that difference is handled; everything
+ * above it sees a list of groups either way.
+ */
+export interface ProductOptionGroup {
+	id: string;
+	name: string;
+	options: ProductOption[];
+	sortOrder: number;
 }
 
 export interface Category {
@@ -109,10 +150,20 @@ export interface Product {
 	 */
 	minPerOrder: number | null;
 	tiers: PriceTier[];
-	/** What this product calls its variants: "Flavour", "Size", "Filling". */
+	/**
+	 * What this product calls its variants: "Flavour", "Size", "Filling".
+	 *
+	 * Only read when `optionGroups` is empty, where it is the single question
+	 * the variants below are answers to.
+	 */
 	variantLabel: string;
 	/** Empty for a product sold as one thing. */
 	variants: ProductVariant[];
+	/**
+	 * The questions this product asks, when it asks more than one. Empty is the
+	 * normal state: it means one question, named by `variantLabel`.
+	 */
+	optionGroups: ProductOptionGroup[];
 	/** Object path inside the product-images bucket, not a URL. */
 	imagePath: string | null;
 	imageAlt: string | null;

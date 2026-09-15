@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
-import { fallbackAccent, productImageUrl, variantImageAlt } from "@/lib/images";
-import { isOrderable, priceRule } from "@/lib/pricing";
+import { fallbackAccent, productImageUrl, variantImageAlt, variantImagePath } from "@/lib/images";
+import { isOrderable, priceRule, variantOptions } from "@/lib/pricing";
 import {
 	ACCENT_BG,
 	ALLERGEN_LABELS,
@@ -25,9 +25,9 @@ import { Badge, Chip } from "@/components/ui/Badge";
 export function ProductImage({
 	product,
 	/**
-	 * The variant being shown, when one is chosen. Its photo wins over the
-	 * product's; a variant without one falls back, which is what a product
-	 * whose variants differ only by size wants.
+	 * The variant being shown, when one is chosen. Its own photo wins, then one
+	 * belonging to an answer it is made of, then the product's — which is what a
+	 * product whose variants differ only by size wants. See `variantImagePath`.
 	 */
 	variant = null,
 	className,
@@ -43,13 +43,14 @@ export function ProductImage({
 	priority?: boolean;
 	behind?: Accent | null;
 }) {
-	const url = productImageUrl(variant?.imagePath ?? product.imagePath);
+	const options = variant ? variantOptions(product, variant) : [];
+	const url = productImageUrl(variantImagePath(product, variant, options));
 
 	if (url) {
 		return (
 			<Image
 				src={url}
-				alt={variantImageAlt(product, variant)}
+				alt={variantImageAlt(product, variant, options)}
 				fill
 				sizes={sizes ?? "(min-width: 640px) 33vw, 50vw"}
 				className={cn("object-cover", className)}
