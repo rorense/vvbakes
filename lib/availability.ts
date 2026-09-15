@@ -56,6 +56,65 @@ function indexRules(rules: AvailabilityRule[]): Map<Weekday, AvailabilityRule> {
 	return new Map(rules.map((rule) => [rule.weekday, rule]));
 }
 
+/** What a weekday rule and any override for the date add up to on that day. */
+interface ResolvedDay {
+	isOpen: boolean;
+	capacity: number;
+	orderCount: number;
+	/** Can go negative if a day was somehow overbooked. Callers treat <= 0 as full. */
+	remaining: number;
+	note: string | null;
+	hasOverride: boolean;
+}
+
+/**
+ * The one place a weekday rule and a date's override are combined.
+ *
+ * All three calendars below need this and used to work it out for themselves,
+ * which is three chances to get the precedence wrong on the question the whole
+ * shop turns on. An override wins outright on whether the day is open, so a
+ * closed Sunday can be opened for a market and an open Saturday shut for a
+ * holiday. Capacity is different: an override that leaves it null is saying
+ * "open, as usual", so the weekday's own number stands rather than zero.
+ */
+function resolveDay(
+	date: IsoDate,
+	rulesByWeekday: Map<Weekday, AvailabilityRule>,
+	overridesByDate: Map<IsoDate, AvailabilityOverride>,
+	counts: Record<IsoDate, number>,
+): ResolvedDay {
+	const rule = rulesByWeekday.get(weekdayOf(date));
+	const override = overridesByDate.get(date);
+
+	const isOpen = override ? override.isOpen : (rule?.isOpen ?? false);
+	const capacity = override?.capacity ?? rule?.capacity ?? 0;
+	const orderCount = counts[date] ?? 0;
+
+	return {
+		isOpen,
+		capacity,
+		orderCount,
+		remaining: capacity - orderCount,
+		note: override?.note ?? null,
+		hasOverride: override !== undefined,
+	};
+}
+
+/**
+ * The Monday on or before the first of the month `date` falls in, which is
+ * where a Monday-first grid has to start drawing.
+ *
+ * Where it stops is the caller's business: the admin always draws six rows so
+ * its grid does not change height between months, while the public calendar
+ * stops at the end of the last week that has a day in it.
+ */
+function mondayGridStart(date: IsoDate): IsoDate {
+	const first = startOfMonth(date);
+	const weekday = weekdayOf(first);
+	// Monday is 1, so Sunday needs six days of padding rather than none.
+	return addDays(first, -(weekday === 0 ? 6 : weekday - 1));
+}
+
 function indexOverrides(overrides: AvailabilityOverride[]): Map<IsoDate, AvailabilityOverride> {
 	return new Map(overrides.map((override) => [override.date, override]));
 }
@@ -111,17 +170,10 @@ export function computeAvailability(input: AvailabilityInput): AvailabilityWindo
 	const dates: PickableDate[] = [];
 
 	for (const date of eachDay(earliest, latest)) {
-		const rule = rulesByWeekday.get(weekdayOf(date));
-		const override = overridesByDate.get(date);
+		const day = resolveDay(date, rulesByWeekday, overridesByDate, counts);
+		if (!day.isOpen || day.remaining <= 0) continue;
 
-		const isOpen = override ? override.isOpen : (rule?.isOpen ?? false);
-		if (!isOpen) continue;
-
-		const capacity = override?.capacity ?? rule?.capacity ?? 0;
-		const remaining = capacity - (counts[date] ?? 0);
-		if (remaining <= 0) continue;
-
-		dates.push({ date, remaining, note: override?.note ?? null });
+		dates.push({ date, remaining: day.remaining, note: day.note });
 	}
 
 	return { ordersOpen: true, closedMessage: null, earliest, latest, dates };
@@ -147,11 +199,7 @@ export function buildCalendarMonth(options: {
 	const { month, rules, overrides, counts, timezone } = options;
 	const today = todayIn(timezone, options.now ?? new Date());
 
-	const first: IsoDate = `${month.slice(0, 7)}-01`;
-	const firstWeekday = weekdayOf(first);
-	// Monday-first grid: Monday is 1, so Sunday needs six days of padding.
-	const leading = firstWeekday === 0 ? 6 : firstWeekday - 1;
-	const gridStart = addDays(first, -leading);
+	const gridStart = mondayGridStart(month);
 
 	const rulesByWeekday = indexRules(rules);
 	const overridesByDate = indexOverrides(overrides);
@@ -159,21 +207,18 @@ export function buildCalendarMonth(options: {
 
 	// Six rows always, so the grid does not jump height between months.
 	return eachDay(gridStart, addDays(gridStart, 41)).map((date) => {
-		const weekday = weekdayOf(date);
-		const rule = rulesByWeekday.get(weekday);
-		const override = overridesByDate.get(date);
-		const isOpen = override ? override.isOpen : (rule?.isOpen ?? false);
-		const capacity = override?.capacity ?? rule?.capacity ?? 0;
-		const orderCount = counts[date] ?? 0;
+		const day = resolveDay(date, rulesByWeekday, overridesByDate, counts);
 
 		let state: DayState;
 		if (compareDates(date, today) < 0) {
 			state = "past";
-		} else if (override && !override.isOpen) {
+		} else if (day.hasOverride && !day.isOpen) {
+			// Shut by hand, which the owner should see as different from a day she
+			// never bakes on: one is a decision she made and can undo here.
 			state = "blocked";
-		} else if (!isOpen) {
+		} else if (!day.isOpen) {
 			state = "closed";
-		} else if (orderCount >= capacity) {
+		} else if (day.orderCount >= day.capacity) {
 			state = "full";
 		} else {
 			state = "open";
@@ -181,13 +226,13 @@ export function buildCalendarMonth(options: {
 
 		return {
 			date,
-			weekday,
+			weekday: weekdayOf(date),
 			inMonth: date.startsWith(monthPrefix),
 			state,
-			capacity,
-			orderCount,
-			note: override?.note ?? null,
-			hasOverride: override !== undefined,
+			capacity: day.capacity,
+			orderCount: day.orderCount,
+			note: day.note,
+			hasOverride: day.hasOverride,
 		};
 	});
 }
@@ -285,21 +330,14 @@ export function buildPublicCalendar(options: {
 
 	return months.map((month) => {
 		const first = startOfMonth(month);
-		const firstWeekday = weekdayOf(first);
-		// Monday-first, so Sunday needs six days of padding rather than none.
-		const leading = firstWeekday === 0 ? 6 : firstWeekday - 1;
-		const gridStart = addDays(first, -leading);
+		const gridStart = mondayGridStart(month);
 
 		const last = endOfMonth(month);
 		const trailing = (7 - (weekdayOf(last) === 0 ? 7 : weekdayOf(last))) % 7;
 		const gridEnd = addDays(last, trailing);
 
 		const days: PublicCalendarDay[] = eachDay(gridStart, gridEnd).map((date) => {
-			const override = overridesByDate.get(date);
-			const rule = rulesByWeekday.get(weekdayOf(date));
-			const isOpen = override ? override.isOpen : (rule?.isOpen ?? false);
-			const capacity = override?.capacity ?? rule?.capacity ?? 0;
-			const remaining = capacity - (counts[date] ?? 0);
+			const { isOpen, remaining, note } = resolveDay(date, rulesByWeekday, overridesByDate, counts);
 
 			let state: PublicDayState;
 			if (compareDates(date, today) < 0) {
@@ -322,7 +360,7 @@ export function buildPublicCalendar(options: {
 				weekday: weekdayOf(date),
 				inMonth: date.startsWith(month.slice(0, 7)),
 				state,
-				note: override?.note ?? null,
+				note,
 			};
 		});
 
