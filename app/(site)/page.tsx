@@ -96,7 +96,6 @@ export default async function HomePage() {
 			    tilted sticker overlaps the two. */}
 			<Section
 				tone="paper"
-				size="loose"
 				className="relative overflow-hidden">
 				<div
 					className="dot-field pointer-events-none absolute inset-0"
@@ -113,16 +112,22 @@ export default async function HomePage() {
 									: "Custom cakes, made to order"}
 							</SectionLabel>
 
+							{/* text-5xl clamps on viewport *width* and tops out at 88px, which on a
+							    wide but short laptop pushes the buttons under the fold. Cap it on
+							    height as well, with a floor so a landscape phone doesn't shrink the
+							    headline to nothing. */}
 							<h1
-								className="text-5xl"
-								style={{ fontVariationSettings: '"SOFT" 40, "WONK" 1' }}>
+								style={{
+									fontVariationSettings: '"SOFT" 40, "WONK" 1',
+									fontSize: "min(var(--text-5xl), max(2.5rem, 8vh))",
+									lineHeight: 1,
+								}}>
 								Tell me what you&rsquo;re celebrating. I&rsquo;ll bake it.
 							</h1>
 
 							<p className="text-cocoa-soft max-w-lg text-lg">
 								Cakes made for one occasion and one day. Your flavours, your colours, whatever it
-								needs to say on top. Or take something ready-made off the menu and I&rsquo;ll box it
-								up.
+								needs to say on top.
 							</p>
 
 							<div className="mt-2 flex flex-wrap gap-3">
