@@ -398,14 +398,39 @@ describe("buildPublicCalendar", () => {
 		expect(dayOf(months, "2026-09-19")!.note).toBe("Market day");
 	});
 
-	it("treats a blocked day exactly like a day she does not bake", () => {
-		// A customer has no use for the distinction, and publishing it says more
-		// about her diary than it needs to.
+	it("shows a day she blocked by hand as full, not as a day she never bakes", () => {
+		// Both mean "not then", but only one of them looks deliberate in a week
+		// she otherwise works.
 		const overrides: AvailabilityOverride[] = [
 			{ date: "2026-09-19", isOpen: false, capacity: null, note: "Away" },
 		];
 		const months = buildPublicCalendar({ ...base, overrides });
-		expect(dayOf(months, "2026-09-19")!.state).toBe("closed");
+		expect(dayOf(months, "2026-09-19")!.state).toBe("full");
+	});
+
+	it("still shows a weekday she never bakes as closed, override or not", () => {
+		// The block only speaks for the date it is on. A Sunday she has never
+		// worked is not something she decided this week.
+		const rules = openAllWeek(3);
+		rules[0] = { weekday: 0, isOpen: false, capacity: 0 };
+		const overrides: AvailabilityOverride[] = [
+			{ date: "2026-09-19", isOpen: false, capacity: null, note: "Away" },
+		];
+		const months = buildPublicCalendar({ ...base, rules, overrides });
+
+		expect(dayOf(months, "2026-09-19")!.state).toBe("full"); // Saturday, blocked
+		expect(dayOf(months, "2026-09-20")!.state).toBe("closed"); // Sunday, never open
+	});
+
+	it("does not colour a day an override opens as blocked", () => {
+		// An override can open a normally-closed day as well as shut an open one,
+		// and only the shutting kind is a day nobody can have.
+		const rules = closedAllWeek();
+		const overrides: AvailabilityOverride[] = [
+			{ date: "2026-09-19", isOpen: true, capacity: 3, note: "Market day" },
+		];
+		const months = buildPublicCalendar({ ...base, rules, overrides });
+		expect(dayOf(months, "2026-09-19")!.state).toBe("available");
 	});
 
 	it("never publishes how many orders are on a day", () => {

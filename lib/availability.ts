@@ -291,7 +291,9 @@ export function orderErrorMessage(raw: string): string {
  * idea whether that is a closed day or a full one.
  *
  * It deliberately does not publish how many orders are on a day. "Full" is what
- * a customer can act on; the exact count is the owner's business.
+ * a customer can act on; the exact count is the owner's business — and a day
+ * she blocked by hand is published as full for the same reason, since the only
+ * thing a customer can do with it is pick another date.
  */
 export function buildPublicCalendar(options: {
 	settings: Pick<
@@ -337,11 +339,23 @@ export function buildPublicCalendar(options: {
 		const gridEnd = addDays(last, trailing);
 
 		const days: PublicCalendarDay[] = eachDay(gridStart, gridEnd).map((date) => {
-			const { isOpen, remaining, note } = resolveDay(date, rulesByWeekday, overridesByDate, counts);
+			const { isOpen, remaining, note, hasOverride } = resolveDay(
+				date,
+				rulesByWeekday,
+				overridesByDate,
+				counts,
+			);
 
 			let state: PublicDayState;
 			if (compareDates(date, today) < 0) {
 				state = "past";
+			} else if (hasOverride && !isOpen) {
+				// A day she shut by hand. It reads as fully booked rather than as a
+				// day she never bakes, because a blank square in the middle of a week
+				// she normally works looks like an oversight, and someone will ask.
+				// Checked before the notice and window tests below: the date is gone
+				// whichever of those it also happens to fail.
+				state = "full";
 			} else if (!isOpen) {
 				state = "closed";
 			} else if (compareDates(date, earliest) < 0) {

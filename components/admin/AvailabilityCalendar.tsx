@@ -21,7 +21,7 @@ const DAY_HEADS = MONDAY_FIRST.map((weekday) => WEEKDAY_NAMES[weekday].slice(0, 
 
 const STATE_STYLES: Record<DayState, string> = {
 	open: "bg-mint/60 text-cocoa",
-	full: "bg-peach text-cocoa",
+	full: "bg-cherry text-cocoa",
 	blocked: "bg-danger-tint text-danger",
 	closed: "bg-paper-deep/60 text-cocoa-soft",
 	past: "bg-transparent text-cocoa-soft/50",

@@ -11,6 +11,10 @@
  * The wording matters more than usual here: "closed" and "too soon" are the
  * same blank square to someone scanning, and they mean very different things to
  * someone deciding whether to bother asking.
+ *
+ * Fully booked is red rather than peach because peach is an accent used all
+ * over the site for things that are perfectly fine, and a day you cannot have
+ * should not look like one of them.
  */
 import { cn } from "@/lib/cn";
 import { MONDAY_FIRST } from "@/lib/dates";
@@ -29,7 +33,7 @@ export const DAY_STATE: Record<PublicDayState, { className: string; label: strin
 		label: "available",
 	},
 	full: {
-		className: "bg-peach/60 text-cocoa-soft line-through decoration-1",
+		className: "bg-cherry/70 text-cocoa-soft line-through decoration-1",
 		label: "fully booked",
 	},
 	"too-soon": {

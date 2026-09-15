@@ -248,17 +248,21 @@ export interface CalendarDay {
 /**
  * How a day looks to a customer.
  *
- * Narrower than the admin's view on purpose. A customer does not need to know
- * the difference between a day the bakery never opens and one that was blocked
- * for a holiday, both mean "not then", and publishing how many orders are
+ * Narrower than the admin's view on purpose: publishing how many orders are
  * already booked says more about the business than it needs to.
+ *
+ * A day blocked by hand is published as `full` rather than `closed`. The two
+ * are the same answer to a customer, but not the same to someone reading the
+ * grid: `closed` days sit in a pattern you can see, so one appearing midweek
+ * looks like a mistake worth asking about, where `full` plainly says the date
+ * is gone.
  */
 export type PublicDayState =
 	| "available"
 	| "full"
 	/** Open in principle, but inside the notice period. */
 	| "too-soon"
-	/** Not a baking day, or blocked. */
+	/** Not a baking day. A day blocked by hand is published as `full`. */
 	| "closed"
 	| "past"
 	/** Beyond how far ahead she takes bookings. */

@@ -27,6 +27,10 @@
 	--color-rose-deep: #e8a9b8;
 	--color-mint: #c5e4be;
 	--color-peach: #fdca96;
+	/* Not off the logo: the one red the calendar needs for a day nobody can
+	   have. Peach did that job and read as a warm "nearly", which is the
+	   wrong thing to tell someone about a date that is gone. */
+	--color-cherry: #f09a8d;
 	--color-cocoa: #442910;
 	--color-cocoa-soft: #6e4b32;
 	--color-line: rgb(68 41 16 / 0.16);
