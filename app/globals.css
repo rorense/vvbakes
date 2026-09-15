@@ -285,6 +285,36 @@
 		}
 	}
 
+	/*
+	 * The mark a navigation link wears while the page it points at is on its way.
+	 * See components/ui/NavLink.tsx for why the nav needs one of its own.
+	 *
+	 * It arrives late on purpose. A prefetched page commits in a few dozen
+	 * milliseconds, and a bar that appears and vanishes inside that reads as a
+	 * flicker rather than as an answer; waiting 140ms means the mark only ever
+	 * shows up for a wait long enough to be worth reporting. The fade is opacity
+	 * alone — nothing travels across the screen — so it stays put under reduced
+	 * motion rather than being switched off, because it is information.
+	 */
+	.nav-pending {
+		position: absolute;
+		bottom: 0.25rem;
+		left: 50%;
+		translate: -50% 0;
+		width: 1.25rem;
+		height: 2px;
+		border-radius: var(--radius-pill);
+		background: var(--color-rose-deep);
+		opacity: 0;
+		animation: nav-pending 140ms linear 140ms forwards;
+	}
+
+	@keyframes nav-pending {
+		to {
+			opacity: 1;
+		}
+	}
+
 	/* Hide scrollbars on the horizontal date/category rails without losing scroll. */
 	.rail {
 		overflow-x: auto;

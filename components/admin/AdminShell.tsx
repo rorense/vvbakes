@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { NavLink } from "@/components/ui/NavLink";
 
 /**
  * The admin is used mostly on a phone, standing in a kitchen, so it is laid out
@@ -54,7 +55,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 							<li
 								key={tab.href}
 								className="flex-1">
-								<Link
+								{/* Every admin page is `force-dynamic`, so a tab press is always
+								    a real fetch before the highlight below can move — see
+								    NavLink for what fills that gap. */}
+								<NavLink
 									href={tab.href}
 									aria-current={active ? "page" : undefined}
 									className={cn(
@@ -62,7 +66,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 										active ? "bg-paper-deep text-cocoa" : "text-cocoa-soft",
 									)}>
 									{tab.label}
-								</Link>
+								</NavLink>
 							</li>
 						);
 					})}
@@ -83,7 +87,7 @@ export function AdminNav() {
 			{TABS.map((tab) => {
 				const active = tab.match(pathname);
 				return (
-					<Link
+					<NavLink
 						key={tab.href}
 						href={tab.href}
 						aria-current={active ? "page" : undefined}
@@ -92,7 +96,7 @@ export function AdminNav() {
 							active ? "bg-paper-deep text-cocoa" : "text-cocoa-soft hover:text-cocoa",
 						)}>
 						{tab.label}
-					</Link>
+					</NavLink>
 				);
 			})}
 		</nav>

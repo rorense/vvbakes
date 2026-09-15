@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import { instagramUrl } from "@/lib/constants";
 import type { SiteSettings } from "@/lib/types";
 import { Container } from "@/components/ui/Container";
+import { NavLink } from "@/components/ui/NavLink";
 
 /** The lowercase serif wordmark. Text, not an image, so it stays crisp and selectable. */
 export function Wordmark({
@@ -65,8 +66,11 @@ export function SiteHeader({ settings }: { settings: SiteSettings }) {
 				<nav
 					aria-label="Main"
 					className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+					{/* Order is the slow one — it is `force-dynamic` and reads the whole
+					    booking picture before it can draw — so these say when they've
+					    been tapped rather than leaving the header looking untouched. */}
 					{LINKS.map((link) => (
-						<Link
+						<NavLink
 							key={link.href}
 							href={link.href}
 							className={cn(
@@ -74,7 +78,7 @@ export function SiteHeader({ settings }: { settings: SiteSettings }) {
 								!link.small && "xs:inline-block hidden",
 							)}>
 							{link.label}
-						</Link>
+						</NavLink>
 					))}
 					<a
 						href={instagramUrl(settings.instagramHandle)}

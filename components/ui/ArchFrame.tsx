@@ -12,7 +12,8 @@ export function ArchFrame({
 	shape = "arch",
 }: {
 	className?: string;
-	children: React.ReactNode;
+	/** Optional: a frame with nothing in it yet is what a loading photo looks like. */
+	children?: React.ReactNode;
 	tone?: "blush" | "rose" | "butter" | "mint" | "peach" | "paper-deep";
 	shape?: "arch" | "soft";
 }) {
