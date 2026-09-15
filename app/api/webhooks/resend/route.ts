@@ -102,44 +102,44 @@ export async function POST(request: Request) {
 	const supabase = createAdminClient();
 	const type = HANDLED[eventType as HandledEvent];
 
-	// Which order this belongs to is only knowable through the send we recorded
-	// at the time. Mail sent outside an order, the test script's for one, has no
-	// such row and is not an error.
-	const sent = await supabase
+	// Everything this route needs to know about the message, in one read.
+	//
+	// Two things are being asked, and they are the same question of the same
+	// index: which send does this belong to, and have we already recorded this
+	// outcome against it. Asking them separately was two round trips for one
+	// lookup, and only the first had its error checked — a failed dedupe read
+	// used to fall through and write the duplicate it was there to prevent.
+	const { data: events, error } = await supabase
 		.from("order_events")
-		.select("order_id, data")
-		.eq("type", "email_sent")
+		.select("type, order_id, data")
 		.eq("data->>emailId", emailId)
-		.maybeSingle();
+		.in("type", ["email_sent", type]);
 
-	if (sent.error) {
-		return NextResponse.json({ ok: false, error: sent.error.message }, { status: 502 });
+	if (error) {
+		return NextResponse.json({ ok: false, error: error.message }, { status: 502 });
 	}
-	if (!sent.data) {
+
+	// Mail sent outside an order, the test script's for one, has no send row and
+	// is not an error.
+	const sent = (events ?? []).find((event) => event.type === "email_sent");
+	if (!sent) {
 		return NextResponse.json({ ok: true, skipped: "no order for this message" });
 	}
 
 	// Webhooks are delivered at least once, so the same bounce can arrive twice.
-	const existing = await supabase
-		.from("order_events")
-		.select("id")
-		.eq("type", type)
-		.eq("data->>emailId", emailId)
-		.maybeSingle();
-
-	if (existing.data) {
+	if ((events ?? []).some((event) => event.type === type)) {
 		return NextResponse.json({ ok: true, skipped: "already recorded" });
 	}
 
 	// Carried across from the send so the trail reads the same either way. It is
 	// a jsonb column, so nothing guarantees the shape; anything but a string is
 	// treated as absent rather than written back out.
-	const sentData = sent.data.data as Record<string, unknown> | null;
+	const sentData = sent.data as Record<string, unknown> | null;
 	const template = typeof sentData?.template === "string" ? sentData.template : null;
 	const to = Array.isArray(payload.data?.to) ? payload.data.to[0] : payload.data?.to;
 
-	const { error } = await supabase.from("order_events").insert({
-		order_id: sent.data.order_id,
+	const { error: insertError } = await supabase.from("order_events").insert({
+		order_id: sent.order_id,
 		type,
 		data: {
 			template,
@@ -149,9 +149,9 @@ export async function POST(request: Request) {
 		},
 	});
 
-	if (error) {
+	if (insertError) {
 		// Worth a retry: the row is what the owner will actually see.
-		return NextResponse.json({ ok: false, error: error.message }, { status: 502 });
+		return NextResponse.json({ ok: false, error: insertError.message }, { status: 502 });
 	}
 
 	return NextResponse.json({ ok: true, recorded: type });
