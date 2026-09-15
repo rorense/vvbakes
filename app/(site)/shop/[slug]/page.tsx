@@ -4,7 +4,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SITE_NAME, siteUrl } from "@/lib/constants";
 import { formatPrice, priceRule } from "@/lib/pricing";
-import { getCategories, getProductBySlug, getProductSlugs, getSettings } from "@/lib/queries";
+import {
+	getCategories,
+	getExtras,
+	getProductBySlug,
+	getProductSlugs,
+	getSettings,
+} from "@/lib/queries";
 import { Container, Section } from "@/components/ui/Container";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { ArchFrame } from "@/components/ui/ArchFrame";
@@ -60,10 +66,14 @@ export async function generateMetadata({
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
 	const { slug } = await params;
-	const [product, categories, settings] = await Promise.all([
+	const [product, categories, settings, extras] = await Promise.all([
 		getProductBySlug(slug),
 		getCategories(),
 		getSettings(),
+		// One list for the whole shop, so every product page asks the same question
+		// and gets the same answer. Empty until the owner adds one, which is what
+		// hides the picker rather than showing an empty heading.
+		getExtras(),
 	]);
 
 	if (!product) notFound();
@@ -149,8 +159,22 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 							    a table repeating "$45" once per flavour was a second answer
 							    to a question already answered. What is left is the plain
 							    per-unit price, which nothing else states, and the bundles,
-							    which the pickers never mention. */}
-							{product.variants.length === 0 || product.tiers.length > 0 ? (
+							    which the pickers never mention.
+
+							    A product priced on request has none of that to say. Every
+							    row here would be quoting the placeholder sitting in
+							    `unitPriceCents`, so the whole table gives way to the one
+							    line that is actually true. */}
+							{product.priceOnRequest ? (
+								<div className="flex flex-col gap-2">
+									<SectionLabel as="h2">Price</SectionLabel>
+									<p className="text-cocoa-soft text-sm">
+										It depends on the size and how much work goes on top, so I price it once I know
+										what you&rsquo;re after. Tell me below and I&rsquo;ll come back to you with a
+										number and where to send it.
+									</p>
+								</div>
+							) : product.variants.length === 0 || product.tiers.length > 0 ? (
 								<div className="flex flex-col gap-2">
 									<SectionLabel as="h2">Price</SectionLabel>
 									<HairlineList as="dl">
@@ -182,7 +206,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 								</div>
 							) : null}
 
-							<AddToOrder product={product} />
+							<AddToOrder
+								product={product}
+								extras={extras}
+							/>
 
 							<VariantAllergens product={product} />
 

@@ -47,6 +47,10 @@ type ProductRow = {
 	availability_note: string | null;
 	allergens: string[];
 	sort_order: number;
+	/** No price until the owner has seen the brief; she quotes it afterwards. */
+	price_on_request: boolean;
+	/** The product page asks for inspiration photos and a link, not just a note. */
+	wants_brief: boolean;
 	created_at: string;
 	updated_at: string;
 };
@@ -97,6 +101,7 @@ type ProductVariantOptionRow = {
 	group_id: string;
 	option_id: string;
 };
+
 type SiteSettingsRow = {
 	id: number;
 	business_name: string;
@@ -186,6 +191,14 @@ type OrderItemRow = {
 	qty: number;
 	line_total_cents: number;
 	pricing_note: string | null;
+	/** What the customer typed about this line. Offered on every product. */
+	note: string | null;
+	/** A link they gave for this line. Checked for scheme before it is rendered. */
+	inspiration_url: string | null;
+	/** Object paths in the order-inspiration bucket, for this line. At most three. */
+	inspiration_image_paths: string[];
+	/** Snapshotted: this line had no price yet. Zero above means unpriced, not free. */
+	price_on_request: boolean;
 };
 
 type OrderEventRow = {
@@ -220,6 +233,28 @@ type ReviewRow = {
 	updated_at: string;
 };
 
+type ExtraRow = {
+	id: string;
+	name: string;
+	description: string | null;
+	price_cents: number;
+	is_available: boolean;
+	sort_order: number;
+	created_at: string;
+	updated_at: string;
+};
+
+type OrderItemExtraRow = {
+	id: string;
+	order_item_id: string;
+	extra_id: string | null;
+	name: string;
+	qty: number;
+	unit_price_cents: number;
+	line_total_cents: number;
+	sort_order: number;
+};
+
 /** Columns a client may write, with server-defaulted ones optional. */
 type Writable<Row, Required extends keyof Row = never> = Partial<Row> & Pick<Row, Required>;
 
@@ -251,6 +286,12 @@ export type Database = {
 				Row: ReviewRow;
 				Insert: Writable<ReviewRow, "author" | "body">;
 				Update: Partial<ReviewRow>;
+				Relationships: [];
+			};
+			extras: {
+				Row: ExtraRow;
+				Insert: Writable<ExtraRow, "name" | "price_cents">;
+				Update: Partial<ExtraRow>;
 				Relationships: [];
 			};
 			products: {
@@ -384,6 +425,29 @@ export type Database = {
 						columns: ["order_id"];
 						isOneToOne: false;
 						referencedRelation: "orders";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			// Written only by `place_order`, which runs as security definer, so the
+			// client has no business inserting into it — same as `order_items`.
+			order_item_extras: {
+				Row: OrderItemExtraRow;
+				Insert: never;
+				Update: never;
+				Relationships: [
+					{
+						foreignKeyName: "order_item_extras_order_item_id_fkey";
+						columns: ["order_item_id"];
+						isOneToOne: false;
+						referencedRelation: "order_items";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "order_item_extras_extra_id_fkey";
+						columns: ["extra_id"];
+						isOneToOne: false;
+						referencedRelation: "extras";
 						referencedColumns: ["id"];
 					},
 				];

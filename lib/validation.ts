@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_BRIEF_NOTE, MAX_BRIEF_URL } from "./brief";
 import { ALLERGENS, ACCENTS } from "./types";
 
 /**
@@ -63,6 +64,24 @@ const optionalText = (max: number) =>
 		.nullable()
 		.catch(null);
 
+/**
+ * A link a customer typed, or null.
+ *
+ * `max` is left short of the column's 500 so that prepending a scheme to a bare
+ * "pinterest.com/…" can never overflow it. The scheme is checked because this
+ * is rendered as an href in the admin, in an email and on the customer's own
+ * order page, and `new URL()` is perfectly happy to parse `javascript:`.
+ */
+const inspirationLink = z
+	.string()
+	.trim()
+	.max(MAX_BRIEF_URL, "That link is too long to be a link")
+	.transform(withScheme)
+	.refine(
+		(value) => value === null || isHttpUrl(value),
+		"That link should start with http:// or https://",
+	);
+
 // --- ordering ---------------------------------------------------------------
 
 const orderItemSchema = z.object({
@@ -70,14 +89,27 @@ const orderItemSchema = z.object({
 	// Absent for a product sold as one thing. Which flavours exist, and whether
 	// this one is still on sale, is the database's call inside place_order.
 	variantId: z.string().uuid().nullable().optional(),
+	// The extras added to this line. Absent means none, which is what most lines
+	// are. Whether each one still exists and is still on sale is again the
+	// database's call; the cap is here because a line with twenty things added to
+	// it is a caller doing something other than ordering a cake.
+	extraIds: z.array(z.string().uuid()).max(10).optional(),
+	// What the customer said about this line: offered on every product, filled in
+	// on very few. Matches the check constraint on `order_items.note`.
+	note: z.string().trim().max(MAX_BRIEF_NOTE, "That note is longer than I can read").optional(),
+	// And the link, where the product asked for one. Whether it asked is the
+	// product page's business; a link on a line that did not is harmless and
+	// still worth showing the owner.
+	inspirationUrl: inspirationLink.optional(),
 	qty: z.number().int().min(1).max(200),
 });
 
 export const orderInputSchema = z
 	.object({
-		// May be empty: a custom cake enquiry has nothing off the menu in it. The
-		// refinement below makes sure the order is still *something*.
-		items: z.array(orderItemSchema).max(20),
+		// At least one: the custom cake is a product now, so there is no longer
+		// such a thing as an order with nothing in it. The database still accepts
+		// one for the sake of the orders already placed that way.
+		items: z.array(orderItemSchema).min(1, "Your order is empty.").max(20),
 		pickupDate: isoDate,
 		fulfilment: z.enum(["pickup", "delivery"]),
 		customerName: z.string().trim().min(2, "Please tell us your name").max(80),
@@ -89,18 +121,6 @@ export const orderInputSchema = z
 		customerPhone: z.string().trim().min(6, "Please add a phone number").max(30),
 		deliveryAddress: z.string().trim().max(300).optional(),
 		notes: z.string().trim().max(1000).optional(),
-		customRequest: z.string().trim().max(2000).optional(),
-		// Left short of the column's 500 so that prepending a scheme to a bare
-		// "pinterest.com/…" can never overflow it.
-		inspirationUrl: z
-			.string()
-			.trim()
-			.max(480, "That link is too long to be a link")
-			.transform(withScheme)
-			.refine(
-				(value) => value === null || isHttpUrl(value),
-				"That link should start with http:// or https://",
-			),
 	})
 	.refine(
 		(value) => value.fulfilment !== "delivery" || (value.deliveryAddress ?? "").trim().length > 0,
@@ -188,6 +208,12 @@ export const productSchema = z
 		availabilityNote: optionalText(120),
 		allergens: z.array(z.enum(ALLERGENS)),
 		sortOrder: z.coerce.number().int().min(0).max(9999),
+		// No price until she has seen the brief. The price field is still
+		// submitted and still stored — the form keeps showing it, greyed — because
+		// switching this off again should bring back whatever was there rather
+		// than a zero.
+		priceOnRequest: z.boolean(),
+		wantsBrief: z.boolean(),
 		tiers: z.array(priceTierSchema).max(6),
 		variantLabel: z.string().trim().min(1, "e.g. Flavour, Size").max(30),
 		optionGroups: z.array(productOptionGroupSchema).max(3),
@@ -347,60 +373,93 @@ const reviewSchema = z.object({
 	detail: optionalText(120),
 });
 
-export const settingsSchema = z.object({
-	businessName: z.string().trim().min(1).max(60),
-	tagline: z.string().trim().min(1).max(80),
-	aboutText: optionalText(2000),
-	pickupSuburb: optionalText(120),
-	pickupInstructions: optionalText(1000),
-	pickupWindowText: optionalText(120),
-	leadTimeDays: z.coerce.number().int().min(0).max(60),
-	cutoffTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, "Use a time like 20:00"),
-	bookingWindowDays: z.coerce.number().int().min(1).max(120),
-	timezone: z.string().trim().min(1).max(60),
-	ordersOpen: z.boolean(),
-	ordersClosedMessage: optionalText(300),
-	deliveryEnabled: z.boolean(),
-	deliveryFeeCents: dollars,
-	deliveryAreaText: optionalText(300),
-	contactEmail: z
+/**
+ * One extra, as the settings form submits it.
+ *
+ * The id is the existing row's, when there is one, and it is what keeps a past
+ * order pointing at the extra it named. The lengths match the check constraints
+ * on `extras`, so something too long comes back as a field error rather than as
+ * a failed insert.
+ */
+const extraSchema = z.object({
+	id: z.string().uuid().optional(),
+	name: z
 		.string()
 		.trim()
-		.max(120)
-		.transform((value) => (value === "" ? null : value))
-		.nullable()
-		.refine(
-			(value) => value === null || z.email().safeParse(value).success,
-			"That email address doesn't look right",
-		),
-	contactPhone: optionalText(30),
-	instagramHandle: z
-		.string()
-		.trim()
-		.min(1)
-		.max(40)
-		.transform((value) => value.replace(/^@/, "")),
-	// The home page's questions, submitted as one JSON field. An empty list is
-	// valid and hides the section.
-	faqs: z.array(faqSchema).max(20, "That is more questions than anyone will read"),
-	// Kind words, same arrangement. Nothing is seeded, so an empty list is the
-	// ordinary state rather than an error.
-	reviews: z.array(reviewSchema).max(20, "That is more reviews than anyone will read"),
-	// Private half. Stored separately and never rendered on a public page.
-	bankAccountName: optionalText(80),
-	bankAccountNumber: optionalText(40),
-	pickupAddress: optionalText(300),
-	notificationEmail: z
-		.string()
-		.trim()
-		.max(120)
-		.transform((value) => (value === "" ? null : value))
-		.nullable()
-		.refine(
-			(value) => value === null || z.email().safeParse(value).success,
-			"That email address doesn't look right",
-		),
+		.min(1, "Every extra needs a name and a price")
+		.max(60, "That name is longer than a name"),
+	description: optionalText(200),
+	priceCents: dollars,
+	isAvailable: z.boolean(),
 });
+
+export const settingsSchema = z
+	.object({
+		businessName: z.string().trim().min(1).max(60),
+		tagline: z.string().trim().min(1).max(80),
+		aboutText: optionalText(2000),
+		pickupSuburb: optionalText(120),
+		pickupInstructions: optionalText(1000),
+		pickupWindowText: optionalText(120),
+		leadTimeDays: z.coerce.number().int().min(0).max(60),
+		cutoffTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, "Use a time like 20:00"),
+		bookingWindowDays: z.coerce.number().int().min(1).max(120),
+		timezone: z.string().trim().min(1).max(60),
+		ordersOpen: z.boolean(),
+		ordersClosedMessage: optionalText(300),
+		deliveryEnabled: z.boolean(),
+		deliveryFeeCents: dollars,
+		deliveryAreaText: optionalText(300),
+		contactEmail: z
+			.string()
+			.trim()
+			.max(120)
+			.transform((value) => (value === "" ? null : value))
+			.nullable()
+			.refine(
+				(value) => value === null || z.email().safeParse(value).success,
+				"That email address doesn't look right",
+			),
+		contactPhone: optionalText(30),
+		instagramHandle: z
+			.string()
+			.trim()
+			.min(1)
+			.max(40)
+			.transform((value) => value.replace(/^@/, "")),
+		// The home page's questions, submitted as one JSON field. An empty list is
+		// valid and hides the section.
+		faqs: z.array(faqSchema).max(20, "That is more questions than anyone will read"),
+		// Kind words, same arrangement. Nothing is seeded, so an empty list is the
+		// ordinary state rather than an error.
+		reviews: z.array(reviewSchema).max(20, "That is more reviews than anyone will read"),
+		// The extras offered on every product. Same arrangement again, except that
+		// these keep their ids: an order points at the extra it carried.
+		extras: z.array(extraSchema).max(20, "That is more extras than anyone will scroll past"),
+		// Private half. Stored separately and never rendered on a public page.
+		bankAccountName: optionalText(80),
+		bankAccountNumber: optionalText(40),
+		pickupAddress: optionalText(300),
+		notificationEmail: z
+			.string()
+			.trim()
+			.max(120)
+			.transform((value) => (value === "" ? null : value))
+			.nullable()
+			.refine(
+				(value) => value === null || z.email().safeParse(value).success,
+				"That email address doesn't look right",
+			),
+	})
+	.refine(
+		(value) => {
+			// Case-folded, because "Candles" and "candles" are one thing to a customer
+			// reading the picker even though the unique index would let both through.
+			const names = value.extras.map((extra) => extra.name.toLowerCase());
+			return new Set(names).size === names.length;
+		},
+		{ message: "Two of those extras have the same name", path: ["extras"] },
+	);
 
 // --- helpers ----------------------------------------------------------------
 

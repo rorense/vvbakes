@@ -8,6 +8,7 @@
  * If the two ever disagree, the database is right and this file has a bug.
  */
 import type {
+	Extra,
 	PriceTier,
 	Product,
 	ProductOption,
@@ -19,7 +20,26 @@ export interface PricedQuantity {
 	totalCents: number;
 	/** e.g. "1 x 4 for $12.00 + 1 x $3.00 each" */
 	note: string;
+	/**
+	 * True when there is no price yet, only a promise of one.
+	 *
+	 * `totalCents` is zero on such a line and must not be rendered as money:
+	 * "$0.00" beside a custom cake reads as a free cake. Callers show `note`
+	 * instead and leave the line out of any figure they call a total.
+	 */
+	onRequest: boolean;
 }
+
+/**
+ * What a line with no price yet says instead of a number.
+ *
+ * The same string `place_order` writes into `pricing_note` for one of these
+ * lines, so the basket and the order it becomes read identically.
+ */
+export const PRICE_ON_REQUEST_NOTE = "Price to follow";
+
+/** How a product with no price yet is advertised on a card or a menu line. */
+export const PRICE_ON_REQUEST_LABEL = "Price on request";
 
 export function formatMoney(cents: number): string {
 	return `$${(cents / 100).toFixed(2)}`;
@@ -91,7 +111,7 @@ export function priceForQty(
 			return `${count} x ${size} for ${formatMoney(tier.priceCents)}`;
 		});
 
-	return { totalCents: best[qty]!, note: parts.join(" + ") };
+	return { totalCents: best[qty]!, note: parts.join(" + "), onRequest: false };
 }
 
 /** True when the product is sold as flavours, sizes or some other named choice. */
@@ -307,7 +327,81 @@ export function priceProduct(
 	qty: number,
 	variant: ProductVariant | null = null,
 ): PricedQuantity {
+	// Nothing to price and nothing to bundle. `place_order` short-circuits the
+	// same way and writes the same note, so the number the basket shows and the
+	// number the order carries are the same number: none.
+	if (product.priceOnRequest) {
+		return { totalCents: 0, note: PRICE_ON_REQUEST_NOTE, onRequest: true };
+	}
 	return priceForQty(unitPriceOf(product, variant), product.tiers, qty, product.unitLabel);
+}
+
+// --- extras -----------------------------------------------------------------
+
+/**
+ * The extras a customer may actually pick right now.
+ *
+ * One list for the whole shop, so this is the same answer on every product
+ * page. An empty result hides the picker rather than showing an empty heading.
+ */
+export function availableExtras(extras: readonly Extra[]): Extra[] {
+	return extras.filter((extra) => extra.isAvailable);
+}
+
+/**
+ * The same ids, de-duplicated and sorted.
+ *
+ * Two extras picked in one order and the same two picked in the other are one
+ * choice, so the cart has to write them down the same way or it ends up with
+ * two lines of the same thing. `place_order` reduces them the same way inside
+ * the transaction, which is what makes the two agree.
+ */
+export function normaliseExtraIds(ids: readonly string[] | null | undefined): string[] {
+	return [...new Set(ids ?? [])].sort();
+}
+
+/**
+ * The extras these ids name, in the owner's order.
+ *
+ * Deliberately tolerant of an id that no longer matches anything, for the same
+ * reason `findVariant` is: the cart is localStorage and can still be holding a
+ * candle she stopped selling last week. What comes back is what is still real,
+ * and the caller decides whether a line that lost one is worth keeping.
+ */
+export function findExtras(extras: readonly Extra[], ids: readonly string[] | null | undefined) {
+	const wanted = new Set(ids ?? []);
+	return extras.filter((extra) => wanted.has(extra.id));
+}
+
+/** What one unit's worth of these extras costs. */
+export function extrasUnitCents(chosen: readonly Extra[]): number {
+	return chosen.reduce((total, extra) => total + extra.priceCents, 0);
+}
+
+/**
+ * What these extras add to a line of `qty`.
+ *
+ * Per unit, not per line: two cakes with candles is two sets of candles, which
+ * is what someone ordering two cakes for two parties means. Bundle tiers do not
+ * apply — a bundle is the owner's price for several of one product, and she has
+ * not been asked for a price on four sets of candles.
+ */
+export function extrasTotalCents(chosen: readonly Extra[], qty: number): number {
+	return extrasUnitCents(chosen) * qty;
+}
+
+/**
+ * How one extra reads beside its own name: "+$3.00 each", or just "Free".
+ *
+ * "each" is left off when there is nothing to distinguish it from, so a picker
+ * on a product ordered one at a time does not imply a second price.
+ */
+export function extraPriceLabel(
+	extra: Extra,
+	{ perUnit = true }: { perUnit?: boolean } = {},
+): string {
+	if (extra.priceCents === 0) return "Free";
+	return perUnit ? `+${formatPrice(extra.priceCents)} each` : `+${formatPrice(extra.priceCents)}`;
 }
 
 /**
@@ -326,6 +420,10 @@ export function priceRule(
 	product: Product,
 	{ bundles = true }: { bundles?: boolean } = {},
 ): string {
+	// No price, so no per-unit price, no bundles and no step price either: every
+	// branch below would be quoting the placeholder in `unitPriceCents`.
+	if (product.priceOnRequest) return PRICE_ON_REQUEST_LABEL;
+
 	const base = priceRange(product);
 
 	if (bundles && product.tiers.length > 0) {
@@ -352,6 +450,8 @@ export function priceRule(
  * end of is worse than quoting nothing.
  */
 export function priceRange(product: Product): string {
+	if (product.priceOnRequest) return PRICE_ON_REQUEST_LABEL;
+
 	const suffix = product.unitLabel === "each" ? "each" : `/ ${product.unitLabel}`;
 
 	if (!hasVariants(product)) {

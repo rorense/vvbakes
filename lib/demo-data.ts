@@ -13,6 +13,7 @@ import type {
 	AvailabilityOverride,
 	AvailabilityRule,
 	Category,
+	Extra,
 	Faq,
 	Product,
 	Review,
@@ -63,11 +64,48 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		availabilityNote: null,
 		allergens: [],
 		sortOrder: 1,
+		priceOnRequest: false,
+		wantsBrief: false,
 		...overrides,
 	};
 }
 
 export const DEMO_PRODUCTS: Product[] = [
+	// Mirrors the product seeded by
+	// supabase/migrations/20260916000003_custom_cake_product.sql. It leads its
+	// category because it is the thing she mostly makes, and it is the only one
+	// here with no price: the sizes are questions, not price points.
+	demoProduct({
+		id: "demo-0",
+		slug: "custom-cake",
+		name: "Custom cake",
+		categoryId: "demo-cat-3",
+		description:
+			"Tell me what you are after and I will come back to you with a price. The occasion, roughly how many people, flavours and colours — and a picture, if you have one.",
+		unitPriceCents: 0,
+		unitLabel: "cake",
+		isFeatured: true,
+		sortOrder: 0,
+		priceOnRequest: true,
+		wantsBrief: true,
+		variantLabel: "Size",
+		variants: [
+			"Six to eight people",
+			"Ten to twelve people",
+			"Fifteen to twenty people",
+			"Two tiers",
+			"Not sure yet",
+		].map((name, index) => ({
+			id: `demo-0-v${index + 1}`,
+			name,
+			unitPriceCents: 0,
+			imagePath: null,
+			allergens: [],
+			isAvailable: true,
+			sortOrder: index + 1,
+			optionIds: [],
+		})),
+	}),
 	demoProduct({
 		id: "demo-1",
 		slug: "cupcakes",
@@ -195,6 +233,41 @@ export const DEMO_FAQS: Faq[] = [
  * band is hidden until the owner has a real one.
  */
 export const DEMO_REVIEWS: Review[] = [];
+
+/**
+ * Stand-in extras, so a fresh clone shows the picker rather than a product page
+ * that looks like the feature was never built.
+ *
+ * The real table is seeded with nothing on purpose — a price the owner never
+ * agreed to charge has no business on a live page — but this catalogue is fake
+ * from top to bottom and says so on every page that uses it.
+ */
+export const DEMO_EXTRAS: Extra[] = [
+	{
+		id: "demo-extra-1",
+		name: "Birthday candles",
+		description: "Six, in whatever colour goes with the icing.",
+		priceCents: 300,
+		isAvailable: true,
+		sortOrder: 1,
+	},
+	{
+		id: "demo-extra-2",
+		name: "Gift box",
+		description: "Ribbon and all, ready to hand over.",
+		priceCents: 800,
+		isAvailable: true,
+		sortOrder: 2,
+	},
+	{
+		id: "demo-extra-3",
+		name: "Handwritten card",
+		description: "Tell me what to write in the notes.",
+		priceCents: 0,
+		isAvailable: true,
+		sortOrder: 3,
+	},
+];
 
 export const DEMO_RULES: AvailabilityRule[] = ([0, 1, 2, 3, 4, 5, 6] as Weekday[]).map(
 	(weekday) => ({

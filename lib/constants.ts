@@ -5,6 +5,16 @@ export const SITE_TAGLINE = "Inspired Desserts";
 const INSTAGRAM_HANDLE = "vv.bakes";
 export const CART_STORAGE_KEY = "vvbakes:cart";
 
+/**
+ * The IndexedDB database holding inspiration photos until an order is placed.
+ *
+ * Separate from the cart's localStorage key because the two hold different
+ * kinds of thing: the cart is a small JSON document, these are megabytes of
+ * Blob. See lib/photo-store.ts for why they cannot share.
+ */
+export const PHOTO_STORE_NAME = "vvbakes:photos";
+export const PHOTO_STORE_VERSION = 1;
+
 /** The order form rejects submissions faster than this, no human fills it in that quickly. */
 export const MIN_FORM_FILL_MS = 3000;
 
@@ -15,13 +25,24 @@ export const PRODUCT_IMAGE_BUCKET = "product-images";
 export const INSPIRATION_IMAGE_BUCKET = "order-inspiration";
 
 /**
- * How many inspiration photos one order may carry.
+ * How many inspiration photos one line of an order may carry.
  *
  * Three covers what people actually send — a cake they saw, a colour, a
- * handwriting sample — and keeps the whole submission inside the body size
- * limit set in next.config.ts.
+ * handwriting sample. The brief belongs to the line now, so a basket with two
+ * custom cakes in it may carry two sets of three.
  */
 export const MAX_INSPIRATION_PHOTOS = 3;
+
+/**
+ * How many inspiration photos one whole order may carry, across every line.
+ *
+ * The per-line limit above is about what a brief needs; this one is about what
+ * fits. Each photo is re-encoded to roughly 400 KB in the browser, and the
+ * whole submission has to sit inside the 4 MB body limit set in next.config.ts
+ * with the form fields around it. Six is two full briefs, which is already more
+ * custom cakes than one order has ever held.
+ */
+export const MAX_ORDER_INSPIRATION_PHOTOS = 6;
 
 /**
  * The ceiling on one inspiration photo once the browser has re-encoded it.

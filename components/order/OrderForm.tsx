@@ -5,10 +5,14 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { placeOrder } from "@/app/(site)/order/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
+import { briefPhotoIds } from "@/lib/brief";
 import { cartLineKey, clearCart, useCart } from "@/lib/cart";
 import { cn } from "@/lib/cn";
+import { MAX_ORDER_INSPIRATION_PHOTOS } from "@/lib/constants";
 import { formatDateShort, type IsoDate } from "@/lib/dates";
+import { loadPhotos, sweepPhotos } from "@/lib/photo-store";
 import {
+	extrasTotalCents,
 	findVariant,
 	formatMoney,
 	hasVariants,
@@ -16,34 +20,52 @@ import {
 	isVariantAvailable,
 	minOrderQty,
 	minQty,
+	normaliseExtraIds,
 	priceProduct,
 } from "@/lib/pricing";
-import type { PickableDate, Product, PublicCalendarMonth, SiteSettings } from "@/lib/types";
-import { Button } from "@/components/ui/Button";
+import type {
+	CartBrief,
+	Extra,
+	PickableDate,
+	Product,
+	PublicCalendarMonth,
+	SiteSettings,
+} from "@/lib/types";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, FormError, Input, Textarea } from "@/components/ui/Form";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { Stepper } from "@/components/ui/Stepper";
 import { ProductImage } from "@/components/site/ProductCard";
-import { InspirationPicker, type InspirationPhoto } from "./InspirationPicker";
 import { PickupCalendar } from "./PickupCalendar";
 
 /**
- * The order form, laid out as a printed order slip: numbered sections down one
- * column, a hairline list of what you're buying, and a running total pinned to
- * the bottom of the screen on a phone.
+ * The order page: a cart, and the few things that have to be asked once.
+ *
+ * It used to be two pages in one. A custom cake had no product to browse to, so
+ * the bottom of this form carried a second personality — a description, an
+ * uploader and a link that belonged to the whole order — and the basket above
+ * it had to keep pretending it might be empty on purpose. The custom cake is a
+ * product now, briefs belong to the lines that carry them, and what is left
+ * here is a cart: what you are buying, when you want it, where it goes and who
+ * you are.
  *
  * The cart lives in localStorage and is turned into a hidden JSON field on
- * submit. Prices shown here are computed by lib/pricing.ts; the database prices
- * the order again when it is written, and that is what gets charged.
+ * submit; the photos attached to a line live in IndexedDB and are appended to
+ * the submission itself. Prices shown here are computed by lib/pricing.ts; the
+ * database prices the order again when it is written, and that is what gets
+ * charged.
  */
 export function OrderForm({
 	products,
+	extras,
 	dates,
 	months,
 	settings,
 	initialDate = null,
 }: {
 	products: Product[];
+	/** The shop-wide list, for pricing and naming whatever a line carries. */
+	extras: Extra[];
 	dates: PickableDate[];
 	/** The same month grids the home page draws, for choosing a date. */
 	months: PublicCalendarMonth[];
@@ -61,10 +83,6 @@ export function OrderForm({
 	const [chosenDateValue, setChosenDateValue] = useState<IsoDate | "">(initialDate ?? "");
 	const [fulfilment, setFulfilment] = useState<"pickup" | "delivery">("pickup");
 
-	// Inspiration photos are held here as compressed files and only leave the
-	// browser attached to the submission itself. See InspirationPicker for why.
-	const [photos, setPhotos] = useState<InspirationPhoto[]>([]);
-
 	// When the form was opened, used to reject submissions no human could have
 	// completed that fast. Held in a ref written from an effect: the clock is an
 	// external system, so reading it during render is not allowed, and a hidden
@@ -77,23 +95,19 @@ export function OrderForm({
 		openedAt.current = Date.now();
 	}, []);
 
-	// Stamps the timestamp on the way out, and attaches the photos. Reading a ref
-	// in an event handler is exactly where refs are meant to be read.
-	const action = (formData: FormData) => {
-		formData.set("startedAt", String(openedAt.current));
-		for (const photo of photos) {
-			formData.append("inspirationPhotos", photo.file, photo.file.name);
-		}
-		return formAction(formData);
-	};
-
 	const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+	const extraById = useMemo(() => new Map(extras.map((e) => [e.id, e])), [extras]);
 
 	// Cart lines resolved against the live catalogue. A product that has since
 	// been deleted or sold out drops out here rather than failing on submit, and
 	// so does a flavour that has: the basket outlives the menu it was filled
 	// from, and the two have to be reconciled somewhere.
-	const lines = useMemo(
+	//
+	// An extra that has gone is the one thing that does *not* take its line with
+	// it. Someone who wanted candles on a cake still wants the cake, so the extra
+	// is dropped, counted, and said out loud below. A brief is never dropped: it
+	// is the customer's own words, and there is nothing in it to go stale.
+	const resolved = useMemo(
 		() =>
 			cart.lines
 				.map((line) => {
@@ -117,17 +131,135 @@ export function OrderForm({
 						return null;
 					}
 
+					const wanted = normaliseExtraIds(line.extraIds);
+					const chosen = wanted
+						.map((id) => extraById.get(id))
+						.filter((extra): extra is Extra => Boolean(extra?.isAvailable));
+
 					return {
-						key: cartLineKey(product.id, variant?.id),
+						// What the cart itself holds, stale ids and all. Removing or
+						// re-counting a line has to match on this, not on what survived.
+						source: {
+							variantId: line.variantId ?? null,
+							extraIds: line.extraIds ?? [],
+							brief: line.brief,
+						},
 						product,
 						variant,
+						extras: chosen,
+						lostExtras: wanted.length - chosen.length,
+						brief: line.brief,
 						qty: line.qty,
-						...priceProduct(product, line.qty, variant),
 					};
 				})
 				.filter((line): line is NonNullable<typeof line> => line !== null),
-		[cart.lines, byId],
+		[cart.lines, byId, extraById],
 	);
+
+	// Two saved lines can land on the same thing once a dropped extra is taken
+	// off one of them — a cake with candles the owner has since deleted is now
+	// just a cake, and the basket may already hold one of those.
+	//
+	// They are merged rather than listed twice, because `place_order` groups the
+	// items it is handed the same way and prices the total quantity as one line.
+	// Left unmerged, a bundle price would apply there and not here, and the
+	// number on this page would be the one number it must never be: different
+	// from the one charged.
+	//
+	// The brief is part of the key, so two cakes described differently never
+	// merge however alike the rest of the line looks. `place_order` groups by it
+	// too, which is what keeps the two counts the same.
+	const lines = useMemo(() => {
+		type Line = (typeof resolved)[number] & {
+			key: string;
+			sources: Array<(typeof resolved)[number]["source"]>;
+		};
+		const merged = new Map<string, Line>();
+
+		for (const entry of resolved) {
+			const key = cartLineKey(
+				entry.product.id,
+				entry.variant?.id,
+				entry.extras.map((extra) => extra.id),
+				entry.brief,
+			);
+			const found = merged.get(key);
+
+			if (found) {
+				found.qty += entry.qty;
+				found.lostExtras += entry.lostExtras;
+				found.sources.push(entry.source);
+			} else {
+				merged.set(key, { ...entry, key, sources: [entry.source] });
+			}
+		}
+
+		return [...merged.values()].map((line) => {
+			const menu = priceProduct(line.product, line.qty, line.variant);
+			const extrasCents = extrasTotalCents(line.extras, line.qty);
+
+			return {
+				...line,
+				// `note` explains the menu price and only the menu price, exactly as
+				// `pricing_note` does on the order it becomes. The extras are named
+				// under the line with their own totals.
+				note: menu.note,
+				// True for a cake nobody has priced yet. Its `totalCents` is zero and
+				// must not be rendered as money.
+				onRequest: menu.onRequest,
+				extrasCents,
+				totalCents: menu.totalCents + extrasCents,
+			};
+		});
+	}, [resolved]);
+
+	/** Every photo the basket still names, in the order the lines are listed. */
+	const photoIds = useMemo(() => lines.flatMap((line) => briefPhotoIds(line.brief)), [lines]);
+
+	const photos = useLinePhotos(photoIds);
+
+	// Anything the store is still holding that no line names any more. This is
+	// the only moment the whole cart is in hand, so it is the only place in a
+	// position to notice.
+	useEffect(() => {
+		if (!ready) return;
+		void sweepPhotos(cart.lines.flatMap((line) => briefPhotoIds(line.brief)));
+	}, [ready, cart.lines]);
+
+	// Stamps the timestamp on the way out, and attaches each line's photos under
+	// that line's own index. Reading a ref in an event handler is exactly where
+	// refs are meant to be read.
+	const action = (formData: FormData) => {
+		formData.set("startedAt", String(openedAt.current));
+
+		lines.forEach((line, index) => {
+			for (const id of briefPhotoIds(line.brief)) {
+				const photo = photos.get(id);
+				// A photo the store no longer has is left out rather than faked. The
+				// words are already on their way; the gap is said out loud below.
+				if (photo) formData.append(`linePhotos:${index}`, photo.file, photo.file.name);
+			}
+		});
+
+		return formAction(formData);
+	};
+
+	/** Empties every saved line that fed this one, merged or not. */
+	const removeLine = (line: (typeof lines)[number]) => {
+		for (const source of line.sources) {
+			remove(line.product.id, source.variantId, source.extraIds, source.brief);
+		}
+	};
+
+	/** Puts the whole new quantity on the first saved line and drops the rest. */
+	const setLineQty = (line: (typeof lines)[number], next: number) => {
+		const [first, ...rest] = line.sources;
+		if (!first) return;
+		setQty(line.product.id, next, first.variantId, first.extraIds, first.brief);
+		for (const source of rest) {
+			remove(line.product.id, source.variantId, source.extraIds, source.brief);
+		}
+	};
 
 	// A minimum is a rule about the whole product, not about one line: six
 	// cupcakes is met by three chocolate and three vanilla. So the lines are
@@ -147,10 +279,27 @@ export function OrderForm({
 			.filter((entry) => entry.qty < entry.minimum);
 	}, [lines, byId]);
 
-	const droppedCount = ready ? cart.lines.length - lines.length : 0;
+	const droppedCount = ready ? cart.lines.length - resolved.length : 0;
+	// Counted separately from the dropped lines: an extra going is a smaller thing
+	// than a cake going, and rolling the two together would tell someone their
+	// cake had been removed when it is sitting right there.
+	const droppedExtras = ready ? lines.reduce((total, line) => total + line.lostExtras, 0) : 0;
+	// Photos a line still names that the browser no longer has: cleared site
+	// data, a different device, a private window that forgot. Worth saying,
+	// because the customer chose them and would otherwise never learn.
+	const lostPhotos = ready ? photoIds.filter((id) => !photos.has(id)).length : 0;
+
 	const subtotal = lines.reduce((total, line) => total + line.totalCents, 0);
 	const deliveryFee = fulfilment === "delivery" ? settings.deliveryFeeCents : 0;
 	const total = subtotal + deliveryFee;
+	// Something in the basket has no price yet, so the figure above is a subtotal
+	// of everything else and has to say so wherever it appears.
+	const hasUnpriced = lines.some((line) => line.onRequest);
+
+	const attachedPhotos = photoIds.filter((id) => photos.has(id)).length;
+	const tooManyPhotos = attachedPhotos > MAX_ORDER_INSPIRATION_PHOTOS;
+
+	const isEmpty = ready && lines.length === 0;
 
 	const chosenDate = dates.find((date) => date.date === chosenDateValue) ?? dates[0] ?? null;
 	const pickupDate = chosenDate?.date ?? "";
@@ -176,21 +325,38 @@ export function OrderForm({
 		}
 	}, [error]);
 
-	// An empty basket used to end the journey here. It now means a custom cake:
-	// the thing she mostly makes, and the thing nobody can put in a basket.
-	const isCustomOnly = ready && lines.length === 0;
-
 	// Held back rather than sent and refused. The database would raise
 	// QTY_BELOW_MINIMUM and the customer would get the same answer a scroll
 	// later, having filled in the rest of the form for nothing.
-	const canSubmit = Boolean(pickupDate) && shortfalls.length === 0;
+	const canSubmit =
+		lines.length > 0 && Boolean(pickupDate) && shortfalls.length === 0 && !tooManyPhotos;
+
+	// An empty basket is now simply an empty basket. There is nothing to ask
+	// for here that the shop does not ask better, so this is a signpost rather
+	// than a form.
+	if (isEmpty) {
+		return (
+			<div className="border-line bg-paper-deep flex flex-col items-start gap-4 rounded-md border p-8">
+				<h2 className="font-display text-2xl">Nothing in your order yet</h2>
+				<p className="text-cocoa-soft text-sm">
+					{droppedCount > 0
+						? "What you had saved is no longer available. Have another look and I'll see what I can do."
+						: "Pick something from the shop and it'll show up here. A custom cake starts there too — tell me about it on its page and it comes through with everything else."}
+				</p>
+				<ButtonLink href="/shop">Have a look at the menu</ButtonLink>
+			</div>
+		);
+	}
 
 	return (
 		<form
 			action={action}
 			className="flex flex-col gap-12 pb-28 sm:pb-0">
 			{/* Hidden state. The cart is a client-side thing; this is how it reaches
-			    the server without a round trip per change. */}
+			    the server without a round trip per change.
+
+			    The order of this array is the order the photos above were appended
+			    under, so a line's index means the same thing on both sides. */}
 			<input
 				type="hidden"
 				name="items"
@@ -198,6 +364,12 @@ export function OrderForm({
 					lines.map((line) => ({
 						productId: line.product.id,
 						variantId: line.variant?.id ?? null,
+						// Only what survived. Sending an id the owner has deleted would
+						// have the database refuse the whole order over a packet of
+						// candles this page has already said is gone.
+						extraIds: line.extras.map((extra) => extra.id),
+						note: line.brief?.note ?? "",
+						inspirationUrl: line.brief?.inspirationUrl ?? "",
 						qty: line.qty,
 					})),
 				)}
@@ -230,7 +402,7 @@ export function OrderForm({
 
 			<Step
 				n="01"
-				title={isCustomOnly ? "Your cake" : "What you'd like"}>
+				title="What you'd like">
 				{droppedCount > 0 ? (
 					<p className="border-line bg-paper-deep mb-4 rounded-md border px-4 py-3 text-sm">
 						{droppedCount === 1 ? "An item" : `${droppedCount} items`} in your order
@@ -239,23 +411,25 @@ export function OrderForm({
 					</p>
 				) : null}
 
-				{isCustomOnly ? (
-					<div className="border-line bg-paper-deep flex flex-col items-start gap-3 rounded-md border p-5">
-						<p className="text-sm font-medium">Nothing off the menu, just a cake</p>
-						<p className="text-cocoa-soft text-sm">
-							{droppedCount > 0
-								? "What you had saved is no longer available. Tell me what you're after below and I'll see what I can do."
-								: "Tell me about it below and I'll come back with a price. You can add things from the menu too if you'd like."}
-						</p>
-						<Link
-							href="/shop"
-							className="text-sm font-medium underline underline-offset-4">
-							Have a look at the menu
-						</Link>
-					</div>
+				{droppedExtras > 0 ? (
+					<p className="border-line bg-paper-deep mb-4 rounded-md border px-4 py-3 text-sm">
+						{droppedExtras === 1 ? "An extra" : `${droppedExtras} extras`} you added{" "}
+						{droppedExtras === 1 ? "is" : "are"} no longer available, so{" "}
+						{droppedExtras === 1 ? "it has" : "they have"} been taken off. Everything else is still
+						here.
+					</p>
 				) : null}
 
-				<HairlineList className={isCustomOnly ? "hidden" : undefined}>
+				{lostPhotos > 0 ? (
+					<p className="border-line bg-paper-deep mb-4 rounded-md border px-4 py-3 text-sm">
+						{lostPhotos === 1 ? "A photo" : `${lostPhotos} photos`} you added{" "}
+						{lostPhotos === 1 ? "isn't" : "aren't"} on this device any more — photos stay in the
+						browser they were chosen in until the order is sent. Everything you typed is still here,
+						and you can add {lostPhotos === 1 ? "it" : "them"} again from the product page.
+					</p>
+				) : null}
+
+				<HairlineList>
 					{lines.map((line) => (
 						<HairlineRow
 							key={line.key}
@@ -279,10 +453,28 @@ export function OrderForm({
 										<p className="text-cocoa-soft text-xs">{line.variant.name}</p>
 									) : null}
 									<p className="text-cocoa-soft text-xs">{line.note}</p>
+									{/* Named with their own totals rather than folded into the
+									    line's, so the price beside the line goes on meaning what
+									    the menu charged. */}
+									{line.extras.map((extra) => (
+										<p
+											key={extra.id}
+											className="text-cocoa-soft text-xs">
+											+ {extra.name}{" "}
+											{extra.priceCents === 0 ? "(free)" : formatMoney(extra.priceCents * line.qty)}
+										</p>
+									))}
+
+									<LineBrief
+										brief={line.brief}
+										photos={photos}
+										href={`/shop/${line.product.slug}`}
+									/>
+
 									<button
 										type="button"
-										onClick={() => remove(line.product.id, line.variant?.id ?? null)}
-										className="text-cocoa-soft hover:text-cocoa w-fit text-xs underline underline-offset-2">
+										onClick={() => removeLine(line)}
+										className="text-cocoa-soft hover:text-cocoa mt-1 w-fit text-xs underline underline-offset-2">
 										Remove
 									</button>
 								</div>
@@ -302,10 +494,21 @@ export function OrderForm({
 									}
 									// The stepper never goes below its own min, so this cannot
 									// reach zero. Emptying a line is what "Remove" is for.
-									onChange={(next) => setQty(line.product.id, next, line.variant?.id ?? null)}
+									onChange={(next) => setLineQty(line, next)}
 								/>
-								<p className="font-display w-16 text-right text-lg">
-									{formatMoney(line.totalCents)}
+								{/* An unpriced cake shows what its extras come to, or nothing
+								    at all. "$0.00" beside a custom cake reads as a free one. */}
+								<p
+									className={
+										line.onRequest
+											? "text-cocoa-soft w-16 text-right text-xs"
+											: "font-display w-16 text-right text-lg"
+									}>
+									{line.onRequest
+										? line.extrasCents > 0
+											? formatMoney(line.extrasCents)
+											: "—"
+										: formatMoney(line.totalCents)}
 								</p>
 							</div>
 						</HairlineRow>
@@ -325,13 +528,21 @@ export function OrderForm({
 					</p>
 				) : null}
 
-				{isCustomOnly ? null : (
-					<Link
-						href="/shop"
-						className="mt-4 inline-block text-sm font-medium underline underline-offset-4">
-						Add something else
-					</Link>
-				)}
+				{tooManyPhotos ? (
+					<p
+						role="status"
+						className="border-danger text-danger mt-4 rounded-md border px-4 py-3 text-sm">
+						That&rsquo;s {attachedPhotos} photos across your order, and{" "}
+						{MAX_ORDER_INSPIRATION_PHOTOS} is the most I can take at once. Take a few off on the
+						product page, or send the rest through once I reply.
+					</p>
+				) : null}
+
+				<Link
+					href="/shop"
+					className="mt-4 inline-block text-sm font-medium underline underline-offset-4">
+					Add something else
+				</Link>
 			</Step>
 
 			<Step
@@ -452,64 +663,24 @@ export function OrderForm({
 				</div>
 			</Step>
 
+			{/* Kept at the order rather than moved onto the lines with the rest of
+			    the brief. "Nobody at the table can have nuts" is a fact about the
+			    whole order, and asking for it once is how it stays that way. */}
 			<Step
 				n={settings.deliveryEnabled ? "05" : "04"}
-				id="custom"
 				title="Anything I should know">
-				<div className="flex flex-col gap-5">
-					<Field
-						label="Allergies or notes"
-						hint="Anything I should avoid, or how you'd like it packed. Allergies especially."
-						error={fieldErrors.notes}>
-						{(props) => (
-							<Textarea
-								{...props}
-								name="notes"
-								rows={3}
-							/>
-						)}
-					</Field>
-
-					<Field
-						label={isCustomOnly ? "What would you like?" : "Tell me about your cake"}
-						required={isCustomOnly}
-						hint="The occasion, roughly how many people, flavours, colours, what it says on top. This is where custom cakes start. The more you tell me, the better I can price it."
-						error={fieldErrors.customRequest}>
-						{(props) => (
-							<Textarea
-								{...props}
-								name="customRequest"
-								rows={5}
-								placeholder="e.g. 30th birthday, about 12 people, chocolate, nothing too sweet. Happy Birthday Sam on top."
-							/>
-						)}
-					</Field>
-
-					{/* A picture is usually the whole brief. Most people have one saved
-					    already, and the ones who don't have a link to it. */}
-					<InspirationPicker
-						photos={photos}
-						onChange={setPhotos}
-						error={fieldErrors.inspirationPhotos}
-					/>
-
-					<Field
-						label="Or a link to one"
-						hint="Pinterest, Instagram, anywhere. One link is plenty."
-						error={fieldErrors.inspirationUrl}>
-						{(props) => (
-							<Input
-								{...props}
-								name="inspirationUrl"
-								type="url"
-								inputMode="url"
-								autoComplete="off"
-								placeholder="https://www.instagram.com/p/…"
-								invalid={Boolean(fieldErrors.inspirationUrl)}
-							/>
-						)}
-					</Field>
-				</div>
+				<Field
+					label="Allergies or notes"
+					hint="Anything I should avoid, or how you'd like it packed. Allergies especially. Anything about one particular item goes on that item, back in the shop."
+					error={fieldErrors.notes}>
+					{(props) => (
+						<Textarea
+							{...props}
+							name="notes"
+							rows={3}
+						/>
+					)}
+				</Field>
 			</Step>
 
 			<div
@@ -525,14 +696,14 @@ export function OrderForm({
 					subtotal={subtotal}
 					deliveryFee={deliveryFee}
 					total={total}
-					pending={isCustomOnly}
+					hasUnpriced={hasUnpriced}
 				/>
 				<div>
 					<Button
 						type="submit"
 						size="lg"
 						disabled={pending || !canSubmit}>
-						{pending ? "Sending…" : isCustomOnly ? "Ask about this cake" : "Send order request"}
+						{pending ? "Sending…" : "Send order request"}
 					</Button>
 				</div>
 				<p className="text-cocoa-soft text-xs">
@@ -546,8 +717,13 @@ export function OrderForm({
 					<span className="text-cocoa-soft text-xs">
 						{chosenDate ? formatDateShort(chosenDate.date) : "Choose a date"}
 					</span>
-					<span className={isCustomOnly ? "text-cocoa-soft text-xs" : "font-display text-xl"}>
-						{isCustomOnly ? "Price to follow" : formatMoney(total)}
+					<span className="flex items-baseline gap-2">
+						{total > 0 ? <span className="font-display text-xl">{formatMoney(total)}</span> : null}
+						{hasUnpriced ? (
+							<span className="text-cocoa-soft text-xs">
+								{total > 0 ? "+ your cake" : "Price to follow"}
+							</span>
+						) : null}
 					</span>
 				</div>
 				<Button
@@ -555,10 +731,125 @@ export function OrderForm({
 					size="lg"
 					className="w-full"
 					disabled={pending || !canSubmit}>
-					{pending ? "Sending…" : isCustomOnly ? "Ask about this cake" : "Send order request"}
+					{pending ? "Sending…" : "Send order request"}
 				</Button>
 			</div>
 		</form>
+	);
+}
+
+/** A photo out of the browser's store, with something to show it with. */
+interface LinePhoto {
+	file: File;
+	/** An object URL, revoked when this component lets the photo go. */
+	url: string;
+}
+
+/**
+ * The photos these ids name, loaded out of the browser's own store.
+ *
+ * They were chosen on a product page and have been waiting in IndexedDB ever
+ * since; this is where they are read back, shown, and — on submit — attached to
+ * the order. One object URL is minted per photo and revoked when the set
+ * changes, so a basket edited a dozen times does not leak a dozen blobs.
+ *
+ * An id that no longer names anything simply does not appear in the map. The
+ * form counts the gap and says so rather than pretending.
+ */
+function useLinePhotos(ids: string[]): Map<string, LinePhoto> {
+	const [photos, setPhotos] = useState<Map<string, LinePhoto>>(() => new Map());
+	// The ids as one string, so the effect re-runs when the *set* changes rather
+	// than on every render that rebuilt the array.
+	const key = ids.join(",");
+
+	useEffect(() => {
+		let live = true;
+		const wanted = key === "" ? [] : key.split(",");
+		const minted: string[] = [];
+
+		void loadPhotos(wanted).then((files) => {
+			const next = new Map<string, LinePhoto>();
+			for (const [id, file] of files) {
+				const url = URL.createObjectURL(file);
+				minted.push(url);
+				next.set(id, { file, url });
+			}
+
+			// Unmounted, or the ids moved on, while the store was being read. The
+			// URLs just minted have nowhere to go.
+			if (!live) {
+				for (const url of minted) URL.revokeObjectURL(url);
+				return;
+			}
+			setPhotos(next);
+		});
+
+		return () => {
+			live = false;
+			for (const url of minted) URL.revokeObjectURL(url);
+		};
+	}, [key]);
+
+	return photos;
+}
+
+/**
+ * What a customer said about one line, shown back to them.
+ *
+ * Read-only on purpose. This is a receipt of what they typed on the product
+ * page, and the product page is where it is changed — an editor here would be a
+ * second place for the same words to live, and the two would disagree the first
+ * time somebody used both.
+ */
+function LineBrief({
+	brief,
+	photos,
+	href,
+}: {
+	brief: CartBrief | undefined;
+	photos: Map<string, LinePhoto>;
+	/** The product page, where the brief can actually be rewritten. */
+	href: string;
+}) {
+	if (!brief) return null;
+
+	const shown = (brief.photoIds ?? [])
+		.map((id) => photos.get(id))
+		.filter((photo): photo is LinePhoto => photo !== undefined);
+
+	return (
+		<div className="border-line mt-2 flex flex-col gap-2 border-l pl-3">
+			{brief.note ? (
+				<p className="text-cocoa-soft text-xs whitespace-pre-wrap">{brief.note}</p>
+			) : null}
+
+			{shown.length > 0 ? (
+				<ul className="flex flex-wrap gap-2">
+					{shown.map((photo, index) => (
+						<li key={photo.url}>
+							{/* eslint-disable-next-line @next/next/no-img-element -- a blob:
+							    URL for a file that has not left the browser; next/image
+							    would try to optimise something it cannot fetch. */}
+							<img
+								src={photo.url}
+								alt={`Inspiration photo ${index + 1}`}
+								className="border-line size-12 rounded-md border object-cover"
+							/>
+						</li>
+					))}
+				</ul>
+			) : null}
+
+			{brief.inspirationUrl ? (
+				<p className="text-cocoa-soft truncate text-xs">{brief.inspirationUrl}</p>
+			) : null}
+
+			<Link
+				href={href}
+				className="text-cocoa-soft hover:text-cocoa w-fit text-xs underline underline-offset-2">
+				Change this
+			</Link>
+		</div>
 	);
 }
 
@@ -594,35 +885,47 @@ function Total({
 	subtotal,
 	deliveryFee,
 	total,
-	pending,
+	hasUnpriced,
 }: {
 	subtotal: number;
 	deliveryFee: number;
 	total: number;
-	/** True when the order is custom work with no price on it yet. */
-	pending: boolean;
+	/** True when something in the basket has no price on it yet. */
+	hasUnpriced: boolean;
 }) {
 	return (
-		<HairlineList as="dl">
-			{deliveryFee > 0 ? (
-				<>
-					<HairlineRow as="div">
-						<dt className="text-cocoa-soft text-sm">Subtotal</dt>
-						<dd className="text-sm">{formatMoney(subtotal)}</dd>
-					</HairlineRow>
-					<HairlineRow as="div">
-						<dt className="text-cocoa-soft text-sm">Delivery</dt>
-						<dd className="text-sm">{formatMoney(deliveryFee)}</dd>
-					</HairlineRow>
-				</>
+		<div className="flex flex-col gap-2">
+			<HairlineList as="dl">
+				{deliveryFee > 0 ? (
+					<>
+						<HairlineRow as="div">
+							<dt className="text-cocoa-soft text-sm">Subtotal</dt>
+							<dd className="text-sm">{formatMoney(subtotal)}</dd>
+						</HairlineRow>
+						<HairlineRow as="div">
+							<dt className="text-cocoa-soft text-sm">Delivery</dt>
+							<dd className="text-sm">{formatMoney(deliveryFee)}</dd>
+						</HairlineRow>
+					</>
+				) : null}
+				<HairlineRow as="div">
+					<dt className="font-medium">{hasUnpriced && total > 0 ? "So far" : "Total"}</dt>
+					<dd className={total === 0 ? "text-cocoa-soft text-sm" : "font-display text-2xl"}>
+						{total === 0 ? "I'll send you a price" : formatMoney(total)}
+					</dd>
+				</HairlineRow>
+			</HairlineList>
+
+			{/* Said out loud rather than folded into the number, because a total
+			    that is not the whole total is the one number this shop cannot let
+			    a customer misread. */}
+			{hasUnpriced && total > 0 ? (
+				<p className="text-cocoa-soft text-xs">
+					Plus whatever the custom work comes to. I&rsquo;ll price it once I&rsquo;ve read your
+					brief and email you the full total.
+				</p>
 			) : null}
-			<HairlineRow as="div">
-				<dt className="font-medium">Total</dt>
-				<dd className={pending ? "text-cocoa-soft text-sm" : "font-display text-2xl"}>
-					{pending ? "I'll send you a price" : formatMoney(total)}
-				</dd>
-			</HairlineRow>
-		</HairlineList>
+		</div>
 	);
 }
 

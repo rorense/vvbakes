@@ -51,7 +51,16 @@ async function dateIn(days: number): Promise<string> {
 }
 
 type PlaceArgs = {
-	items: Array<{ product_id: string; variant_id?: string; qty: number }>;
+	items: Array<{
+		product_id: string;
+		variant_id?: string;
+		qty: number;
+		extra_ids?: string[];
+		/** The brief this line carries, since the custom cake became a product. */
+		note?: string;
+		inspiration_url?: string;
+		inspiration_image_paths?: string[];
+	}>;
 	pickupDate: string;
 	fulfilment?: "pickup" | "delivery";
 	name?: string;
@@ -98,6 +107,15 @@ describe("seed data", () => {
 		}>("select slug, unit_price_cents, unit_label, qty_step from products order by sort_order");
 
 		expect(result.rows).toEqual([
+			// Not off the market menu at all: this is the custom cake, seeded with
+			// no price because there is none until she has seen the brief. It leads
+			// the list because it is the thing she mostly makes.
+			{
+				slug: "custom-cake",
+				unit_price_cents: 0,
+				unit_label: "cake",
+				qty_step: 1,
+			},
 			{
 				slug: "cupcakes",
 				unit_price_cents: 300,
@@ -182,7 +200,9 @@ describe("seed data", () => {
 		);
 		await db.exec(seed);
 		const result = await db.query<{ count: number }>("select count(*)::int as count from products");
-		expect(result.rows[0]!.count).toBe(5);
+		// The five off the market menu, plus the custom cake that a later
+		// migration adds. Re-running the seed must not duplicate either set.
+		expect(result.rows[0]!.count).toBe(6);
 	});
 });
 
@@ -1627,5 +1647,555 @@ describe("variants made of several answers", () => {
 
 		await db.query("delete from product_options where id = $1", [long]);
 		await db.query("delete from product_variants where id = $1", [longVariant]);
+	});
+});
+
+/**
+ * Extras: the paid things that ride along with a line rather than replacing it.
+ *
+ * The rules worth holding down are that they are priced per unit of the line,
+ * that they never disturb `line_total_cents` or the note that explains it, and
+ * that a basket filled before one sold out is refused rather than quietly baked
+ * without it.
+ */
+describe("extras", () => {
+	let cupcakes: string;
+	let candles: string;
+	let giftBox: string;
+
+	async function makeExtra(name: string, priceCents: number, sortOrder: number): Promise<string> {
+		const result = await db.query<{ id: string }>(
+			`insert into extras (name, price_cents, sort_order)
+			 values ($1, $2, $3) returning id`,
+			[name, priceCents, sortOrder],
+		);
+		return result.rows[0]!.id;
+	}
+
+	async function extrasOf(orderId: string) {
+		const result = await db.query<{
+			name: string;
+			qty: number;
+			unit_price_cents: number;
+			line_total_cents: number;
+		}>(
+			`select x.name, x.qty, x.unit_price_cents, x.line_total_cents
+			 from order_item_extras x
+			 join order_items i on i.id = x.order_item_id
+			 where i.order_id = $1
+			 order by x.sort_order, x.name`,
+			[orderId],
+		);
+		return result.rows;
+	}
+
+	beforeAll(async () => {
+		await openEveryDay(50);
+		cupcakes = await productId("cupcakes");
+		candles = await makeExtra("Birthday candles", 300, 1);
+		giftBox = await makeExtra("Gift box", 800, 2);
+	});
+
+	it("ships with none, so every product takes orders exactly as it did", async () => {
+		// The migration seeds nothing on purpose: a price on a public page that
+		// the owner never agreed to charge is worse than an empty list.
+		const rows = await db.query<{ n: number }>(
+			"select count(*)::int as n from extras where name not in ('Birthday candles', 'Gift box')",
+		);
+		expect(rows.rows[0]!.n).toBe(0);
+	});
+
+	it("charges an extra once per unit of the line", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 2, extra_ids: [candles] }],
+			pickupDate: await dateIn(7),
+		});
+
+		// Two cupcakes at $3 is $6, plus two sets of candles at $3 is $6.
+		expect(order.total_cents).toBe(1200);
+		expect(await extrasOf(order.id)).toEqual([
+			{ name: "Birthday candles", qty: 2, unit_price_cents: 300, line_total_cents: 600 },
+		]);
+	});
+
+	it("leaves the line total and its note saying what the menu charged", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 1, extra_ids: [giftBox] }],
+			pickupDate: await dateIn(7),
+		});
+
+		const items = await db.query<{ line_total_cents: number; pricing_note: string }>(
+			"select line_total_cents, pricing_note from order_items where order_id = $1",
+			[order.id],
+		);
+
+		// `pricing_note` explains `line_total_cents`, so folding $8 of gift box
+		// into it would make one of the two a lie. The extra is its own row.
+		expect(items.rows[0]!.line_total_cents).toBe(300);
+		expect(items.rows[0]!.pricing_note).toBe("1 x $3.00 each");
+		expect(order.total_cents).toBe(1100);
+	});
+
+	it("makes the same thing with and without extras two lines", async () => {
+		const order = await placeOrder({
+			items: [
+				{ product_id: cupcakes, qty: 1, extra_ids: [candles] },
+				{ product_id: cupcakes, qty: 1 },
+			],
+			pickupDate: await dateIn(7),
+		});
+
+		const items = await db.query<{ n: number }>(
+			"select count(*)::int as n from order_items where order_id = $1",
+			[order.id],
+		);
+		expect(items.rows[0]!.n).toBe(2);
+		// $3 and $3 for the cupcakes, and one set of candles on one of them.
+		expect(order.total_cents).toBe(900);
+	});
+
+	it("treats the same two extras picked in either order as one line", async () => {
+		const order = await placeOrder({
+			items: [
+				{ product_id: cupcakes, qty: 1, extra_ids: [candles, giftBox] },
+				{ product_id: cupcakes, qty: 1, extra_ids: [giftBox, candles] },
+			],
+			pickupDate: await dateIn(7),
+		});
+
+		const items = await db.query<{ n: number }>(
+			"select count(*)::int as n from order_items where order_id = $1",
+			[order.id],
+		);
+		expect(items.rows[0]!.n).toBe(1);
+
+		// Two cupcakes, two sets of candles, two gift boxes.
+		expect(await extrasOf(order.id)).toEqual([
+			{ name: "Birthday candles", qty: 2, unit_price_cents: 300, line_total_cents: 600 },
+			{ name: "Gift box", qty: 2, unit_price_cents: 800, line_total_cents: 1600 },
+		]);
+		expect(order.total_cents).toBe(2800);
+	});
+
+	it("de-duplicates an extra named twice on one line", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 1, extra_ids: [candles, candles] }],
+			pickupDate: await dateIn(7),
+		});
+
+		expect(await extrasOf(order.id)).toEqual([
+			{ name: "Birthday candles", qty: 1, unit_price_cents: 300, line_total_cents: 300 },
+		]);
+		expect(order.total_cents).toBe(600);
+	});
+
+	it("refuses a basket holding an extra that has since sold out", async () => {
+		await db.query("update extras set is_available = false where id = $1", [candles]);
+
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: cupcakes, qty: 1, extra_ids: [candles] }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("EXTRA_UNAVAILABLE");
+
+		await db.query("update extras set is_available = true where id = $1", [candles]);
+	});
+
+	it("refuses an extra that is no longer on the list at all", async () => {
+		const gone = await makeExtra("Sparklers", 500, 9);
+		await db.query("delete from extras where id = $1", [gone]);
+
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: cupcakes, qty: 1, extra_ids: [gone] }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("EXTRA_UNAVAILABLE");
+	});
+
+	it("records a free extra rather than dropping it", async () => {
+		const note = await makeExtra("Happy birthday on the box", 0, 3);
+
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 1, extra_ids: [note] }],
+			pickupDate: await dateIn(7),
+		});
+
+		// Free, but still something she has to remember to do.
+		expect(await extrasOf(order.id)).toEqual([
+			{ name: "Happy birthday on the box", qty: 1, unit_price_cents: 0, line_total_cents: 0 },
+		]);
+		expect(order.total_cents).toBe(300);
+
+		await db.query("delete from extras where id = $1", [note]);
+	});
+
+	it("keeps what a past order carried after the extra is deleted", async () => {
+		const topper = await makeExtra("Cake topper", 1500, 8);
+
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 1, extra_ids: [topper] }],
+			pickupDate: await dateIn(7),
+		});
+
+		await db.query("delete from extras where id = $1", [topper]);
+
+		// The name and the price are the order's own copy, so it still says what
+		// was bought and what it cost.
+		expect(await extrasOf(order.id)).toEqual([
+			{ name: "Cake topper", qty: 1, unit_price_cents: 1500, line_total_cents: 1500 },
+		]);
+
+		const link = await db.query<{ extra_id: string | null }>(
+			`select x.extra_id from order_item_extras x
+			 join order_items i on i.id = x.order_item_id
+			 where i.order_id = $1`,
+			[order.id],
+		);
+		expect(link.rows[0]!.extra_id).toBeNull();
+	});
+
+	it("takes the extras off a line down with the order", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 1, extra_ids: [candles] }],
+			pickupDate: await dateIn(7),
+		});
+
+		await db.query("delete from orders where id = $1", [order.id]);
+
+		expect(await extrasOf(order.id)).toHaveLength(0);
+	});
+
+	it("shows the list to anonymous visitors but hides what anyone ordered", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 1, extra_ids: [candles] }],
+			pickupDate: await dateIn(7),
+		});
+
+		await db.as("anon", null, async () => {
+			// The menu is public: the picker on a product page is built from it.
+			const list = await db.query("select name from extras");
+			expect(list.rows.length).toBeGreaterThan(0);
+
+			// What a named customer bought is not.
+			const carried = await db.query("select id from order_item_extras");
+			expect(carried.rows).toHaveLength(0);
+		});
+
+		const message = await db.as("anon", null, () =>
+			errorOf(() => db.query("insert into extras (name, price_cents) values ('Free cake', 0)")),
+		);
+		expect(message).toMatch(/row-level security|permission denied/i);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+});
+
+/**
+ * The custom cake as a product, and the brief that now belongs to the line
+ * rather than to the order.
+ *
+ * Both halves of this are things the browser cannot be trusted with. The
+ * browser decides what to *show*; `place_order` decides what a line costs and
+ * whether two lines are one line, and those are the decisions covered here.
+ */
+describe("the custom cake as a product", () => {
+	let customCake: string;
+	let cupcakes: string;
+	let size: string;
+
+	async function itemsOf(orderId: string) {
+		const result = await db.query<{
+			product_name: string;
+			variant_name: string | null;
+			qty: number;
+			line_total_cents: number;
+			pricing_note: string | null;
+			note: string | null;
+			inspiration_url: string | null;
+			inspiration_image_paths: string[];
+			price_on_request: boolean;
+		}>(
+			`select product_name, variant_name, qty, line_total_cents, pricing_note,
+				note, inspiration_url, inspiration_image_paths, price_on_request
+			 from order_items where order_id = $1
+			 order by product_name, coalesce(note, ''), qty`,
+			[orderId],
+		);
+		return result.rows;
+	}
+
+	beforeAll(async () => {
+		await openEveryDay(50);
+		customCake = await productId("custom-cake");
+		cupcakes = await productId("cupcakes");
+		const sizes = await db.query<{ id: string }>(
+			"select id from product_variants where product_id = $1 order by sort_order limit 1",
+			[customCake],
+		);
+		size = sizes.rows[0]!.id;
+	});
+
+	it("is seeded priced on request, asking for a brief, with sizes to pick from", async () => {
+		const result = await db.query<{
+			price_on_request: boolean;
+			wants_brief: boolean;
+			is_available: boolean;
+			variant_label: string;
+			variants: number;
+		}>(
+			`select p.price_on_request, p.wants_brief, p.is_available, p.variant_label,
+				(select count(*)::int from product_variants v where v.product_id = p.id) as variants
+			 from products p where p.slug = 'custom-cake'`,
+		);
+
+		expect(result.rows[0]).toMatchObject({
+			price_on_request: true,
+			wants_brief: true,
+			is_available: true,
+			variant_label: "Size",
+		});
+		expect(result.rows[0]!.variants).toBeGreaterThan(0);
+	});
+
+	it("prices an unpriced line at nothing and says so, rather than quoting its placeholder", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: customCake, variant_id: size, qty: 1, note: "30th, about 12 people" }],
+			pickupDate: await dateIn(5),
+		});
+
+		expect(order.total_cents).toBe(0);
+
+		const items = await itemsOf(order.id);
+		expect(items).toHaveLength(1);
+		expect(items[0]).toMatchObject({
+			line_total_cents: 0,
+			pricing_note: "Price to follow",
+			price_on_request: true,
+			note: "30th, about 12 people",
+		});
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("leaves the priced half of a mixed order alone", async () => {
+		// The one that would have been quietly wrong: a cake with no price next to
+		// cupcakes that have one. The total is the cupcakes, and the cake is still
+		// on the order waiting to be priced.
+		const order = await placeOrder({
+			items: [
+				{ product_id: customCake, variant_id: size, qty: 1, note: "Two tiers, ivory" },
+				{ product_id: cupcakes, qty: 4 },
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		// Four cupcakes is the seeded "4 for $12" bundle, and nothing else.
+		expect(order.total_cents).toBe(1200);
+
+		const items = await itemsOf(order.id);
+		expect(items).toHaveLength(2);
+		expect(items.find((item) => item.price_on_request)?.line_total_cents).toBe(0);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("keeps two cakes described differently as two lines", async () => {
+		// The whole reason the brief moved onto the line. Under the old grouping
+		// these were the same product, the same variant and no extras, so they
+		// folded into one line of two: one cake with one description, and the
+		// other brief gone.
+		const order = await placeOrder({
+			items: [
+				{ product_id: customCake, variant_id: size, qty: 1, note: "Chocolate, for Sam" },
+				{ product_id: customCake, variant_id: size, qty: 1, note: "Lemon, for Alex" },
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		const items = await itemsOf(order.id);
+		expect(items).toHaveLength(2);
+		expect(items.map((item) => item.note)).toEqual(["Chocolate, for Sam", "Lemon, for Alex"]);
+		expect(items.every((item) => item.qty === 1)).toBe(true);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("still folds two identical lines together, brief and all", async () => {
+		// The other half of the same rule. Two of the same thing said the same way
+		// is one line of two, exactly as it was before briefs existed, because the
+		// browser prices it that way and the two must not disagree.
+		const order = await placeOrder({
+			items: [
+				{ product_id: cupcakes, qty: 2, note: "No sprinkles" },
+				{ product_id: cupcakes, qty: 2, note: "No sprinkles" },
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		const items = await itemsOf(order.id);
+		expect(items).toHaveLength(1);
+		expect(items[0]).toMatchObject({ qty: 4, note: "No sprinkles" });
+		// Four together, so the bundle applies, which is the thing that would have
+		// been mispriced had the two lines stayed apart.
+		expect(order.total_cents).toBe(1200);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("keeps a described line apart from an identical undescribed one", async () => {
+		const order = await placeOrder({
+			items: [
+				{ product_id: cupcakes, qty: 2, note: "No sprinkles" },
+				{ product_id: cupcakes, qty: 2 },
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		const items = await itemsOf(order.id);
+		expect(items).toHaveLength(2);
+		// `itemsOf` orders by `coalesce(note, '')`, so the undescribed one is first.
+		expect(items.map((item) => item.note)).toEqual([null, "No sprinkles"]);
+		expect(items.every((item) => item.qty === 2)).toBe(true);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("stores a line's photos and link against that line, in the order they were sent", async () => {
+		const order = await placeOrder({
+			items: [
+				{
+					product_id: customCake,
+					variant_id: size,
+					qty: 1,
+					note: "  Like this one  ",
+					inspiration_url: "  https://example.com/cake  ",
+					inspiration_image_paths: ["a.webp", "b.webp"],
+				},
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		const items = await itemsOf(order.id);
+		expect(items[0]).toMatchObject({
+			// Trimmed against every whitespace class on the way in, the same as
+			// every other free-text field on an order.
+			note: "Like this one",
+			inspiration_url: "https://example.com/cake",
+		});
+		// Not sorted: the order someone arranged their references in is part of
+		// what they said.
+		expect(items[0]!.inspiration_image_paths).toEqual(["a.webp", "b.webp"]);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("caps a line at three photos rather than refusing the order", async () => {
+		const order = await placeOrder({
+			items: [
+				{
+					product_id: customCake,
+					variant_id: size,
+					qty: 1,
+					inspiration_image_paths: ["a.webp", "b.webp", "c.webp", "d.webp"],
+				},
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		const items = await itemsOf(order.id);
+		expect(items[0]!.inspiration_image_paths).toEqual(["a.webp", "b.webp", "c.webp"]);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("treats a brief of nothing but whitespace as no brief at all", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 4, note: "  \n\t  ", inspiration_url: "   " }],
+			pickupDate: await dateIn(5),
+		});
+
+		const items = await itemsOf(order.id);
+		expect(items[0]!.note).toBeNull();
+		expect(items[0]!.inspiration_url).toBeNull();
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("marks the order as custom work from the line, not from an empty basket", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: customCake, variant_id: size, qty: 1, note: "Anything" }],
+			pickupDate: await dateIn(5),
+		});
+
+		const event = await db.query<{ data: { custom: boolean; photos: number } }>(
+			"select data from order_events where order_id = $1 and type = 'created'",
+			[order.id],
+		);
+		expect(event.rows[0]!.data.custom).toBe(true);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("goes on taking an ordinary order with no brief on it at all", async () => {
+		// The regression that matters most: nearly every order is this one, and
+		// nothing above may have changed it.
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 4 }],
+			pickupDate: await dateIn(5),
+		});
+
+		expect(order.total_cents).toBe(1200);
+		const items = await itemsOf(order.id);
+		expect(items).toHaveLength(1);
+		expect(items[0]).toMatchObject({
+			qty: 4,
+			line_total_cents: 1200,
+			note: null,
+			inspiration_url: null,
+			price_on_request: false,
+		});
+		expect(items[0]!.inspiration_image_paths).toEqual([]);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("keeps an unpriced line's extras priced, because candles cost what candles cost", async () => {
+		const extra = await db.query<{ id: string }>(
+			"insert into extras (name, price_cents, sort_order) values ('Sparklers', 400, 9) returning id",
+		);
+		const sparklers = extra.rows[0]!.id;
+
+		const order = await placeOrder({
+			items: [
+				{ product_id: customCake, variant_id: size, qty: 2, extra_ids: [sparklers], note: "Two" },
+			],
+			pickupDate: await dateIn(5),
+		});
+
+		// The cake is nothing yet; two sets of sparklers are $8.
+		expect(order.total_cents).toBe(800);
+		const items = await itemsOf(order.id);
+		expect(items[0]!.line_total_cents).toBe(0);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+		await db.query("delete from extras where id = $1", [sparklers]);
+	});
+
+	it("snapshots price-on-request, so un-ticking it later cannot rewrite an order", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: customCake, variant_id: size, qty: 1, note: "Something" }],
+			pickupDate: await dateIn(5),
+		});
+
+		await db.query("update products set price_on_request = false where id = $1", [customCake]);
+		const items = await itemsOf(order.id);
+		expect(items[0]!.price_on_request).toBe(true);
+
+		await db.query("update products set price_on_request = true where id = $1", [customCake]);
+		await db.query("delete from orders where id = $1", [order.id]);
 	});
 });

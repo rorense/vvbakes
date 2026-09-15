@@ -14,9 +14,9 @@ import { OrderForm } from "@/components/order/OrderForm";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-	title: "Place an order",
+	title: "Your order",
 	description:
-		"Ask about a custom cake, or order something from the menu. Pick a day and I'll confirm by email.",
+		"Check what you've picked, choose a day, and send it through. I'll confirm by email with a price and where to send it.",
 	alternates: { canonical: "/order" },
 };
 
@@ -28,7 +28,7 @@ export default async function OrderPage({
 	const { date: requestedDate } = await searchParams;
 	// One round trip rather than two. This page is never cached, so the wait is
 	// the page.
-	const { settings, products, rules, overrides, counts } = await getAvailabilityInputs();
+	const { settings, products, extras, rules, overrides, counts } = await getAvailabilityInputs();
 
 	const availability = computeAvailability({ settings, rules, overrides, counts });
 
@@ -64,12 +64,14 @@ export default async function OrderPage({
 					<h1 className="font-display text-4xl">Right, let&rsquo;s get this booked in</h1>
 					<p className="text-cocoa-soft">
 						Nothing is charged here. I&rsquo;ll check the day, come back to you with a price, and
-						send bank details then.
+						send bank details then. Anything to say about a particular item goes on its own page in
+						the shop.
 					</p>
 				</div>
 
 				<OrderForm
 					products={products}
+					extras={extras}
 					dates={availability.dates}
 					// The same grids the home page draws, so the calendar someone
 					// clicked a day on and the one they now pick from are one thing.

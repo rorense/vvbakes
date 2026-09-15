@@ -5,16 +5,30 @@
 import { describe, expect, it } from "vitest";
 import { isHttpUrl, orderInputSchema } from "./validation";
 
+/**
+ * The link belongs to the line it describes, not to the order: a basket with
+ * two custom cakes in it is two briefs. So it is parsed as part of an item.
+ */
 function parseLink(inspirationUrl: string) {
 	return orderInputSchema.safeParse({
-		items: [],
+		items: [
+			{
+				productId: "11111111-1111-4111-8111-111111111111",
+				qty: 1,
+				inspirationUrl,
+			},
+		],
 		pickupDate: "2026-09-20",
 		fulfilment: "pickup",
 		customerName: "Sam Taylor",
 		customerEmail: "sam@example.com",
 		customerPhone: "021 555 0100",
-		inspirationUrl,
 	});
+}
+
+/** The parsed link off the first line, or undefined when parsing failed. */
+function linkOf(parsed: ReturnType<typeof parseLink>) {
+	return parsed.success ? parsed.data.items[0]?.inspirationUrl : undefined;
 }
 
 describe("isHttpUrl", () => {
@@ -37,22 +51,19 @@ describe("isHttpUrl", () => {
 	});
 });
 
-describe("the inspiration link on an order", () => {
+describe("the inspiration link on an order line", () => {
 	it("assumes https for a link pasted without one", () => {
-		const parsed = parseLink("www.pinterest.com/pin/12345/");
-		expect(parsed.success && parsed.data.inspirationUrl).toBe(
+		expect(linkOf(parseLink("www.pinterest.com/pin/12345/"))).toBe(
 			"https://www.pinterest.com/pin/12345/",
 		);
 	});
 
 	it("leaves a link that already has a scheme alone", () => {
-		const parsed = parseLink("http://example.com/cake.jpg");
-		expect(parsed.success && parsed.data.inspirationUrl).toBe("http://example.com/cake.jpg");
+		expect(linkOf(parseLink("http://example.com/cake.jpg"))).toBe("http://example.com/cake.jpg");
 	});
 
 	it("turns an empty field into nothing, not an empty string", () => {
-		const parsed = parseLink("   ");
-		expect(parsed.success && parsed.data.inspirationUrl).toBeNull();
+		expect(linkOf(parseLink("   "))).toBeNull();
 	});
 
 	it("refuses a scheme that would run when clicked", () => {

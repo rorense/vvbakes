@@ -11,10 +11,12 @@ import {
 	type AvailabilityOverride,
 	type AvailabilityRule,
 	type Category,
+	type Extra,
 	type Faq,
 	type Order,
 	type OrderEvent,
 	type OrderItem,
+	type OrderItemExtra,
 	type PriceTier,
 	type PrivateSettings,
 	type Review,
@@ -30,6 +32,7 @@ type Tables = Database["public"]["Tables"];
 type CategoryRow = Tables["categories"]["Row"];
 type FaqRow = Tables["faqs"]["Row"];
 type ReviewRow = Tables["reviews"]["Row"];
+type ExtraRow = Tables["extras"]["Row"];
 type ProductRow = Tables["products"]["Row"];
 type TierRow = Tables["product_price_tiers"]["Row"];
 type VariantRow = Tables["product_variants"]["Row"];
@@ -41,6 +44,7 @@ type RuleRow = Tables["availability_rules"]["Row"];
 type OverrideRow = Tables["availability_overrides"]["Row"];
 type OrderRow = Tables["orders"]["Row"];
 type OrderItemRow = Tables["order_items"]["Row"];
+type OrderItemExtraRow = Tables["order_item_extras"]["Row"];
 type OrderEventRow = Tables["order_events"]["Row"];
 
 function toAccent(value: string): Accent {
@@ -80,6 +84,17 @@ export function toReview(row: ReviewRow): Review {
 		author: row.author,
 		body: row.body,
 		detail: row.detail,
+		sortOrder: row.sort_order,
+	};
+}
+
+export function toExtra(row: ExtraRow): Extra {
+	return {
+		id: row.id,
+		name: row.name,
+		description: row.description,
+		priceCents: row.price_cents,
+		isAvailable: row.is_available,
 		sortOrder: row.sort_order,
 	};
 }
@@ -190,6 +205,12 @@ export function toProduct(
 		availabilityNote: row.availability_note,
 		allergens: toAllergens(row.allergens),
 		sortOrder: row.sort_order,
+		// Defaulted rather than taken at face value. The app is deployed before
+		// the migration is applied, so for a little while these columns are not
+		// there and the row comes back without them; `undefined` is falsy and
+		// would behave, but `false` is what the type promises.
+		priceOnRequest: row.price_on_request ?? false,
+		wantsBrief: row.wants_brief ?? false,
 	};
 }
 
@@ -242,7 +263,23 @@ export function toOverride(row: OverrideRow): AvailabilityOverride {
 	};
 }
 
-function toOrderItem(row: OrderItemRow): OrderItem {
+function toOrderItemExtra(row: OrderItemExtraRow): OrderItemExtra {
+	return {
+		id: row.id,
+		extraId: row.extra_id,
+		name: row.name,
+		qty: row.qty,
+		unitPriceCents: row.unit_price_cents,
+		lineTotalCents: row.line_total_cents,
+		sortOrder: row.sort_order,
+	};
+}
+
+type OrderItemColumns = OrderItemRow & {
+	order_item_extras?: OrderItemExtraRow[] | null;
+};
+
+function toOrderItem(row: OrderItemColumns): OrderItem {
 	return {
 		id: row.id,
 		productId: row.product_id,
@@ -253,10 +290,30 @@ function toOrderItem(row: OrderItemRow): OrderItem {
 		qty: row.qty,
 		lineTotalCents: row.line_total_cents,
 		pricingNote: row.pricing_note,
+		// Snapshotted with a sort order of their own so the line reads in the order
+		// the owner arranged the list in, rather than however the rows came back.
+		extras: (row.order_item_extras ?? []).map(toOrderItemExtra).sort(bySortOrder),
+		note: row.note ?? null,
+		inspirationUrl: row.inspiration_url ?? null,
+		inspirationImagePaths: row.inspiration_image_paths ?? [],
+		// See `toProduct`: absent until the migration lands, and absent forever
+		// on the lines of orders placed before it.
+		priceOnRequest: row.price_on_request ?? false,
 	};
 }
 
-export function toOrder(row: OrderRow & { order_items?: OrderItemRow[] | null }): Order {
+/**
+ * An order and everything hanging off it, including the extras each line
+ * carried.
+ *
+ * Kept beside `toOrder` for the reason `PRODUCT_SELECT` is kept beside
+ * `toProduct`: the four places that read an order have to ask for the same
+ * columns, and a nested table added to one of them and forgotten in the others
+ * is an array that silently reads as empty.
+ */
+export const ORDER_SELECT = "*, order_items (*, order_item_extras (*))";
+
+export function toOrder(row: OrderRow & { order_items?: OrderItemColumns[] | null }): Order {
 	return {
 		id: row.id,
 		orderNumber: row.order_number,

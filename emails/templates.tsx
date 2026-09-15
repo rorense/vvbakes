@@ -26,6 +26,19 @@ export interface EmailContext {
 /** Where the customer can always look their order up. */
 const statusUrl = (ctx: EmailContext) => `${ctx.siteUrl}/order/${ctx.order.token}`;
 
+/**
+ * True while the customer is still waiting to be told what this costs.
+ *
+ * Asked of the lines rather than of the total. A custom cake alongside $24 of
+ * cupcakes leaves a total that is real, is not nothing, and is still missing
+ * the cake — so "your total is $24, please don't pay it yet" would be two
+ * wrong things in one sentence.
+ */
+function awaitingPrice(order: Order): boolean {
+	if (order.quoteCents > 0) return false;
+	return order.totalCents === 0 || order.items.some((item) => item.priceOnRequest);
+}
+
 // ---------------------------------------------------------------------------
 // To the owner, the moment an order lands.
 // ---------------------------------------------------------------------------
@@ -62,6 +75,7 @@ function NewOrderOwnerEmail(ctx: EmailContext) {
 				subtotalCents={order.subtotalCents}
 				deliveryFeeCents={order.deliveryFeeCents}
 				totalCents={order.totalCents}
+				quoteCents={order.quoteCents}
 			/>
 
 			{order.notes ? (
@@ -79,7 +93,8 @@ function NewOrderOwnerEmail(ctx: EmailContext) {
 			) : null}
 
 			<InspirationBlock
-				order={order}
+				paths={order.inspirationImagePaths}
+				url={order.inspirationUrl}
 				heading="Pictures they sent"
 			/>
 
@@ -122,6 +137,7 @@ function OrderReceivedEmail(ctx: EmailContext) {
 				subtotalCents={order.subtotalCents}
 				deliveryFeeCents={order.deliveryFeeCents}
 				totalCents={order.totalCents}
+				quoteCents={order.quoteCents}
 			/>
 
 			<DetailRows
@@ -139,14 +155,15 @@ function OrderReceivedEmail(ctx: EmailContext) {
 			{/* Read back as well, for the same reason the words are: this is the
 			    last chance anyone has to notice the wrong picture went up. */}
 			<InspirationBlock
-				order={order}
+				paths={order.inspirationImagePaths}
+				url={order.inspirationUrl}
 				heading="Pictures you sent"
 			/>
 
 			<ActionLink href={statusUrl(ctx)}>Check your order</ActionLink>
 
 			<Paragraph>
-				{order.totalCents === 0
+				{awaitingPrice(order)
 					? "I'll come back to you with a price and a date I can do, usually within a day. Nothing to pay until then."
 					: "Please hold off on paying until you get the confirmation email."}
 			</Paragraph>
@@ -183,6 +200,7 @@ function OrderConfirmedEmail(ctx: EmailContext) {
 				subtotalCents={order.subtotalCents}
 				deliveryFeeCents={order.deliveryFeeCents}
 				totalCents={order.totalCents}
+				quoteCents={order.quoteCents}
 			/>
 
 			{order.customRequest ? (

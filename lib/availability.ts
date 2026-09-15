@@ -268,6 +268,8 @@ export function orderErrorMessage(raw: string): string {
 			"One of the flavours you chose has just sold out. Please review your order.",
 		VARIANT_REQUIRED: "Something in your order needs a flavour chosen. Please review your order.",
 		VARIANT_NOT_FOUND: "One of the flavours you chose is no longer on the menu. Please review it.",
+		EXTRA_UNAVAILABLE:
+			"One of the extras you added is no longer available. Please review your order.",
 		QTY_BELOW_MINIMUM:
 			"Something in your order is under its minimum quantity. Please review your order.",
 		QTY_INVALID: "One of the quantities isn't available. Please review your order.",

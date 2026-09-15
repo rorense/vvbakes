@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { cache } from "react";
-import { toOrder, toPrivateSettings } from "./mappers";
+import { ORDER_SELECT, toOrder, toPrivateSettings } from "./mappers";
 import { createAdminClient } from "./supabase/admin";
 import { hasSupabaseConfig } from "./supabase/env";
 import type { Order, PrivateSettings } from "./types";
@@ -16,8 +16,6 @@ import type { Order, PrivateSettings } from "./types";
  * and the emails, go through the service role here instead, server-side only,
  * and narrow what they return.
  */
-
-const ORDER_SELECT = "*, order_items (*)";
 
 /**
  * One order, by its unguessable token. This is the only public read of an order

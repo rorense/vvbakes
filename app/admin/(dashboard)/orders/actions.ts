@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { adminOrder } from "@/lib/admin-queries";
-import { toOrder } from "@/lib/mappers";
+import { ORDER_SELECT, toOrder } from "@/lib/mappers";
 import { requireAdmin } from "@/lib/auth";
 import { sendOrderEmail } from "@/lib/email";
 import { getPrivateSettings } from "@/lib/orders";
@@ -66,7 +66,7 @@ export async function setOrderStatus(_previous: State, formData: FormData): Prom
 			...(status === "cancelled" && reason ? { cancellation_reason: reason } : {}),
 		})
 		.eq("id", id)
-		.select("*, order_items (*)")
+		.select(ORDER_SELECT)
 		.maybeSingle();
 
 	if (error) {

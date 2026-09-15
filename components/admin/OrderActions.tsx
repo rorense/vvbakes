@@ -28,6 +28,7 @@ export function OrderActions({
 	internalNotes,
 	customRequest,
 	inspiration,
+	needsQuote,
 	quoteCents,
 	totalCents,
 }: {
@@ -42,6 +43,15 @@ export function OrderActions({
 	 * they sent nothing.
 	 */
 	inspiration: React.ReactNode;
+	/**
+	 * True when a line on this order was placed with no price on it — a custom
+	 * cake, or anything else she marked "price on request".
+	 *
+	 * Not the same question as "does the total read zero". A custom cake
+	 * alongside $24 of cupcakes leaves a total that is real, is not nothing, and
+	 * is still missing the cake.
+	 */
+	needsQuote: boolean;
 	quoteCents: number;
 	totalCents: number;
 }) {
@@ -49,14 +59,18 @@ export function OrderActions({
 	const [confirming, setConfirming] = useState<OrderStatus | null>(null);
 	const error = errorFrom(state);
 
-	// A custom cake arrives unpriced. Confirming it would email the customer
-	// bank details and a total of nothing, so the price comes first.
-	const needsPrice = totalCents === 0;
+	// Custom work arrives unpriced. Confirming it would email the customer bank
+	// details and a total that leaves the cake out, so the price comes first.
+	// An order that somehow totals nothing at all is held back for the same
+	// reason, whatever it was made of.
+	const needsPrice = (needsQuote && quoteCents === 0) || totalCents === 0;
 
 	return (
 		<div className="flex flex-col gap-6">
-			{/* A photo with no words is a brief too, so the card appears for that. */}
-			{customRequest || inspiration ? (
+			{/* A photo with no words is a brief too, so the card appears for that.
+			    So does a line she has to price, whether or not they typed anything:
+			    without it there would be nowhere to put the number. */}
+			{needsQuote || customRequest || inspiration ? (
 				<QuoteCard
 					orderId={orderId}
 					customRequest={customRequest}
@@ -261,7 +275,9 @@ function QuoteCard({
 			{customRequest ? (
 				<p className="mb-5 text-sm whitespace-pre-wrap">{customRequest}</p>
 			) : (
-				<p className="text-cocoa-soft mb-5 text-sm">No description, just what they sent below.</p>
+				<p className="text-cocoa-soft mb-5 text-sm">
+					What they asked for is written against the line itself, down in Order.
+				</p>
 			)}
 
 			{inspiration ? <div className="mb-5">{inspiration}</div> : null}

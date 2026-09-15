@@ -172,17 +172,33 @@ export function DetailRows({ rows }: { rows: Array<{ label: string; value: strin
 	);
 }
 
+/** The menu price of a line plus everything added to it. Mirrors OrderLines. */
+function lineTotal(item: OrderItem): number {
+	return item.extras.reduce((total, extra) => total + extra.lineTotalCents, item.lineTotalCents);
+}
+
 export function OrderItemsTable({
 	items,
 	subtotalCents,
 	deliveryFeeCents,
 	totalCents,
+	quoteCents,
+	unpricedNote,
 }: {
 	items: OrderItem[];
 	subtotalCents: number;
 	deliveryFeeCents: number;
 	totalCents: number;
+	/** What the owner has quoted for the custom work. Zero means not priced yet. */
+	quoteCents: number;
+	/** The line under the total when the order holds priced items and custom work both. */
+	unpricedNote?: string;
 }) {
+	// Something here was placed with no price on it, and nothing has been quoted
+	// against it yet. Once she quotes, the total is the whole total again and
+	// none of this needs saying.
+	const hasUnpriced = items.some((item) => item.priceOnRequest) && quoteCents === 0;
+
 	return (
 		<Section style={{ borderTop: `1px solid ${LINE}`, margin: "0 0 20px" }}>
 			{items.length === 0 ? (
@@ -213,6 +229,43 @@ export function OrderItemsTable({
 								{item.pricingNote}
 							</Text>
 						) : null}
+						{/* Named under the line, not folded into the price beside it: that
+						    price is what the menu charged, and the extras are counted into
+						    the total at the bottom. She has to be able to read this and
+						    know to put candles in the box. */}
+						{item.extras.map((extra) => (
+							<Text
+								key={extra.id}
+								style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
+								+ {extra.name}{" "}
+								{extra.lineTotalCents === 0 ? "(free)" : formatMoney(extra.lineTotalCents)}
+							</Text>
+						))}
+
+						{/* What they asked for, against the line they asked it of. This
+						    is the whole brief for a custom cake, so it sits in the order
+						    itself rather than in a block underneath — she reads this
+						    email standing in the kitchen. */}
+						{item.note ? (
+							<Text
+								style={{
+									fontSize: "14px",
+									margin: "8px 0 0",
+									paddingLeft: "10px",
+									borderLeft: `2px solid ${LINE}`,
+									whiteSpace: "pre-wrap",
+								}}>
+								{item.note}
+							</Text>
+						) : null}
+						{item.inspirationImagePaths.length > 0 || item.inspirationUrl ? (
+							<Section style={{ margin: "8px 0 0" }}>
+								<InspirationBlock
+									paths={item.inspirationImagePaths}
+									url={item.inspirationUrl}
+								/>
+							</Section>
+						) : null}
 					</Column>
 					<Column
 						style={{
@@ -221,7 +274,11 @@ export function OrderItemsTable({
 							textAlign: "right",
 							whiteSpace: "nowrap",
 						}}>
-						<Text style={{ fontSize: "15px", margin: 0 }}>{formatMoney(item.lineTotalCents)}</Text>
+						<Text style={{ fontSize: "15px", margin: 0 }}>
+							{/* A line nobody has priced yet is a dash, not a zero. Beside
+							    a custom cake "$0.00" reads as one she is giving away. */}
+							{item.priceOnRequest && lineTotal(item) === 0 ? "—" : formatMoney(lineTotal(item))}
+						</Text>
 					</Column>
 				</Row>
 			))}
@@ -248,7 +305,12 @@ export function OrderItemsTable({
 			) : null}
 
 			<Row>
-				<Column style={{ padding: "14px 0", fontSize: "16px", fontWeight: 600 }}>Total</Column>
+				{/* "So far" rather than "Total" while something on the order still has
+				    no price on it: a total that is not the whole total is the one
+				    number this shop cannot let anybody misread. */}
+				<Column style={{ padding: "14px 0", fontSize: "16px", fontWeight: 600 }}>
+					{hasUnpriced && totalCents > 0 ? "So far" : "Total"}
+				</Column>
 				<Column
 					style={{
 						padding: "14px 0",
@@ -261,6 +323,14 @@ export function OrderItemsTable({
 					{totalCents === 0 ? "To be confirmed" : formatMoney(totalCents)}
 				</Column>
 			</Row>
+
+			{hasUnpriced && totalCents > 0 ? (
+				<Row>
+					<Column style={{ padding: "0 0 12px", fontSize: "12px", color: COCOA_SOFT }}>
+						{unpricedNote ?? "Plus whatever the custom work comes to, once it is priced."}
+					</Column>
+				</Row>
+			) : null}
 		</Section>
 	);
 }
@@ -311,24 +381,26 @@ export function FulfilmentDetails({
  * it is on the pages: an email is the last place to put an unchecked href.
  */
 export function InspirationBlock({
-	order,
+	paths,
+	url,
 	heading,
 }: {
-	order: Pick<Order, "inspirationImagePaths" | "inspirationUrl">;
-	heading: string;
+	paths: string[];
+	url: string | null;
+	/** Left out to render the pictures bare, under the line they belong to. */
+	heading?: string;
 }) {
-	const images = order.inspirationImagePaths
+	const images = paths
 		.map((path) => inspirationImageUrl(path))
-		.filter((url): url is string => url !== null);
+		.filter((one): one is string => one !== null);
 
-	const link =
-		order.inspirationUrl && isHttpUrl(order.inspirationUrl) ? order.inspirationUrl : null;
+	const link = url && isHttpUrl(url) ? url : null;
 
 	if (images.length === 0 && !link) return null;
 
 	return (
 		<>
-			<Label>{heading}</Label>
+			{heading ? <Label>{heading}</Label> : null}
 			<Section style={{ margin: "0 0 20px" }}>
 				{images.map((src, index) => (
 					<Link

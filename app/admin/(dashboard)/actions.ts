@@ -89,6 +89,8 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		imageAlt: formData.get("imageAlt") ?? "",
 		isAvailable: checkbox(formData, "isAvailable"),
 		isFeatured: checkbox(formData, "isFeatured"),
+		priceOnRequest: checkbox(formData, "priceOnRequest"),
+		wantsBrief: checkbox(formData, "wantsBrief"),
 		availabilityNote: formData.get("availabilityNote") ?? "",
 		allergens: formData.getAll("allergens").map(String),
 		sortOrder: formData.get("sortOrder") ?? 0,
@@ -123,6 +125,8 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		allergens: input.allergens,
 		sort_order: input.sortOrder,
 		variant_label: input.variantLabel,
+		price_on_request: input.priceOnRequest,
+		wants_brief: input.wantsBrief,
 	};
 
 	let productId = input.id;
@@ -609,6 +613,13 @@ export async function saveSettings(_previous: State, formData: FormData): Promis
 		return fail("The reviews couldn't be read. Please try again.");
 	}
 
+	let extras: unknown = [];
+	try {
+		extras = JSON.parse(String(formData.get("extras") ?? "[]"));
+	} catch {
+		return fail("The extras couldn't be read. Please try again.");
+	}
+
 	const parsed = settingsSchema.safeParse({
 		businessName: formData.get("businessName") ?? "",
 		tagline: formData.get("tagline") ?? "",
@@ -634,6 +645,7 @@ export async function saveSettings(_previous: State, formData: FormData): Promis
 		notificationEmail: formData.get("notificationEmail") ?? "",
 		faqs,
 		reviews,
+		extras,
 	});
 
 	if (!parsed.success) {
@@ -688,6 +700,9 @@ export async function saveSettings(_previous: State, formData: FormData): Promis
 
 	const reviewError = await saveReviews(supabase, input.reviews);
 	if (reviewError) return fail(reviewError);
+
+	const extraError = await saveExtras(supabase, input.extras);
+	if (extraError) return fail(extraError);
 
 	revalidateCatalogue();
 	revalidatePath("/admin/settings");
@@ -747,6 +762,67 @@ async function saveReviews(
 		})),
 	);
 	if (error) return "The settings saved, but the reviews didn't. Please try again.";
+
+	return null;
+}
+
+/**
+ * The extras, which are *not* replaced wholesale the way the two lists above
+ * are.
+ *
+ * `order_item_extras` points at the row a line was ordered from, so deleting and
+ * re-inserting on every save would hand every extra a new id each time and
+ * quietly cut every past order loose from what it named. So rows the form still
+ * names are updated in place, rows it dropped are deleted, and only genuinely
+ * new ones are inserted — the same arrangement as a product's variants, and for
+ * the same reason.
+ *
+ * The delete comes first so that a name freed by a removed row is available to a
+ * row taking it, and it is the deleting half that a live cart has to survive:
+ * `place_order` refuses a basket naming an extra that has gone, which is what
+ * the customer sees rather than a cake baked without its candles.
+ */
+async function saveExtras(
+	supabase: Awaited<ReturnType<typeof createClient>>,
+	extras: Array<{
+		id?: string;
+		name: string;
+		description: string | null;
+		priceCents: number;
+		isAvailable: boolean;
+	}>,
+): Promise<string | null> {
+	const failed = "The settings saved, but the extras didn't. Please try again.";
+	const clash = "Two of those extras have the same name. Rename one and save again.";
+
+	// PostgREST has no way to spell "not in the empty set", so clearing the lot
+	// and filtering down to the survivors have to be separate calls.
+	const kept = ids(extras);
+	const gone = supabase.from("extras").delete().not("id", "is", null);
+	const { error: deleteError } =
+		kept.length > 0 ? await gone.not("id", "in", `(${kept.join(",")})`) : await gone;
+	if (deleteError) return failed;
+
+	const rows = extras.map((extra, index) => ({
+		id: extra.id,
+		name: extra.name,
+		description: extra.description,
+		price_cents: extra.priceCents,
+		is_available: extra.isAvailable,
+		sort_order: index + 1,
+	}));
+
+	const existing = rows.filter((row) => row.id);
+	if (existing.length > 0) {
+		const { error } = await supabase.from("extras").upsert(existing);
+		if (error) return error.message.includes("extras_name_key") ? clash : failed;
+	}
+
+	const fresh = rows.filter((row) => !row.id).map(({ id: _id, ...row }) => row);
+	if (fresh.length > 0) {
+		const { error } = await supabase.from("extras").insert(fresh);
+		if (error) return error.message.includes("extras_name_key") ? clash : failed;
+	}
 
 	return null;
 }

@@ -633,6 +633,23 @@ export function ProductForm({
 						description="Up to three featured products appear under 'A few favourites'."
 						defaultChecked={product?.isFeatured ?? false}
 					/>
+					{/* The two switches that make an ordinary product a made-to-order
+					    one. Kept apart because they do not always travel together:
+					    personalised cookies are made to a brief and still have a price,
+					    and a dessert table is priced on request without anybody sending
+					    a picture. */}
+					<Switch
+						name="priceOnRequest"
+						label="Price on request"
+						description="For work you price after seeing the brief. The shop shows 'Price on request' instead of a number, the item adds nothing to the customer's total, and you set the price on the order once it comes in."
+						defaultChecked={product?.priceOnRequest ?? false}
+					/>
+					<Switch
+						name="wantsBrief"
+						label="Ask for photos and a link"
+						description="Adds an inspiration photo upload and a link field to this product's page. Every product already asks for a note; this is for the ones a picture is the brief for."
+						defaultChecked={product?.wantsBrief ?? false}
+					/>
 					<Field
 						label="Note when unavailable"
 						hint='Shown on the card instead of "Sold out", e.g. "Back in December".'

@@ -84,6 +84,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 							/>
 						) : null
 					}
+					// Read off the lines' own snapshot rather than off the products,
+					// so an order placed as custom work goes on saying so even after
+					// she un-ticks "price on request" on the product.
+					needsQuote={order.items.some((item) => item.priceOnRequest)}
 					quoteCents={order.quoteCents}
 					totalCents={order.totalCents}
 				/>
@@ -97,6 +101,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 					<OrderLines
 						order={order}
 						unpricedLabel="Not priced yet"
+						unpricedNote="That is the menu side only. Set a price for the custom work above and this becomes the total."
+						// Bigger tiles: this is the copy she actually prices the cake
+						// from, so the photos are the work rather than a reminder of it.
+						tile="lg"
 						showQuote
 					/>
 				</AdminCard>

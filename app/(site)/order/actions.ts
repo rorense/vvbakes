@@ -6,12 +6,13 @@ import {
 	INSPIRATION_IMAGE_BUCKET,
 	MAX_INSPIRATION_PHOTOS,
 	MAX_INSPIRATION_PHOTO_BYTES,
+	MAX_ORDER_INSPIRATION_PHOTOS,
 	MIN_FORM_FILL_MS,
 } from "@/lib/constants";
 import { todayIn } from "@/lib/dates";
 import { sendOrderEmail } from "@/lib/email";
 import { inspirationImagePath } from "@/lib/images";
-import { toOrder } from "@/lib/mappers";
+import { ORDER_SELECT, toOrder } from "@/lib/mappers";
 import { clientIp, getPrivateSettings, hashIp } from "@/lib/orders";
 import { getSettings } from "@/lib/queries";
 import { recordAttempt } from "@/lib/rate-limit";
@@ -98,8 +99,6 @@ export async function placeOrder(
 		customerPhone: String(formData.get("customerPhone") ?? ""),
 		deliveryAddress: String(formData.get("deliveryAddress") ?? ""),
 		notes: String(formData.get("notes") ?? ""),
-		customRequest: String(formData.get("customRequest") ?? ""),
-		inspirationUrl: String(formData.get("inspirationUrl") ?? ""),
 	});
 
 	if (!parsed.success) {
@@ -113,10 +112,13 @@ export async function placeOrder(
 	const input = parsed.data;
 
 	// --- inspiration photos --------------------------------------------------
-	// Uploaded before the order is written, because the row wants their paths.
+	// Uploaded before the order is written, because the rows want their paths.
 	// If the order is then refused, they are swept up again below rather than
 	// left behind in the bucket.
-	const photos = await uploadPhotos(formData);
+	//
+	// Each line's photos arrive under a field named for that line's position in
+	// `items`, so what comes back is keyed the same way.
+	const photos = await uploadPhotos(formData, input.items.length);
 	if ("error" in photos) {
 		return fail(photos.error, { inspirationPhotos: photos.error });
 	}
@@ -125,10 +127,18 @@ export async function placeOrder(
 	const supabase = createAdminClient();
 
 	const { data, error } = await supabase.rpc("place_order", {
-		p_items: input.items.map((item) => ({
+		p_items: input.items.map((item, index) => ({
 			product_id: item.productId,
 			variant_id: item.variantId ?? null,
+			// Sorted and de-duplicated again inside `place_order`, so whatever order
+			// the picker handed these over in reaches the same line either way.
+			extra_ids: item.extraIds ?? [],
 			qty: item.qty,
+			// The brief. `place_order` groups by these as well as by the flavour, so
+			// two cakes described differently stay two lines.
+			note: item.note ?? null,
+			inspiration_url: item.inspirationUrl ?? null,
+			inspiration_image_paths: photos.byLine.get(index) ?? [],
 		})),
 		p_pickup_date: input.pickupDate,
 		p_fulfilment: input.fulfilment,
@@ -137,10 +147,14 @@ export async function placeOrder(
 		p_customer_phone: input.customerPhone,
 		p_delivery_address: input.deliveryAddress ?? null,
 		p_notes: input.notes ?? null,
-		p_custom_request: input.customRequest ?? null,
+		// The order-level brief is not asked for any more; it belongs to the line
+		// that carries it. These two stay in the call because the function's
+		// signature still has them, and the orders already holding one still read
+		// from those columns.
+		p_custom_request: null,
 		p_ip_hash: ipHash,
-		p_inspiration_image_paths: photos.paths,
-		p_inspiration_url: input.inspirationUrl,
+		p_inspiration_image_paths: [],
+		p_inspiration_url: null,
 	});
 
 	if (error) {
@@ -176,6 +190,14 @@ const EXTENSIONS: Record<string, string> = {
 	"image/png": "png",
 };
 
+/** What `uploadPhotos` hands back: the paths, and which line each set belongs to. */
+interface UploadedPhotos {
+	/** Keyed by the line's position in `items`. Lines with no photos are absent. */
+	byLine: Map<number, string[]>;
+	/** Every path, flat, for sweeping up if the order is then refused. */
+	paths: string[];
+}
+
 /**
  * Puts the customer's inspiration photos in the bucket.
  *
@@ -186,54 +208,90 @@ const EXTENSIONS: Record<string, string> = {
  * call on its own, and nothing reaches the bucket until a caller has proved it
  * is not on its tenth try in a quarter of an hour.
  *
+ * A brief belongs to a line now, so the files come in under `linePhotos:<n>`
+ * where n is that line's position in the items array. The name is the only
+ * thing tying a photo to the cake it describes, so an index naming no line is
+ * refused rather than guessed at.
+ *
  * The browser re-encodes to WebP at around 400 KB first. The checks below are
  * for a caller that skipped that step, so they read as a wall rather than as
  * anything a real customer will meet.
  */
-async function uploadPhotos(formData: FormData): Promise<{ paths: string[] } | { error: string }> {
-	const files = formData
-		.getAll("inspirationPhotos")
-		.filter((entry): entry is File => entry instanceof File && entry.size > 0);
+async function uploadPhotos(
+	formData: FormData,
+	lineCount: number,
+): Promise<UploadedPhotos | { error: string }> {
+	/** The files for each line, in the order the browser appended them. */
+	const wanted = new Map<number, File[]>();
+	let total = 0;
 
-	if (files.length === 0) return { paths: [] };
-	if (files.length > MAX_INSPIRATION_PHOTOS) {
-		return { error: `Please send at most ${MAX_INSPIRATION_PHOTOS} photos.` };
-	}
+	for (const [name, value] of formData.entries()) {
+		const match = /^linePhotos:(\d+)$/.exec(name);
+		if (!match) continue;
+		if (!(value instanceof File) || value.size === 0) continue;
 
-	for (const file of files) {
-		if (!(file.type in EXTENSIONS)) {
+		const index = Number(match[1]);
+		// A photo pointing at a line that is not in the order has nothing to
+		// describe. That is a hand-made request rather than a customer, so it is
+		// refused rather than quietly dropped.
+		if (!Number.isInteger(index) || index < 0 || index >= lineCount) {
+			return { error: "Your order couldn't be read. Please try again." };
+		}
+
+		if (!(value.type in EXTENSIONS)) {
 			return { error: "Photos need to be a JPEG, PNG or WebP." };
 		}
-		if (file.size > MAX_INSPIRATION_PHOTO_BYTES) {
+		if (value.size > MAX_INSPIRATION_PHOTO_BYTES) {
 			return { error: "One of those photos is too big. Please try a smaller one." };
 		}
+
+		const forLine = wanted.get(index) ?? [];
+		if (forLine.length >= MAX_INSPIRATION_PHOTOS) {
+			return { error: `Please send at most ${MAX_INSPIRATION_PHOTOS} photos per item.` };
+		}
+		forLine.push(value);
+		wanted.set(index, forLine);
+		total += 1;
+	}
+
+	if (total === 0) return { byLine: new Map(), paths: [] };
+	if (total > MAX_ORDER_INSPIRATION_PHOTOS) {
+		return { error: `Please send at most ${MAX_ORDER_INSPIRATION_PHOTOS} photos in one order.` };
 	}
 
 	const supabase = createAdminClient();
 	const today = todayIn("UTC");
+	const byLine = new Map<number, string[]>();
 	const paths: string[] = [];
 
-	for (const file of files) {
-		const path = inspirationImagePath(today, EXTENSIONS[file.type]);
-		const { error } = await supabase.storage
-			.from(INSPIRATION_IMAGE_BUCKET)
-			.upload(path, await file.arrayBuffer(), {
-				contentType: file.type,
-				cacheControl: "31536000",
-				upsert: false,
-			});
+	for (const [index, files] of wanted) {
+		const forLine: string[] = [];
 
-		if (error) {
-			console.error("[vvbakes] inspiration upload failed", error);
-			// Whatever did land is of no use without the order, so take it back out.
-			await discardPhotos(paths);
-			return { error: "Your photos didn't upload. Please try again, or leave them off." };
+		for (const file of files) {
+			const path = inspirationImagePath(today, EXTENSIONS[file.type]);
+			const { error } = await supabase.storage
+				.from(INSPIRATION_IMAGE_BUCKET)
+				.upload(path, await file.arrayBuffer(), {
+					contentType: file.type,
+					cacheControl: "31536000",
+					upsert: false,
+				});
+
+			if (error) {
+				console.error("[vvbakes] inspiration upload failed", error);
+				// Whatever did land is of no use without the order, so take it back out.
+				await discardPhotos(paths);
+				return { error: "Your photos didn't upload. Please try again, or leave them off." };
+			}
+
+			forLine.push(path);
+			paths.push(path);
 		}
 
-		paths.push(path);
+		byLine.set(index, forLine);
 	}
 
-	return { paths };
+	return { byLine, paths };
 }
 
 /** Removes uploaded photos again when the order they belong to never existed. */
@@ -253,7 +311,7 @@ async function notify(orderId: string): Promise<void> {
 		const supabase = createAdminClient();
 		const { data } = await supabase
 			.from("orders")
-			.select("*, order_items (*)")
+			.select(ORDER_SELECT)
 			.eq("id", orderId)
 			.maybeSingle();
 

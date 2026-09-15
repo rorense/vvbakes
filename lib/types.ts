@@ -125,6 +125,29 @@ export interface ProductOptionGroup {
 	sortOrder: number;
 }
 
+/**
+ * Something paid that rides along with whatever was ordered: candles, a gift
+ * box, a handwritten card.
+ *
+ * One list for the whole shop, edited in /admin/settings and offered on every
+ * product, rather than something configured per product. Priced per unit of the
+ * line it is added to, so two cakes with candles is two sets of candles.
+ *
+ * Not a variant and not a product: a variant is *which* cake, and a product of
+ * its own would put "candles" on the order with no cake attached to it.
+ */
+export interface Extra {
+	id: string;
+	name: string;
+	/** The line under the name: "six, in the colour of your choice". */
+	description: string | null;
+	/** Per unit of the line. Zero is allowed and still worth offering. */
+	priceCents: number;
+	/** Off takes it off every product at once. */
+	isAvailable: boolean;
+	sortOrder: number;
+}
+
 export interface Category {
 	id: string;
 	name: string;
@@ -172,6 +195,22 @@ export interface Product {
 	availabilityNote: string | null;
 	allergens: Allergen[];
 	sortOrder: number;
+	/**
+	 * There is no price until the owner has seen what is being asked for.
+	 *
+	 * The card, the product page and the basket all say so rather than quoting
+	 * the placeholder in `unitPriceCents`, the line adds nothing to the total,
+	 * and the owner prices the order afterwards through the quote she could
+	 * already set. A custom cake is the reason this exists.
+	 */
+	priceOnRequest: boolean;
+	/**
+	 * The product page asks for inspiration photos and a link as well as a note.
+	 *
+	 * Separate from `priceOnRequest` because the two only usually travel
+	 * together: personalised cookies are made to a brief and still have a price.
+	 */
+	wantsBrief: boolean;
 }
 
 /** A category with its products already attached, for the shop page. */
@@ -334,6 +373,24 @@ export interface PublicCalendarMonth {
 	days: PublicCalendarDay[];
 }
 
+/**
+ * What a customer said about one line, written on the product page.
+ *
+ * A note is offered on every product — "no sprinkles", "Happy Birthday Sam on
+ * top" — and the photos and the link only where `Product.wantsBrief` is on.
+ * All three belong to the line rather than to the order, because a basket
+ * holding two custom cakes for two parties is two briefs.
+ *
+ * `photoIds` are keys into the browser's own photo store, not paths and not
+ * URLs: the files themselves live in IndexedDB until the order is submitted,
+ * and only then do they leave the browser. See lib/photo-store.ts.
+ */
+export interface CartBrief {
+	note?: string;
+	inspirationUrl?: string;
+	photoIds?: string[];
+}
+
 export interface CartLine {
 	productId: string;
 	/**
@@ -342,12 +399,48 @@ export interface CartLine {
 	 * variants existed looks like.
 	 */
 	variantId?: string | null;
+	/**
+	 * The extras chosen for this line. Absent is the same as none, which is what
+	 * a cart saved before extras existed looks like.
+	 *
+	 * Part of what makes a line its own line: the same cake with candles and
+	 * without are two lines at two prices. See `cartLineKey` in lib/cart.ts.
+	 */
+	extraIds?: string[];
+	/**
+	 * What was said about this line. Absent is the same as nothing, which is what
+	 * most lines and every cart saved before briefs existed look like.
+	 *
+	 * Also part of what makes a line its own line, and more strongly than the
+	 * extras are: two cakes described differently are two cakes however alike
+	 * the rest of the line looks.
+	 */
+	brief?: CartBrief;
 	qty: number;
 }
 
 export interface Cart {
 	v: 1;
 	lines: CartLine[];
+}
+
+/**
+ * One extra as an order carried it, snapshotted at the moment it was placed.
+ *
+ * The name and the price are the order's own copy, so editing the list or
+ * deleting the extra outright never rewrites what a customer was charged.
+ * `extraId` is null once that happens and is only good for asking "what is this
+ * one called now".
+ */
+export interface OrderItemExtra {
+	id: string;
+	extraId: string | null;
+	name: string;
+	/** The line's quantity: two cakes with candles is two sets. */
+	qty: number;
+	unitPriceCents: number;
+	lineTotalCents: number;
+	sortOrder: number;
 }
 
 export interface OrderItem {
@@ -359,8 +452,32 @@ export interface OrderItem {
 	variantName: string | null;
 	unitLabel: string;
 	qty: number;
+	/**
+	 * What the menu charged for this line, and what `pricingNote` explains.
+	 *
+	 * Deliberately *not* including the extras: they are their own rows with their
+	 * own totals, so both numbers go on being true and the order's subtotal is
+	 * the sum of everything shown.
+	 */
 	lineTotalCents: number;
 	pricingNote: string | null;
+	/** Empty for a line nothing was added to, which is most of them. */
+	extras: OrderItemExtra[];
+	/** What the customer typed about this line. Offered on every product. */
+	note: string | null;
+	/** A link they gave for this line. Checked for scheme before it is rendered. */
+	inspirationUrl: string | null;
+	/** Object paths in the order-inspiration bucket, for this line. At most three. */
+	inspirationImagePaths: string[];
+	/**
+	 * This line had no price when the order was placed, so `lineTotalCents` is
+	 * zero because nobody has priced it — not because it was free.
+	 *
+	 * Snapshotted like the name and the unit label beside it. Un-ticking
+	 * "price on request" on the product later must not rewrite an order that
+	 * went out saying the price was still to come.
+	 */
+	priceOnRequest: boolean;
 }
 
 export interface Order {
@@ -377,10 +494,19 @@ export interface Order {
 	customerPhone: string;
 	deliveryAddress: string | null;
 	notes: string | null;
+	/**
+	 * The brief as it was asked for before the custom cake became a product:
+	 * one description of the whole order, typed at the bottom of the order form.
+	 *
+	 * Nothing writes these three any more — a brief belongs to the line it
+	 * describes, see `OrderItem` — but the orders that already carry one are
+	 * still described by it, so every page that renders an order goes on reading
+	 * both. Null on everything placed since.
+	 */
 	customRequest: string | null;
-	/** Object paths in the order-inspiration bucket. At most three. */
+	/** Object paths in the order-inspiration bucket. At most three. Legacy, see above. */
 	inspirationImagePaths: string[];
-	/** A link the customer gave. Checked for scheme before it is ever rendered. */
+	/** A link the customer gave. Checked for scheme before rendering. Legacy, see above. */
 	inspirationUrl: string | null;
 	subtotalCents: number;
 	deliveryFeeCents: number;

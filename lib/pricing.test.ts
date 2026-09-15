@@ -48,6 +48,8 @@ function product(overrides: Partial<Product> = {}): Product {
 		availabilityNote: null,
 		allergens: [],
 		sortOrder: 1,
+		priceOnRequest: false,
+		wantsBrief: false,
 		...overrides,
 	};
 }
@@ -59,6 +61,7 @@ describe("priceForQty", () => {
 		expect(priceForQty(300, [], 1)).toEqual({
 			totalCents: 300,
 			note: "1 x $3.00 each",
+			onRequest: false,
 		});
 	});
 
@@ -66,6 +69,7 @@ describe("priceForQty", () => {
 		expect(priceForQty(300, FOUR_FOR_TWELVE, 4)).toEqual({
 			totalCents: 1200,
 			note: "1 x 4 for $12.00",
+			onRequest: false,
 		});
 	});
 
@@ -73,10 +77,12 @@ describe("priceForQty", () => {
 		expect(priceForQty(300, FOUR_FOR_TWELVE, 5)).toEqual({
 			totalCents: 1500,
 			note: "1 x 4 for $12.00 + 1 x $3.00 each",
+			onRequest: false,
 		});
 		expect(priceForQty(300, FOUR_FOR_TWELVE, 9)).toEqual({
 			totalCents: 2700,
 			note: "2 x 4 for $12.00 + 1 x $3.00 each",
+			onRequest: false,
 		});
 	});
 
@@ -89,6 +95,7 @@ describe("priceForQty", () => {
 		expect(priceForQty(300, tiers, 6)).toEqual({
 			totalCents: 1600,
 			note: "2 x 3 for $8.00",
+			onRequest: false,
 		});
 	});
 
@@ -113,6 +120,7 @@ describe("priceForQty", () => {
 		expect(priceForQty(0, [], 3)).toEqual({
 			totalCents: 0,
 			note: "3 x $0.00 each",
+			onRequest: false,
 		});
 	});
 });
