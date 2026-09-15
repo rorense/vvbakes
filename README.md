@@ -331,6 +331,48 @@ The one exception is `/menu`, the card used at physical markets, which still
 shows the account number by design. It is `noindex`, absent from the sitemap and
 not linked from anywhere.
 
+### Keeping bots out
+
+There is no captcha. A customer buying cupcakes should not have to identify
+traffic lights, so everything here is invisible and layered instead, cheapest
+check first:
+
+1. **A honeypot field** on the order form, positioned off-screen rather than
+   `display: none`, which some bots know to skip. Anything typed into it is a
+   bot, and the submission is refused.
+2. **A floor on how fast the form can be filled in** (`MIN_FORM_FILL_MS`). Zero
+   means the form never finished mounting — a browser with JavaScript off, not a
+   bot — so that case fails open and leans on the honeypot instead.
+3. **A per-address attempt limit** (`lib/rate-limit.ts`), ten in a quarter of an
+   hour. This is the one that catches what the first two miss, because it counts
+   *attempts* rather than orders: a submission refused for a bad email or a full
+   date writes no row, so the older `orders`-based brake never saw it. It runs
+   before the body is parsed and well before a photo reaches the bucket, so a
+   script cannot make the server do expensive work for free.
+4. **The `orders` brake itself**, three placed orders per address per fifteen
+   minutes, still enforced inside `place_order`.
+
+Sign-in is counted the same way, per address, and the count is cleared the
+moment the right password arrives — so a script working a word list from one
+machine runs out, while the owner mistyping their password twice never notices
+a limit exists. Deliberately *not* counted per account: there is one account on
+the whole system, so an account-keyed counter would let anyone lock the owner
+out of their own shop.
+
+The limiter fails open everywhere. A null address (local development, a proxy
+that strips the header) and a database that will not answer both let the request
+through, loudly logged. A broken limiter must never be able to close the shop.
+
+What this does not do: a server action's own code runs only after the request
+body has been received and parsed, so a caller posting megabytes of photos still
+costs the bandwidth even when the attempt is then refused. Everything after that
+point — the storage writes, the RPC, the emails — is behind the limit.
+
+Cross-site submission is handled by Next itself, which compares `Origin` against
+`Host` on every server action. There is also a Content Security Policy in
+`next.config.ts`; it is a backstop behind input validation rather than a
+substitute for it.
+
 ### The calendar
 
 Two layers. **Your usual week** says which weekdays you bake and how many orders

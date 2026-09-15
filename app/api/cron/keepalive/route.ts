@@ -33,5 +33,13 @@ export async function GET(request: Request) {
 		return NextResponse.json({ ok: false, error: error.message }, { status: 502 });
 	}
 
+	// Rate limit rows outlive their windows by a day so they can be looked at
+	// when something seems off. This is where they are finally let go. A failure
+	// here is litter, not an outage, so it does not change the response.
+	const { error: sweepError } = await supabase.rpc("sweep_rate_limits");
+	if (sweepError) {
+		console.error("[vvbakes] could not sweep rate limits", sweepError);
+	}
+
 	return NextResponse.json({ ok: true, at: new Date().toISOString() });
 }

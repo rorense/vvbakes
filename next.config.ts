@@ -4,6 +4,70 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
 	? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
 	: undefined;
 
+/**
+ * Content Security Policy.
+ *
+ * This is the backstop behind the input validation, not a replacement for it:
+ * if a product description or a customer's note ever did get rendered as markup
+ * rather than text, this is what stops the injected script from running, from
+ * reaching an attacker's server, or from repointing the order form somewhere
+ * else.
+ *
+ * `'unsafe-inline'` on scripts is not an oversight. Next inlines the hydration
+ * payload into the document on every request, and the alternative — a nonce
+ * minted per request in middleware — makes every page dynamic, which on a menu
+ * site that is almost entirely static is a real cost for a site with no
+ * user-generated HTML anywhere in it.
+ *
+ * The less obvious entries:
+ *   * `worker-src blob:` — browser-image-compression re-encodes inspiration
+ *     photos in a worker built from a blob URL. Without this the photo picker
+ *     silently stops compressing.
+ *   * `img-src blob:` — the same picker previews the compressed file before it
+ *     is sent.
+ *   * `'unsafe-eval'` and `ws:` in development only, for the dev server's hot
+ *     reload. Neither is ever sent in production.
+ */
+function contentSecurityPolicy(): string {
+	const dev = process.env.NODE_ENV === "development";
+	const supabase = supabaseHost ? `https://${supabaseHost}` : "";
+	const supabaseSocket = supabaseHost ? `wss://${supabaseHost}` : "";
+
+	const directives: Record<string, string[]> = {
+		"default-src": ["'self'"],
+		"script-src": [
+			"'self'",
+			"'unsafe-inline'",
+			"https://va.vercel-scripts.com",
+			dev ? "'unsafe-eval'" : "",
+		],
+		"style-src": ["'self'", "'unsafe-inline'"],
+		"img-src": ["'self'", "data:", "blob:", supabase],
+		"font-src": ["'self'", "data:"],
+		"connect-src": [
+			"'self'",
+			supabase,
+			supabaseSocket,
+			"https://va.vercel-scripts.com",
+			dev ? "ws:" : "",
+		],
+		"worker-src": ["'self'", "blob:"],
+		"media-src": ["'self'"],
+		"manifest-src": ["'self'"],
+		// Nothing on this site embeds anything, and nothing may embed it.
+		"frame-src": ["'none'"],
+		"frame-ancestors": ["'none'"],
+		"object-src": ["'none'"],
+		// A form may only ever post back to us, and only a real <base> we wrote.
+		"form-action": ["'self'"],
+		"base-uri": ["'self'"],
+	};
+
+	return Object.entries(directives)
+		.map(([name, values]) => `${name} ${values.filter(Boolean).join(" ")}`)
+		.join("; ");
+}
+
 const nextConfig: NextConfig = {
 	images: {
 		remotePatterns: supabaseHost
@@ -40,9 +104,16 @@ const nextConfig: NextConfig = {
 			{
 				source: "/:path*",
 				headers: [
+					{ key: "Content-Security-Policy", value: contentSecurityPolicy() },
 					{ key: "X-Content-Type-Options", value: "nosniff" },
 					{ key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+					// Kept alongside frame-ancestors for browsers that honour only one.
 					{ key: "X-Frame-Options", value: "DENY" },
+					// Nothing here asks for a camera, a microphone or a location.
+					{
+						key: "Permissions-Policy",
+						value: "camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()",
+					},
 				],
 			},
 		];

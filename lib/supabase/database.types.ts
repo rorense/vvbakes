@@ -334,6 +334,18 @@ export type Database = {
 				Args: Record<string, never>;
 				Returns: boolean;
 			};
+			record_attempt: {
+				Args: { p_bucket: string; p_key: string | null; p_limit: number; p_window: string };
+				Returns: boolean;
+			};
+			clear_attempts: {
+				Args: { p_bucket: string; p_key: string | null };
+				Returns: undefined;
+			};
+			sweep_rate_limits: {
+				Args: Record<string, never>;
+				Returns: undefined;
+			};
 			price_for_qty: {
 				Args: { p_product_id: string; p_qty: number; p_variant_id?: string | null };
 				Returns: Array<{ total_cents: number; note: string | null }>;

@@ -14,6 +14,7 @@ import { inspirationImagePath } from "@/lib/images";
 import { toOrder } from "@/lib/mappers";
 import { clientIp, getPrivateSettings, hashIp } from "@/lib/orders";
 import { getSettings } from "@/lib/queries";
+import { recordAttempt } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
 import type { FormState } from "@/lib/action-state";
@@ -44,9 +45,10 @@ export async function placeOrder(
 	});
 
 	// --- spam checks ---------------------------------------------------------
-	// A hidden field no person can see, and a floor on how fast the form can be
-	// completed. Between them these stop essentially all drive-by form spam
-	// without putting a captcha in front of a customer buying cupcakes.
+	// Three layers, cheapest first: a hidden field no person can see, a floor on
+	// how fast the form can be completed, and a count of attempts from one
+	// address. Between them these stop drive-by form spam without putting a
+	// captcha in front of a customer buying cupcakes.
 	if ((formData.get("website") as string | null)?.trim()) {
 		return fail("Something went wrong sending your order. Please try again.");
 	}
@@ -63,6 +65,20 @@ export async function placeOrder(
 		return fail(
 			"Ordering isn't switched on yet. Please get in touch on Instagram in the meantime.",
 		);
+	}
+
+	// A third brake, and the one that catches what the other two miss. The
+	// honeypot and the clock only see a single submission; this one sees the
+	// tenth in a quarter of an hour from the same address, however well-formed
+	// each of them looked.
+	//
+	// It runs here, before the body is parsed and well before a photo reaches
+	// the bucket, because the point is to stop paying for the attempt rather
+	// than to refuse it politely after the fact. The database keeps its own
+	// separate count of orders that actually landed.
+	const ipHash = hashIp(clientIp(await headers()));
+	if (!(await recordAttempt("order", ipHash))) {
+		return fail("That's a few tries in a row. Please wait a few minutes and try again.");
 	}
 
 	// --- shape ---------------------------------------------------------------
@@ -107,7 +123,6 @@ export async function placeOrder(
 
 	// --- write ---------------------------------------------------------------
 	const supabase = createAdminClient();
-	const requestHeaders = await headers();
 
 	const { data, error } = await supabase.rpc("place_order", {
 		p_items: input.items.map((item) => ({
@@ -123,7 +138,7 @@ export async function placeOrder(
 		p_delivery_address: input.deliveryAddress ?? null,
 		p_notes: input.notes ?? null,
 		p_custom_request: input.customRequest ?? null,
-		p_ip_hash: hashIp(clientIp(requestHeaders)),
+		p_ip_hash: ipHash,
 		p_inspiration_image_paths: photos.paths,
 		p_inspiration_url: input.inspirationUrl,
 	});
@@ -166,9 +181,10 @@ const EXTENSIONS: Record<string, string> = {
  *
  * These arrive attached to the order itself rather than through an upload
  * endpoint of their own, which is the whole point: by the time this runs the
- * submission has already been through the honeypot, the timing check and, in
- * the database, the per-address rate limit. There is nothing here for an
- * anonymous visitor to call on its own.
+ * submission has already been through the honeypot, the timing check and the
+ * per-address attempt limit. There is nothing here for an anonymous visitor to
+ * call on its own, and nothing reaches the bucket until a caller has proved it
+ * is not on its tenth try in a quarter of an hour.
  *
  * The browser re-encodes to WebP at around 400 KB first. The checks below are
  * for a caller that skipped that step, so they read as a wall rather than as
