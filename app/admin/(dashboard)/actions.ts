@@ -425,6 +425,15 @@ export async function blockRange(_previous: State, formData: FormData): Promise<
 export async function saveSettings(_previous: State, formData: FormData): Promise<State> {
 	await requireAdmin();
 
+	// One hidden field holding the whole list, the same way the product form
+	// submits its variants.
+	let faqs: unknown = [];
+	try {
+		faqs = JSON.parse(String(formData.get("faqs") ?? "[]"));
+	} catch {
+		return fail("The questions couldn't be read. Please try again.");
+	}
+
 	const parsed = settingsSchema.safeParse({
 		businessName: formData.get("businessName") ?? "",
 		tagline: formData.get("tagline") ?? "",
@@ -448,6 +457,7 @@ export async function saveSettings(_previous: State, formData: FormData): Promis
 		bankAccountNumber: formData.get("bankAccountNumber") ?? "",
 		pickupAddress: formData.get("pickupAddress") ?? "",
 		notificationEmail: formData.get("notificationEmail") ?? "",
+		faqs,
 	});
 
 	if (!parsed.success) {
@@ -497,9 +507,43 @@ export async function saveSettings(_previous: State, formData: FormData): Promis
 		return fail("Those settings couldn't be saved. Please try again.");
 	}
 
+	const faqError = await saveFaqs(supabase, input.faqs);
+	if (faqError) return fail(faqError);
+
 	revalidateCatalogue();
 	revalidatePath("/admin/settings");
 	return ok();
+}
+
+/**
+ * Brings the home page's questions into line with what the form submitted.
+ *
+ * Replaced wholesale rather than diffed: nothing anywhere points at an faq, so a
+ * row has no identity to preserve, and the order of the list is the order on the
+ * page. Deleting first means a question the owner removed is gone even if the
+ * list now ends up empty.
+ */
+async function saveFaqs(
+	supabase: Awaited<ReturnType<typeof createClient>>,
+	faqs: Array<{ question: string; answer: string }>,
+): Promise<string | null> {
+	// PostgREST refuses an unfiltered delete, so this says "every row" the long
+	// way round.
+	const { error: clearError } = await supabase.from("faqs").delete().not("id", "is", null);
+	if (clearError) return "The settings saved, but the questions didn't. Please try again.";
+
+	if (faqs.length === 0) return null;
+
+	const { error } = await supabase.from("faqs").insert(
+		faqs.map((faq, index) => ({
+			question: faq.question,
+			answer: faq.answer,
+			sort_order: index + 1,
+		})),
+	);
+	if (error) return "The settings saved, but the questions didn't. Please try again.";
+
+	return null;
 }
 
 /** The one-tap switch on the dashboard. */

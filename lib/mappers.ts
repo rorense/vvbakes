@@ -11,6 +11,7 @@ import {
 	type AvailabilityOverride,
 	type AvailabilityRule,
 	type Category,
+	type Faq,
 	type Order,
 	type OrderEvent,
 	type OrderItem,
@@ -24,6 +25,7 @@ import {
 
 type Tables = Database["public"]["Tables"];
 type CategoryRow = Tables["categories"]["Row"];
+type FaqRow = Tables["faqs"]["Row"];
 type ProductRow = Tables["products"]["Row"];
 type TierRow = Tables["product_price_tiers"]["Row"];
 type VariantRow = Tables["product_variants"]["Row"];
@@ -53,6 +55,15 @@ export function toCategory(row: CategoryRow): Category {
 		name: row.name,
 		slug: row.slug,
 		accent: toAccent(row.accent),
+		sortOrder: row.sort_order,
+	};
+}
+
+export function toFaq(row: FaqRow): Faq {
+	return {
+		id: row.id,
+		question: row.question,
+		answer: row.answer,
 		sortOrder: row.sort_order,
 	};
 }

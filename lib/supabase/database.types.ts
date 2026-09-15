@@ -175,6 +175,15 @@ type AdminRow = {
 	created_at: string;
 };
 
+type FaqRow = {
+	id: string;
+	question: string;
+	answer: string;
+	sort_order: number;
+	created_at: string;
+	updated_at: string;
+};
+
 /** Columns a client may write, with server-defaulted ones optional. */
 type Writable<Row, Required extends keyof Row = never> = Partial<Row> & Pick<Row, Required>;
 
@@ -194,6 +203,12 @@ export type Database = {
 				Row: CategoryRow;
 				Insert: Writable<CategoryRow, "name" | "slug">;
 				Update: Partial<CategoryRow>;
+				Relationships: [];
+			};
+			faqs: {
+				Row: FaqRow;
+				Insert: Writable<FaqRow, "question" | "answer">;
+				Update: Partial<FaqRow>;
 				Relationships: [];
 			};
 			products: {

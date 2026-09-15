@@ -111,6 +111,19 @@ export interface CategoryWithProducts extends Category {
 	products: Product[];
 }
 
+/**
+ * One question and its answer, as shown on the home page.
+ *
+ * Owned by the baker, not by the code: the list is edited in /admin/settings and
+ * an empty one hides the section.
+ */
+export interface Faq {
+	id: string;
+	question: string;
+	answer: string;
+	sortOrder: number;
+}
+
 export interface SiteSettings {
 	businessName: string;
 	tagline: string;

@@ -344,6 +344,17 @@ why they cannot have it.
 Closing a day that already has orders on it does not cancel them. It only stops
 new ones, and the admin says so before you save.
 
+### Questions
+
+The answers under "The ones I get asked most" on the home page are rows in
+`faqs`, edited in **Settings → Questions**. Add, reorder and remove them there.
+The order in the list is the order on the page, and an empty list hides the
+section outright rather than leaving a heading with nothing under it.
+
+They are plain text on purpose. A lead time or a delivery area typed into an
+answer will not follow the setting it duplicates, so answer the question and
+leave the numbers to the pickup panel and the calendar further up the page.
+
 ---
 
 ## Verifying it works

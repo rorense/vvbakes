@@ -240,6 +240,25 @@ export const quoteSchema = z.object({
 	quoteCents: dollars,
 });
 
+/**
+ * One row of the home page's questions list.
+ *
+ * The lengths match the check constraints on `faqs`, so an answer that is too
+ * long comes back as a field error rather than as a failed insert.
+ */
+const faqSchema = z.object({
+	question: z
+		.string()
+		.trim()
+		.min(1, "Every question needs both a question and an answer")
+		.max(200, "One of those questions is too long to read as a question"),
+	answer: z
+		.string()
+		.trim()
+		.min(1, "Every question needs both a question and an answer")
+		.max(1500, "One of those answers is too long. Trim it a little."),
+});
+
 export const settingsSchema = z.object({
 	businessName: z.string().trim().min(1).max(60),
 	tagline: z.string().trim().min(1).max(80),
@@ -273,6 +292,9 @@ export const settingsSchema = z.object({
 		.min(1)
 		.max(40)
 		.transform((value) => value.replace(/^@/, "")),
+	// The home page's questions, submitted as one JSON field. An empty list is
+	// valid and hides the section.
+	faqs: z.array(faqSchema).max(20, "That is more questions than anyone will read"),
 	// Private half. Stored separately and never rendered on a public page.
 	bankAccountName: optionalText(80),
 	bankAccountNumber: optionalText(40),

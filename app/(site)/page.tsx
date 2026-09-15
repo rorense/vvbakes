@@ -7,6 +7,7 @@ import { instagramUrl, siteUrl } from "@/lib/constants";
 import {
 	getAvailabilityInputs,
 	getCategories,
+	getFaqs,
 	getFeaturedProducts,
 	getSettings,
 } from "@/lib/queries";
@@ -75,8 +76,8 @@ const STEPS = [
 ];
 
 export default async function HomePage() {
-	const [{ settings, products, rules, overrides, counts }, featured, categories] =
-		await Promise.all([getAvailabilityInputs(), getFeaturedProducts(), getCategories()]);
+	const [{ settings, products, rules, overrides, counts }, featured, categories, faqs] =
+		await Promise.all([getAvailabilityInputs(), getFeaturedProducts(), getCategories(), getFaqs()]);
 
 	const availability = computeAvailability({
 		settings,
@@ -409,6 +410,35 @@ export default async function HomePage() {
 					</div>
 				</Container>
 			</Section>
+
+			{/* Questions. The last band before the footer, where someone who has read
+			    this far is deciding whether to actually send the form. Written in
+			    /admin/settings, so an empty list is a decision and the band goes. */}
+			{faqs.length > 0 ? (
+				<Section
+					tone="blush"
+					id="faq">
+					<Container width="narrow">
+						<div className="mb-8 flex flex-col gap-2">
+							<SectionLabel>Questions</SectionLabel>
+							<h2 className="font-display text-3xl">The ones I get asked most</h2>
+						</div>
+
+						<HairlineList as="dl">
+							{faqs.map((faq) => (
+								<HairlineRow
+									key={faq.id}
+									as="div"
+									align="start"
+									className="flex-col gap-2">
+									<dt className="text-lg">{faq.question}</dt>
+									<dd className="text-cocoa-soft text-sm">{faq.answer}</dd>
+								</HairlineRow>
+							))}
+						</HairlineList>
+					</Container>
+				</Section>
+			) : null}
 
 			<BakeryJsonLd
 				settings={settings}

@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import {
 	DEMO_CATEGORIES,
+	DEMO_FAQS,
 	DEMO_OVERRIDES,
 	DEMO_PRODUCTS,
 	DEMO_RULES,
@@ -10,7 +11,7 @@ import {
 } from "./demo-data";
 import { countsFromRows } from "./availability";
 import { addDays, todayIn, type IsoDate } from "./dates";
-import { toCategory, toOverride, toProduct, toRule, toSettings } from "./mappers";
+import { toCategory, toFaq, toOverride, toProduct, toRule, toSettings } from "./mappers";
 import { createPublicClient } from "./supabase/public";
 import { hasSupabaseConfig } from "./supabase/env";
 import type {
@@ -18,6 +19,7 @@ import type {
 	AvailabilityRule,
 	Category,
 	CategoryWithProducts,
+	Faq,
 	Product,
 	SiteSettings,
 } from "./types";
@@ -88,6 +90,29 @@ export const getCategories = cache(async (): Promise<Category[]> => {
 		return [];
 	}
 	return (data ?? []).map(toCategory);
+});
+
+/**
+ * The home page's questions, in the order the owner arranged them.
+ *
+ * An empty list is a legitimate answer and not an error: the section is hidden
+ * rather than shown empty, so a bakery that would rather not answer anything in
+ * public simply deletes them all.
+ */
+export const getFaqs = cache(async (): Promise<Faq[]> => {
+	if (isDemoMode()) return DEMO_FAQS;
+
+	const supabase = createPublicClient();
+	const { data, error } = await supabase
+		.from("faqs")
+		.select("*")
+		.order("sort_order", { ascending: true });
+
+	if (error) {
+		console.error("[vvbakes] could not read the questions", error);
+		return [];
+	}
+	return (data ?? []).map(toFaq);
 });
 
 const PRODUCT_SELECT =

@@ -147,6 +147,27 @@ describe("seed data", () => {
 		expect(result.rows[0]!.pickup_address).toBeNull();
 	});
 
+	it("starts the home page off with five questions, in order", async () => {
+		const result = await db.query<{ question: string; sort_order: number }>(
+			"select question, sort_order from faqs order by sort_order",
+		);
+		expect(result.rows.map((row) => row.sort_order)).toEqual([1, 2, 3, 4, 5]);
+		expect(result.rows[0]!.question).toBe("How much notice do you need?");
+	});
+
+	it("leaves the owner's own questions alone when the migration is re-applied", async () => {
+		const migration = await import("node:fs/promises").then((fs) =>
+			fs.readFile("supabase/migrations/20260915000006_faqs.sql", "utf8"),
+		);
+		// Everything after the table itself: re-running the create would fail on
+		// the table already existing, which is not what is under test here.
+		const reseed = migration.slice(migration.indexOf("insert into faqs"));
+		await db.exec(reseed);
+
+		const result = await db.query<{ count: number }>("select count(*)::int as count from faqs");
+		expect(result.rows[0]!.count).toBe(5);
+	});
+
 	it("is idempotent", async () => {
 		const seed = await import("node:fs/promises").then((fs) =>
 			fs.readFile("supabase/seed.sql", "utf8"),
@@ -1083,6 +1104,30 @@ describe("row level security", () => {
 
 			const rules = await db.query("select weekday from availability_rules");
 			expect(rules.rows.length).toBe(7);
+		});
+	});
+
+	it("lets anonymous visitors read the questions", async () => {
+		await db.as("anon", null, async () => {
+			const faqs = await db.query("select question from faqs");
+			expect(faqs.rows.length).toBe(5);
+		});
+	});
+
+	it("stops anonymous visitors writing the questions", async () => {
+		const message = await db.as("anon", null, () =>
+			errorOf(() =>
+				db.query("insert into faqs (question, answer) values ('Whose site is this?', 'Mine now')"),
+			),
+		);
+		expect(message).toMatch(/row-level security|permission denied/i);
+
+		await db.as("anon", null, async () => {
+			const updated = await db.query("update faqs set answer = 'nonsense'");
+			expect(updated.affectedRows ?? 0).toBe(0);
+
+			const deleted = await db.query("delete from faqs");
+			expect(deleted.affectedRows ?? 0).toBe(0);
 		});
 	});
 

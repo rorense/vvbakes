@@ -13,6 +13,7 @@ import type {
 	AvailabilityOverride,
 	AvailabilityRule,
 	Category,
+	Faq,
 	Product,
 	SiteSettings,
 	Weekday,
@@ -143,6 +144,45 @@ export const DEMO_SETTINGS: SiteSettings = {
 	contactPhone: null,
 	instagramHandle: "vv.bakes",
 };
+
+/** Mirrors the questions seeded by supabase/migrations/20260915000006_faqs.sql. */
+export const DEMO_FAQS: Faq[] = [
+	{
+		id: "demo-faq-1",
+		question: "How much notice do you need?",
+		answer:
+			"The calendar only shows days I can still bake for, so anything you can pick, you can have. The good dates go first, so ask as soon as you know.",
+		sortOrder: 1,
+	},
+	{
+		id: "demo-faq-2",
+		question: "What does it cost, and when do I pay?",
+		answer:
+			"Menu prices are on the shop page. A custom cake depends on the size and how much work goes on top, so I price it once I know what you're after. Nothing is charged here: I email you the price, the bank details and a reference, and you transfer it from there.",
+		sortOrder: 2,
+	},
+	{
+		id: "demo-faq-3",
+		question: "Can you work around an allergy?",
+		answer:
+			"Everything on the menu lists what's in it, and I'll tell you the same for a custom cake. Some swaps are easy and some change the cake completely, so say something when you order rather than on the day.",
+		sortOrder: 3,
+	},
+	{
+		id: "demo-faq-4",
+		question: "Can you make a cake I've seen online?",
+		answer:
+			"Send the photo through with your order. I'll tell you what I can match and what I'd do differently. Shape and colour travel better than an exact copy.",
+		sortOrder: 4,
+	},
+	{
+		id: "demo-faq-5",
+		question: "Can I change or cancel an order?",
+		answer:
+			"Tell me as soon as you know. Nothing is final until I confirm it, and even after that I would far rather hear early than on the day.",
+		sortOrder: 5,
+	},
+];
 
 export const DEMO_RULES: AvailabilityRule[] = ([0, 1, 2, 3, 4, 5, 6] as Weekday[]).map(
 	(weekday) => ({
