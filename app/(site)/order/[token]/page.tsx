@@ -276,7 +276,10 @@ function Payment({ order, privateSettings }: { order: Order; privateSettings: Pr
 				<HairlineRow as="div">
 					<dt className="text-cocoa-soft text-sm">Account number</dt>
 					<dd className="text-right">
-						<CopyValue value={privateSettings.bankAccountNumber!} />
+						<CopyValue
+							value={privateSettings.bankAccountNumber!}
+							label="number"
+						/>
 					</dd>
 				</HairlineRow>
 				<HairlineRow as="div">
@@ -286,7 +289,10 @@ function Payment({ order, privateSettings }: { order: Order; privateSettings: Pr
 				<HairlineRow as="div">
 					<dt className="text-cocoa-soft text-sm">Reference</dt>
 					<dd className="text-right">
-						<CopyValue value={order.reference} />
+						<CopyValue
+							value={order.reference}
+							label="reference"
+						/>
 					</dd>
 				</HairlineRow>
 			</HairlineList>

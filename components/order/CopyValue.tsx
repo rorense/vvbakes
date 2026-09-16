@@ -9,6 +9,10 @@ import { useEffect, useState } from "react";
  *
  * The clipboard API needs a secure context and can be refused, so the value is
  * always selectable text as well.
+ *
+ * `label` names what is being copied. The payment block has two of these one
+ * above the other, so without it both buttons read "Copy" and both announce
+ * the same thing, and neither says which is which.
  */
 export function CopyValue({ value, label }: { value: string; label?: string }) {
 	// "idle" until someone presses it; "unsupported" if the browser refuses,
