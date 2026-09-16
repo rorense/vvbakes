@@ -7,8 +7,10 @@
  * inside the transaction that writes the order, and that is the price charged.
  * If the two ever disagree, the database is right and this file has a bug.
  */
+import { hasCustomFlavour } from "./brief";
 import type {
 	Extra,
+	OrderItem,
 	PriceTier,
 	Product,
 	ProductOption,
@@ -334,6 +336,63 @@ export function priceProduct(
 		return { totalCents: 0, note: PRICE_ON_REQUEST_NOTE, onRequest: true };
 	}
 	return priceForQty(unitPriceOf(product, variant), product.tiers, qty, product.unitLabel);
+}
+
+// --- what a placed order comes to -------------------------------------------
+//
+// Everything above is about the menu: what a thing costs before anyone orders
+// it. These three are about an order that exists, and they live here because
+// the customer's order page, the admin's copy of it and all five emails have
+// to agree on them to the cent. They each held their own copy, and the header
+// on components/order/OrderLines.tsx says what that risks: the price the
+// customer reads and the price the owner reads drifting apart is the one
+// disagreement this shop cannot afford.
+
+/**
+ * What one line came to in total: the menu price plus everything added to it.
+ *
+ * The two are stored apart — `lineTotalCents` is what `pricingNote` explains,
+ * and an extra is its own snapshotted row — so the sum is made here rather
+ * than baked into either. `place_order` adds them the same way when it writes
+ * the order's subtotal, so the figure beside each line and the total at the
+ * bottom agree.
+ */
+export function lineTotalWithExtras(item: Pick<OrderItem, "lineTotalCents" | "extras">): number {
+	return item.extras.reduce((total, extra) => total + extra.lineTotalCents, item.lineTotalCents);
+}
+
+/**
+ * True when something on this order was placed with no price on it, and
+ * nothing has been quoted against it yet.
+ *
+ * Not the same question as "does the total read zero": a custom cake beside
+ * $24 of cupcakes leaves a total that is real, is not nothing, and is still
+ * missing the cake. That is what makes the figure read "So far" rather than
+ * "Total". The moment she quotes, the total is the whole total again and none
+ * of it needs saying.
+ */
+export function hasUnpricedWork(
+	items: ReadonlyArray<Pick<OrderItem, "priceOnRequest">>,
+	quoteCents: number,
+): boolean {
+	return items.some((item) => item.priceOnRequest) && quoteCents === 0;
+}
+
+/**
+ * True when something here was asked for in a flavour of its own and she has
+ * not decided yet whether that costs more.
+ *
+ * A different sentence from `hasUnpricedWork`, and deliberately a weaker one:
+ * the figure above is a real, complete price. It is only a price she is
+ * allowed to add to once she has read what is being asked, which the shop said
+ * out loud before the order was placed. Follows the same rule about quoting,
+ * for the same reason.
+ */
+export function couldCostMore(
+	items: ReadonlyArray<Pick<OrderItem, "customFlavour" | "frosting" | "frostingMatchesFlavour">>,
+	quoteCents: number,
+): boolean {
+	return items.some(hasCustomFlavour) && quoteCents === 0;
 }
 
 // --- extras -----------------------------------------------------------------

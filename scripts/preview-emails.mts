@@ -15,6 +15,7 @@ import {
 	customOrder,
 	order,
 	privateSettings,
+	quotedCakeOrder,
 	settings,
 } from "./example-order.mjs";
 
@@ -39,6 +40,10 @@ const scenarios: Array<{ suffix: string; ctx: EmailContext }> = [
 	// subtotal that is not the whole total, so the figure reads "So far" and the
 	// unpriced line reads "—" rather than $0.00.
 	{ suffix: "-custom-cake", ctx: { ...context, order: customCakeOrder } },
+	// And the same cake once she has priced it, which is where every caveat is
+	// supposed to disappear: a plain "Total", no dash, no note underneath. The
+	// unquoted one on its own cannot show that the guard doing it still works.
+	{ suffix: "-quoted-cake", ctx: { ...context, order: quotedCakeOrder } },
 	// And as it was ordered before it was a product: no lines at all, the whole
 	// brief on the order itself. Nothing writes these any more, but the orders
 	// that carry one are still rendered from those columns.

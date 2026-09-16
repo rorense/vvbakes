@@ -13,9 +13,9 @@ import {
 	Text,
 } from "@react-email/components";
 import type { Order, OrderItem } from "@/lib/types";
-import { frostingLabel, hasCustomFlavour } from "@/lib/brief";
+import { frostingLabel } from "@/lib/brief";
 import { inspirationImageUrl } from "@/lib/images";
-import { formatMoney } from "@/lib/pricing";
+import { couldCostMore, formatMoney, hasUnpricedWork, lineTotalWithExtras } from "@/lib/pricing";
 import { formatDateLongWithTime } from "@/lib/dates";
 import { isHttpUrl } from "@/lib/validation";
 
@@ -186,11 +186,6 @@ const BRIEF_ANSWER = {
 	margin: "6px 0 0",
 } as const;
 
-/** The menu price of a line plus everything added to it. Mirrors OrderLines. */
-function lineTotal(item: OrderItem): number {
-	return item.extras.reduce((total, extra) => total + extra.lineTotalCents, item.lineTotalCents);
-}
-
 export function OrderItemsTable({
 	items,
 	subtotalCents,
@@ -216,11 +211,10 @@ export function OrderItemsTable({
 	 */
 	customFlavourNote?: string;
 }) {
-	// Something here was placed with no price on it, and nothing has been quoted
-	// against it yet. Once she quotes, the total is the whole total again and
-	// none of this needs saying.
-	const hasUnpriced = items.some((item) => item.priceOnRequest) && quoteCents === 0;
-	const mayCostMore = items.some(hasCustomFlavour) && quoteCents === 0;
+	// Shared with the on-screen table in components/order/OrderLines.tsx, which
+	// has to answer both of these identically. See the note in lib/pricing.ts.
+	const hasUnpriced = hasUnpricedWork(items, quoteCents);
+	const mayCostMore = couldCostMore(items, quoteCents);
 
 	return (
 		<Section style={{ borderTop: `1px solid ${LINE}`, margin: "0 0 20px" }}>
@@ -312,7 +306,9 @@ export function OrderItemsTable({
 							<Text style={{ fontSize: "15px", margin: 0 }}>
 								{/* A line nobody has priced yet is a dash, not a zero. Beside
 							    a custom cake "$0.00" reads as one she is giving away. */}
-								{item.priceOnRequest && lineTotal(item) === 0 ? "—" : formatMoney(lineTotal(item))}
+								{item.priceOnRequest && lineTotalWithExtras(item) === 0
+									? "—"
+									: formatMoney(lineTotalWithExtras(item))}
 							</Text>
 						</Column>
 					</Row>

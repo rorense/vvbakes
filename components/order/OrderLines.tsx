@@ -1,5 +1,5 @@
-import { frostingLabel, hasCustomFlavour } from "@/lib/brief";
-import { formatMoney } from "@/lib/pricing";
+import { frostingLabel } from "@/lib/brief";
+import { couldCostMore, formatMoney, hasUnpricedWork, lineTotalWithExtras } from "@/lib/pricing";
 import type { Order } from "@/lib/types";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { Inspiration } from "./Inspiration";
@@ -13,23 +13,13 @@ import { Inspiration } from "./Inspiration";
  * next tweak to either. That is the one disagreement this shop cannot afford,
  * so the rows are written once and the differences are passed in.
  *
- * The emails keep their own version in emails/components.tsx, and should: that
+ * The emails keep their own markup in emails/components.tsx, and should: that
  * is a table of nested tds and inline styles because mail clients give you
  * nothing else, and pretending it is the same component as this would make both
- * of them worse.
+ * of them worse. The arithmetic is not markup, though, so the three sums that
+ * decide what the figures say — a line total, "is anything unpriced", "could
+ * this cost more" — are shared from lib/pricing.ts rather than written twice.
  */
-/**
- * What one line came to in total: the menu price plus everything added to it.
- *
- * The two are stored apart — `lineTotalCents` is what `pricingNote` explains,
- * and an extra is its own snapshotted row — so the sum is made here rather than
- * baked into either. The database adds them the same way when it writes the
- * order's subtotal, so the column on the right of each line and the total at the
- * bottom agree.
- */
-function lineWithExtras(item: Order["items"][number]): number {
-	return item.extras.reduce((total, extra) => total + extra.lineTotalCents, item.lineTotalCents);
-}
 
 export function OrderLines({
 	order,
@@ -74,15 +64,10 @@ export function OrderLines({
 	tile?: "sm" | "lg";
 	className?: string;
 }) {
-	// Something on this order has no price on it, and no quote has been set
-	// against it yet. Once she quotes, the total is the whole total again and
-	// none of this needs saying.
-	const hasUnpriced = order.items.some((item) => item.priceOnRequest) && order.quoteCents === 0;
-	// Something here was asked for in a flavour of its own, and she has not
-	// decided yet whether that costs more. Once she has, the total is the whole
-	// total and none of this needs saying — the same rule the unpriced note
-	// follows, for the same reason.
-	const mayCostMore = order.items.some(hasCustomFlavour) && order.quoteCents === 0;
+	// Both of these are decided in lib/pricing.ts, because the email version of
+	// this table has to answer them identically. See the note there.
+	const hasUnpriced = hasUnpricedWork(order.items, order.quoteCents);
+	const mayCostMore = couldCostMore(order.items, order.quoteCents);
 
 	return (
 		<div className={className}>
@@ -90,7 +75,7 @@ export function OrderLines({
 				{order.items.length === 0 ? emptyRow : null}
 
 				{order.items.map((item) => {
-					const money = lineWithExtras(item);
+					const money = lineTotalWithExtras(item);
 					// Unpriced *and* nothing added to it, so there is no honest number
 					// to put here. A cake with candles on it still shows what the
 					// candles came to.

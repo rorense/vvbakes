@@ -176,6 +176,29 @@ export const customCakeOrder: Order = {
 	],
 };
 
+/**
+ * The same cake once she has put a price on it.
+ *
+ * The pair matters more than either half. `hasUnpricedWork` and
+ * `couldCostMore` in lib/pricing.ts both end in `&& quoteCents === 0`, which
+ * is what makes every caveat disappear the moment she quotes: "So far" becomes
+ * "Total", the line stops reading "—", and the notes underneath go. With only
+ * an unquoted fixture that clause is never exercised, and a differential over
+ * these previews will happily pass with it deleted — which is exactly what
+ * happened on 2026-09-16 before this was added.
+ *
+ * `total_cents` is subtotal + delivery + quote, the same sum `saveQuote` makes.
+ */
+export const quotedCakeOrder: Order = {
+	...customCakeOrder,
+	reference: "VV1045",
+	token: "fedcba9876543210fedcba9876543210",
+	status: "confirmed",
+	confirmedAt: "2026-09-11T04:00:00Z",
+	quoteCents: 9000,
+	totalCents: 10500,
+};
+
 export const settings: SiteSettings = {
 	businessName: "vvbakes",
 	tagline: "inspired desserts",
