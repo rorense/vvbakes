@@ -88,7 +88,7 @@ const nextConfig: NextConfig = {
 			bodySizeLimit: "4mb",
 		},
 		/**
-		 * The client-side router cache, switched off.
+		 * The client-side router cache, cut to the shortest window Next allows.
 		 *
 		 * Next keeps prefetched RSC payloads in the browser and reuses them for
 		 * `<Link>` navigations — by default for 300 seconds on a static route.
@@ -97,10 +97,16 @@ const nextConfig: NextConfig = {
 		 * show. Saving a product and then clicking through to the shop hit exactly
 		 * that, and looked like the save itself being slow.
 		 *
-		 * Zero means every navigation asks the server. The server's answer is still
-		 * a cached page, so this costs a request, not a database read.
+		 * This used to be zero, but Next refuses anything under 30 for `static`
+		 * and warned on every build. Thirty is the floor. The owner's own tab is
+		 * covered regardless: a server action that revalidates evicts the router
+		 * cache in the tab that ran it. What is left is a visitor who prefetched
+		 * a product page less than half a minute before a price changed, and who
+		 * asks the server again on the next navigation after that. The server's
+		 * answer is still a cached page, so this costs a request, not a database
+		 * read.
 		 */
-		staleTimes: { static: 0, dynamic: 0 },
+		staleTimes: { static: 30, dynamic: 0 },
 	},
 	/**
 	 * The share cards read the brand fonts and the logo off disk rather than
