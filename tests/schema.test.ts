@@ -2337,10 +2337,10 @@ describe("the price guide", () => {
 
 	it("ships on the custom cake, in the order she gave, with the add-on last", async () => {
 		expect(await guideOf("custom-cake")).toEqual([
-			{ label: '6" — 2 layers', price_cents: 4500, is_addition: false },
-			{ label: '6" — 3 layers', price_cents: 5500, is_addition: false },
-			{ label: '8" — 2 layers', price_cents: 6500, is_addition: false },
-			{ label: '8" — 3 layers', price_cents: 7500, is_addition: false },
+			{ label: '6" - 2 layers', price_cents: 4500, is_addition: false },
+			{ label: '6" - 3 layers', price_cents: 5500, is_addition: false },
+			{ label: '8" - 2 layers', price_cents: 6500, is_addition: false },
+			{ label: '8" - 3 layers', price_cents: 7500, is_addition: false },
 			{ label: "Additional layers", price_cents: 1000, is_addition: true },
 		]);
 	});
@@ -2363,10 +2363,10 @@ describe("the price guide", () => {
 
 		expect(priced.every((label) => sizes.includes(label))).toBe(true);
 		expect(sizes).toEqual([
-			'6" — 2 layers',
-			'6" — 3 layers',
-			'8" — 2 layers',
-			'8" — 3 layers',
+			'6" - 2 layers',
+			'6" - 3 layers',
+			'8" - 2 layers',
+			'8" - 3 layers',
 			"Two tiers",
 			"Not sure yet",
 		]);
@@ -2414,7 +2414,7 @@ describe("the price guide", () => {
 		const message = await errorOf(() =>
 			db.query(
 				`insert into product_price_guide (product_id, label, price_cents)
-				 values ($1, '6" — 2 layers', 9900)`,
+				 values ($1, '6" - 2 layers', 9900)`,
 				[customCake],
 			),
 		);

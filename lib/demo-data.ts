@@ -105,10 +105,10 @@ export const DEMO_PRODUCTS: Product[] = [
 		// they are what a customer gets instead of one. Mirrors the guide seeded by
 		// supabase/migrations/20260917000001_price_guide.sql.
 		priceGuide: [
-			{ label: '6" — 2 layers', priceCents: 4500, isAddition: false },
-			{ label: '6" — 3 layers', priceCents: 5500, isAddition: false },
-			{ label: '8" — 2 layers', priceCents: 6500, isAddition: false },
-			{ label: '8" — 3 layers', priceCents: 7500, isAddition: false },
+			{ label: '6" - 2 layers', priceCents: 4500, isAddition: false },
+			{ label: '6" - 3 layers', priceCents: 5500, isAddition: false },
+			{ label: '8" - 2 layers', priceCents: 6500, isAddition: false },
+			{ label: '8" - 3 layers', priceCents: 7500, isAddition: false },
 			{ label: "Additional layers", priceCents: 1000, isAddition: true },
 		],
 		priceGuideNote: "Custom designs and premium flavours may cost extra.",
@@ -138,10 +138,10 @@ export const DEMO_PRODUCTS: Product[] = [
 		// two it does not price. Renamed from the headcount brackets they were
 		// seeded as by supabase/migrations/20260917000002_cake_sizes.sql.
 		variants: [
-			'6" — 2 layers',
-			'6" — 3 layers',
-			'8" — 2 layers',
-			'8" — 3 layers',
+			'6" - 2 layers',
+			'6" - 3 layers',
+			'8" - 2 layers',
+			'8" - 3 layers',
 			"Two tiers",
 			"Not sure yet",
 		].map((name, index) => ({

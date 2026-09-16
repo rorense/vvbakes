@@ -60,14 +60,14 @@ export interface PriceTier {
 
 /**
  * One line of the starting prices shown on a product priced on request:
- * `6" — 2 layers, from $45`.
+ * `6" - 2 layers, from $45`.
  *
- * A guide and nothing else. Nothing prices an order from these — a line priced
- * on request still totals zero until the owner quotes it — so there is no id
- * here and no order pointing at one. See `Product.priceGuide`.
+ * A guide and nothing else. Nothing prices an order from these, and a line
+ * priced on request still totals zero until the owner quotes it, so there is no
+ * id here and no order pointing at one. See `Product.priceGuide`.
  */
 export interface PriceGuideRow {
-	/** What the price is for. Hers to word: '8" — 3 layers', 'Two tiers'. */
+	/** What the price is for. Hers to word: '8" - 3 layers', 'Two tiers'. */
 	label: string;
 	priceCents: number;
 	/**
@@ -197,7 +197,7 @@ export interface Product {
 	minPerOrder: number | null;
 	tiers: PriceTier[];
 	/**
-	 * Starting prices, shown only where `priceOnRequest` is on — everywhere else
+	 * Starting prices, shown only where `priceOnRequest` is on. Everywhere else
 	 * there is a real price table and this would be a second, vaguer answer to
 	 * the same question. Empty is the ordinary state and shows nothing.
 	 */

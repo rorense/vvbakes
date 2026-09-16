@@ -157,8 +157,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 							    say: where its prices start, if she has said, and otherwise
 							    the one line that is actually true.
 
-							    The guide is a guide. Nothing is priced from it — the line
-							    still totals zero until she quotes it — so the sentence under
+							    The guide is a guide. Nothing is priced from it, and the line
+							    still totals zero until she quotes it, so the sentence under
 							    it has to go on saying that a real number is coming. */}
 							{product.priceOnRequest ? (
 								<div className="flex flex-col gap-2">

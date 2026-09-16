@@ -68,7 +68,7 @@ interface TierDraft {
 }
 
 /**
- * One line of the price guide being edited: '8" — 3 layers', 75, a starting
+ * One line of the price guide being edited: '8" - 3 layers', 75, a starting
  * price rather than an add-on.
  *
  * No id, unlike an extra: nothing points at one of these, so a save replaces
@@ -1028,7 +1028,7 @@ function TierFieldset({
  *
  * "Price on request" is honest and it is also a wall: someone with no idea
  * whether a birthday cake is forty dollars or four hundred mostly does not
- * ask. These lines are the answer to that and nothing more — no basket reads
+ * ask. These lines are the answer to that and nothing more. No basket reads
  * them, no order is priced from them, and the note underneath is where she
  * says what moves the number.
  *
@@ -1056,7 +1056,7 @@ function PriceGuideFieldset({
 		<fieldset className="mt-6 flex flex-col gap-3">
 			<legend className="text-sm font-medium">Starting prices</legend>
 			<p className="text-cocoa-soft text-xs">
-				Shown on the product page in place of a price. A line reading &ldquo;6&Prime; &mdash; 2
+				Shown on the product page in place of a price. A line reading &ldquo;6&Prime; - 2
 				layers&rdquo; at 45 comes out as <span className="font-medium">from $45</span>. None of it
 				is ever charged: you still price the order yourself once the brief comes in.
 			</p>
@@ -1081,7 +1081,7 @@ function PriceGuideFieldset({
 							<span className="text-cocoa-soft text-xs">What it&rsquo;s for</span>
 							<Input
 								value={row.label}
-								placeholder={index === 0 ? '6" — 2 layers' : ""}
+								placeholder={index === 0 ? '6" - 2 layers' : ""}
 								onChange={(event) => update({ label: event.target.value })}
 							/>
 						</label>
@@ -1101,7 +1101,7 @@ function PriceGuideFieldset({
 					<Switch
 						label="Adds to the others"
 						description={
-							'Reads as "+ $10" rather than "from $10". For an extra layer or an extra tier — something added to one of the prices above rather than a starting price of its own.'
+							'Reads as "+ $10" rather than "from $10". For an extra layer or an extra tier: something added to one of the prices above rather than a starting price of its own.'
 						}
 						checked={row.isAddition}
 						onChange={(event) => update({ isAddition: event.target.checked })}

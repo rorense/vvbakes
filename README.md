@@ -365,15 +365,15 @@ away.
 
 Saying nothing at all is honest and it is also a wall: someone with no idea
 whether a birthday cake is forty dollars or four hundred mostly does not ask. So
-a product priced on request can carry a short table of **starting prices** —
-`6" — 2 layers` at 45 reads as _from $45_ — with a line for anything that adds
-to one of them (`Additional layers`, ticked as adding to the others, reads as
+a product priced on request can carry a short table of **starting prices**.
+`6" - 2 layers` at 45 reads as _from $45_, with a line for anything that adds to
+one of them (`Additional layers`, ticked as adding to the others, reads as
 _+ $10_) and a caveat underneath in your own words. They are edited under
 **Price** on the product's own page, and only appear on a product this switch is
 on for.
 
 It is a guide and nothing more. No basket reads it, `place_order` does not know
-it exists, and the line still totals zero until you quote it — the moment one of
+it exists, and the line still totals zero until you quote it. The moment one of
 those numbers could be charged it stops being a "from" and becomes a promise
 about a cake nobody has described yet. Leave the table empty and the page says
 only that the price depends on the brief, which is what every product priced on
