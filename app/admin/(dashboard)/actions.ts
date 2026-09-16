@@ -16,6 +16,7 @@ import {
 } from "@/lib/validation";
 import { eachDay } from "@/lib/dates";
 import { syncRows } from "@/lib/sync-rows";
+import { refusedRemoval } from "@/lib/variant-guard";
 
 /**
  * Every admin mutation.
@@ -303,36 +304,23 @@ async function saveVariants(
 	removedVariants: string[],
 ): Promise<string | null> {
 	// --- nothing is wiped by accident ----------------------------------------
-	// An empty submission means "this product is one thing at one price", and
-	// acting on it deletes every flavour the product has. That is a real thing
-	// she does, so it cannot simply be refused — but it is also what a form that
-	// has gone wrong sends, and the first statement below would carry it out
-	// before anything else had a chance to fail.
-	//
-	// So it has to be asked for. The switch is what asks: turning "This is sold
-	// in variants" off sets `removeVariants`, and the form says in red what that
-	// will cost before she saves. Any other route to an empty submission is a
-	// bug, and this is where it stops, with everything still on the shelf.
-	const submitted = new Set(ids(variants));
+	// Which rows this save is allowed to take off the product, and what to say
+	// when it is not. Lives in lib/ so that it can be tested against the case it
+	// exists for; see lib/variant-guard.test.ts.
 	const { data: held, error: heldError } = await supabase
 		.from("product_variants")
 		.select("id, name")
 		.eq("product_id", productId);
 	if (heldError) return VARIANTS_FAILED;
 
-	const asked = new Set(removedVariants);
-	const unexpected = (held ?? []).filter(
-		(row) => !submitted.has(row.id) && !asked.has(row.id) && !removeVariants,
-	);
-
-	if (unexpected.length > 0) {
-		const names = unexpected.map((row) => row.name).join(", ");
-		return (
-			`Saving would have removed ${names}, which the form did not ask for. ` +
-			`Nothing was changed. Give ${unexpected.length === 1 ? "it" : "them"} a price, or ` +
-			`turn off "This is sold in variants" to remove them all on purpose.`
-		);
-	}
+	const refused = refusedRemoval({
+		held: held ?? [],
+		submittedIds: ids(variants),
+		submittedCount: variants.length,
+		removeVariants,
+		removedVariants,
+	});
+	if (refused) return refused;
 
 	// --- the questions -------------------------------------------------------
 	// Deletes come first at every level, so a name freed by a removed row is

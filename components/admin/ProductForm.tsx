@@ -13,6 +13,7 @@ import {
 	variantOptionIds,
 	VARIANT_NAME_SEPARATOR,
 } from "@/lib/pricing";
+import { cellKey, hangCells } from "@/lib/price-grid";
 import { useSlugField } from "@/lib/use-slug-field";
 import { allergenSentence } from "@/lib/allergens";
 import {
@@ -127,11 +128,6 @@ const EMPTY_CELL: CellDraft = {
 	imagePath: "",
 	allergens: [],
 };
-
-/** Which combination a grid row is: one answer from each question, in order. */
-function cellKey(combination: OptionDraft[]): string {
-	return combination.map((option) => option.key).join("|");
-}
 
 /**
  * Every combination the current questions describe, in reading order: the last
@@ -326,8 +322,9 @@ export function ProductForm({
 		: [];
 
 	const combinations = combinationsOf(filledGroups);
+	const hungCells = hangCells(combinations, cells);
 	const cellFor = (combination: OptionDraft[]): CellDraft =>
-		cells[cellKey(combination)] ?? EMPTY_CELL;
+		hungCells[cellKey(combination)] ?? EMPTY_CELL;
 
 	// A combination with no price is one she does not sell: the lemon in three
 	// layers, the tin in a size she stopped stocking. The grid still offers it,
@@ -556,7 +553,9 @@ export function ProductForm({
 								groups={filledGroups}
 								combinations={combinations}
 								cells={cells}
+								cellFor={cellFor}
 								setCells={setCells}
+								savedVariantCount={savedVariantCount}
 								error={errors.variants}
 							/>
 							{removedVariants.length > 0 ? (
@@ -1243,13 +1242,18 @@ function PriceGrid({
 	groups,
 	combinations,
 	cells,
+	cellFor,
 	setCells,
+	savedVariantCount,
 	error,
 }: {
 	groups: GroupDraft[];
 	combinations: OptionDraft[][];
 	cells: Record<string, CellDraft>;
+	/** Reads through `hangCells`, so a price survives a group being added. */
+	cellFor: (combination: OptionDraft[]) => CellDraft;
 	setCells: (next: Record<string, CellDraft>) => void;
+	savedVariantCount: number;
 	error?: string;
 }) {
 	if (combinations.length === 0) {
@@ -1260,14 +1264,16 @@ function PriceGrid({
 		);
 	}
 
+	// Written onto the raw cells rather than onto what `cellFor` reads, so that
+	// a price belonging to a combination she is not looking at — one whose option
+	// is deleted and not yet put back — is not thrown away by an edit elsewhere
+	// in the grid. What it writes is what she sees, inherited price and all.
 	const patch = (combination: OptionDraft[], change: Partial<CellDraft>) => {
 		const key = cellKey(combination);
-		setCells({ ...cells, [key]: { ...EMPTY_CELL, ...cells[key], ...change } });
+		setCells({ ...cells, [key]: { ...EMPTY_CELL, ...cellFor(combination), ...change } });
 	};
 
-	const priced = combinations.filter(
-		(combination) => (cells[cellKey(combination)]?.price ?? "").trim() !== "",
-	);
+	const priced = combinations.filter((combination) => cellFor(combination).price.trim() !== "");
 
 	return (
 		<fieldset className="flex flex-col gap-3">
@@ -1278,7 +1284,7 @@ function PriceGrid({
 			</p>
 
 			{combinations.map((combination) => {
-				const cell = cells[cellKey(combination)] ?? EMPTY_CELL;
+				const cell = cellFor(combination);
 
 				return (
 					<div
@@ -1326,8 +1332,9 @@ function PriceGrid({
 
 			{priced.length === 0 ? (
 				<p className="text-cocoa-soft text-xs">
-					Nothing is priced yet, so saving now puts this back to a single price with no{" "}
-					{(groups[0]?.name || "flavour").toLowerCase()} to choose.
+					{savedVariantCount > 0
+						? `Nothing is priced, so there is nothing to save. Give at least one combination a price, or turn off "This is sold in variants" to put this back to a single price.`
+						: `Nothing is priced yet, so saving now puts this back to a single price with no ${(groups[0]?.name || "flavour").toLowerCase()} to choose.`}
 				</p>
 			) : null}
 		</fieldset>
