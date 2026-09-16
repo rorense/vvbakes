@@ -59,6 +59,25 @@ export interface PriceTier {
 }
 
 /**
+ * One line of the starting prices shown on a product priced on request:
+ * `6" — 2 layers, from $45`.
+ *
+ * A guide and nothing else. Nothing prices an order from these — a line priced
+ * on request still totals zero until the owner quotes it — so there is no id
+ * here and no order pointing at one. See `Product.priceGuide`.
+ */
+export interface PriceGuideRow {
+	/** What the price is for. Hers to word: '8" — 3 layers', 'Two tiers'. */
+	label: string;
+	priceCents: number;
+	/**
+	 * Shown as "+ $10" rather than "from $75", for the line that adds to one of
+	 * the others instead of starting somewhere of its own.
+	 */
+	isAddition: boolean;
+}
+
+/**
  * One version of a product, with a price of its own: a flavour, a size, a
  * filling. The product owns the description; a variant is a name, a price, and
  * optionally a photo and extra allergens of its own.
@@ -177,6 +196,14 @@ export interface Product {
 	 */
 	minPerOrder: number | null;
 	tiers: PriceTier[];
+	/**
+	 * Starting prices, shown only where `priceOnRequest` is on — everywhere else
+	 * there is a real price table and this would be a second, vaguer answer to
+	 * the same question. Empty is the ordinary state and shows nothing.
+	 */
+	priceGuide: PriceGuideRow[];
+	/** The line under the price guide: what can move the price. Null hides it. */
+	priceGuideNote: string | null;
 	/**
 	 * What this product calls its variants: "Flavour", "Size", "Filling".
 	 *

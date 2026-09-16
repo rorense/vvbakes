@@ -25,6 +25,7 @@ export const TABLES = [
 	"categories",
 	"products",
 	"product_price_tiers",
+	"product_price_guide",
 	"product_variants",
 	"product_option_groups",
 	"product_options",

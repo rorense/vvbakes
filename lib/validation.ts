@@ -279,6 +279,23 @@ const extraSchema = z.object({
 	isAvailable: z.boolean(),
 });
 
+/**
+ * One line of a product's price guide, as the product form submits it.
+ *
+ * No id: nothing points at one of these, so a save replaces the list outright
+ * the way it does the bundle prices. The lengths match the check constraints on
+ * `product_price_guide`.
+ */
+const priceGuideRowSchema = z.object({
+	label: z
+		.string()
+		.trim()
+		.min(1, "Every line needs a label and a price")
+		.max(60, "That label is longer than a label"),
+	priceCents: dollars,
+	isAddition: z.boolean(),
+});
+
 export const productSchema = z
 	.object({
 		id: z.string().uuid().optional(),
@@ -319,6 +336,12 @@ export const productSchema = z
 		wantsBrief: z.boolean(),
 		wantsCustomFlavour: z.boolean(),
 		tiers: z.array(priceTierSchema).max(6),
+		// Starting prices for something with no price. Submitted whether or not
+		// the product is priced on request, for the reason the price field above
+		// is: switching the flag off and on again should bring back what was
+		// typed rather than an empty table. Only the shop decides to show them.
+		priceGuide: z.array(priceGuideRowSchema).max(8, "That is a long list for a guide"),
+		priceGuideNote: optionalText(300),
 		variantLabel: z.string().trim().min(1, "e.g. Flavour, Size").max(30),
 		// Set only by turning the variants switch off, which is the one place the
 		// form says out loud what removing them costs. See saveVariants.
@@ -346,6 +369,15 @@ export const productSchema = z
 		message: "Two bundles have the same quantity",
 		path: ["tiers"],
 	})
+	.refine(
+		(value) =>
+			new Set(value.priceGuide.map((row) => row.label.toLowerCase())).size ===
+			value.priceGuide.length,
+		{
+			message: "Two of those price lines have the same label",
+			path: ["priceGuide"],
+		},
+	)
 	.refine((value) => namesAreUnique(value.variants), {
 		message: "Two of these have the same name",
 		path: ["variants"],

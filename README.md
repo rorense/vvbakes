@@ -363,6 +363,22 @@ customer's total, and the order arrives with the line reading "Price to follow"
 rather than `$0.00`, which beside a custom cake reads as one you are giving
 away.
 
+Saying nothing at all is honest and it is also a wall: someone with no idea
+whether a birthday cake is forty dollars or four hundred mostly does not ask. So
+a product priced on request can carry a short table of **starting prices** —
+`6" — 2 layers` at 45 reads as _from $45_ — with a line for anything that adds
+to one of them (`Additional layers`, ticked as adding to the others, reads as
+_+ $10_) and a caveat underneath in your own words. They are edited under
+**Price** on the product's own page, and only appear on a product this switch is
+on for.
+
+It is a guide and nothing more. No basket reads it, `place_order` does not know
+it exists, and the line still totals zero until you quote it — the moment one of
+those numbers could be charged it stops being a "from" and becomes a promise
+about a cake nobody has described yet. Leave the table empty and the page says
+only that the price depends on the brief, which is what every product priced on
+request said before there was one.
+
 The custom cake is a product like any other because of this. It used to be a
 second form at the bottom of the order page, with no product to browse to and
 no way to order one alongside a box of cupcakes. Now it sits in the shop, asks
@@ -576,8 +592,8 @@ Then, by hand:
 
 **The catalogue.** `/shop` should show three bands with six products: the five
 off the market menu, priced "$3 each · 4 for $12", "$5 / pack", "$5 / slice" and
-"$3 / slice", plus the custom cake reading "Price on request" with a size to
-choose. Toggle a product to sold out in the admin and reload, the badge should
+"$3 / slice", plus the custom cake, which quotes no price but lists what its sizes
+start at and offers a size to choose. Toggle a product to sold out in the admin and reload, the badge should
 appear.
 
 **An order.** Add five cupcakes and two packs of cookies; the total should be

@@ -63,6 +63,8 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		qtyStep: 1,
 		minPerOrder: null,
 		tiers: [],
+		priceGuide: [],
+		priceGuideNote: null,
 		variantLabel: "Flavour",
 		variants: [],
 		optionGroups: [],
@@ -99,6 +101,17 @@ export const DEMO_PRODUCTS: Product[] = [
 		sortOrder: 0,
 		priceOnRequest: true,
 		wantsBrief: true,
+		// The only product with these, because it is the only one with no price:
+		// they are what a customer gets instead of one. Mirrors the guide seeded by
+		// supabase/migrations/20260917000001_price_guide.sql.
+		priceGuide: [
+			{ label: '6" — 2 layers', priceCents: 4500, isAddition: false },
+			{ label: '6" — 3 layers', priceCents: 5500, isAddition: false },
+			{ label: '8" — 2 layers', priceCents: 6500, isAddition: false },
+			{ label: '8" — 3 layers', priceCents: 7500, isAddition: false },
+			{ label: "Additional layers", priceCents: 1000, isAddition: true },
+		],
+		priceGuideNote: "Custom designs and premium flavours may cost extra.",
 		// A different list at a different price, which is the whole reason these
 		// belong to a product rather than to the shop: candles for a tiered cake
 		// are not the candles that go on a cupcake.
@@ -121,10 +134,14 @@ export const DEMO_PRODUCTS: Product[] = [
 			},
 		],
 		variantLabel: "Size",
+		// The same four sizes the guide above prices, in the same words, plus the
+		// two it does not price. Renamed from the headcount brackets they were
+		// seeded as by supabase/migrations/20260917000002_cake_sizes.sql.
 		variants: [
-			"Six to eight people",
-			"Ten to twelve people",
-			"Fifteen to twenty people",
+			'6" — 2 layers',
+			'6" — 3 layers',
+			'8" — 2 layers',
+			'8" — 3 layers',
 			"Two tiers",
 			"Not sure yet",
 		].map((name, index) => ({

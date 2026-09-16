@@ -38,6 +38,8 @@ function product(overrides: Partial<Product> = {}): Product {
 		qtyStep: 1,
 		minPerOrder: null,
 		tiers: [],
+		priceGuide: [],
+		priceGuideNote: null,
 		variantLabel: "Flavour",
 		variants: [],
 		optionGroups: [],

@@ -2304,6 +2304,145 @@ describe("the custom cake as a product", () => {
 });
 
 /**
+ * The starting prices a product priced on request shows instead of a price.
+ *
+ * The whole point of the table is that nothing reads it: it is what a customer
+ * is told, not what anybody is charged. So what is worth asserting is that the
+ * seed is there, that an order carrying the product it belongs to still comes
+ * out at zero, and that the constraints keep the table readable.
+ */
+describe("the price guide", () => {
+	let customCake: string;
+
+	async function guideOf(slug: string) {
+		const result = await db.query<{
+			label: string;
+			price_cents: number;
+			is_addition: boolean;
+		}>(
+			`select g.label, g.price_cents, g.is_addition
+			 from product_price_guide g
+			 join products p on p.id = g.product_id
+			 where p.slug = $1
+			 order by g.sort_order`,
+			[slug],
+		);
+		return result.rows;
+	}
+
+	beforeAll(async () => {
+		await openEveryDay(50);
+		customCake = await productId("custom-cake");
+	});
+
+	it("ships on the custom cake, in the order she gave, with the add-on last", async () => {
+		expect(await guideOf("custom-cake")).toEqual([
+			{ label: '6" — 2 layers', price_cents: 4500, is_addition: false },
+			{ label: '6" — 3 layers', price_cents: 5500, is_addition: false },
+			{ label: '8" — 2 layers', price_cents: 6500, is_addition: false },
+			{ label: '8" — 3 layers', price_cents: 7500, is_addition: false },
+			{ label: "Additional layers", price_cents: 1000, is_addition: true },
+		]);
+	});
+
+	it("is answered by the picker, in the same words", async () => {
+		// The page quoting "from $45" for a size nobody can then choose was the
+		// whole complaint. Every priced line of the guide has a variant with the
+		// same name; the two rows that are not priced are allowed to be extra.
+		const result = await db.query<{ name: string }>(
+			`select v.name from product_variants v
+			 join products p on p.id = v.product_id
+			 where p.slug = 'custom-cake'
+			 order by v.sort_order`,
+		);
+		const sizes = result.rows.map((row) => row.name);
+
+		const priced = (await guideOf("custom-cake"))
+			.filter((row) => !row.is_addition)
+			.map((row) => row.label);
+
+		expect(priced.every((label) => sizes.includes(label))).toBe(true);
+		expect(sizes).toEqual([
+			'6" — 2 layers',
+			'6" — 3 layers',
+			'8" — 2 layers',
+			'8" — 3 layers',
+			"Two tiers",
+			"Not sure yet",
+		]);
+	});
+
+	it("ships with the caveat that goes under it", async () => {
+		const result = await db.query<{ price_guide_note: string | null }>(
+			"select price_guide_note from products where slug = 'custom-cake'",
+		);
+		expect(result.rows[0]!.price_guide_note).toBe(
+			"Custom designs and premium flavours may cost extra.",
+		);
+	});
+
+	it("is the only product that has one", async () => {
+		// Seeded on the one product the request was about. A starting price on
+		// anything else is a number the owner never agreed to publish.
+		const result = await db.query<{ n: number }>(
+			`select count(distinct g.product_id)::int as n
+			 from product_price_guide g
+			 join products p on p.id = g.product_id
+			 where p.slug <> 'custom-cake'`,
+		);
+		expect(result.rows[0]!.n).toBe(0);
+	});
+
+	it("prices nothing: a custom cake with a guide still comes out at zero", async () => {
+		const sizes = await db.query<{ id: string }>(
+			"select id from product_variants where product_id = $1 order by sort_order limit 1",
+			[customCake],
+		);
+
+		const order = await placeOrder({
+			items: [{ product_id: customCake, variant_id: sizes.rows[0]!.id, qty: 1 }],
+			pickupDate: await dateIn(7),
+		});
+
+		// Six inches and two layers says "from $45" on the page, and the order
+		// still waits for her to quote it.
+		expect(order.total_cents).toBe(0);
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("refuses two lines with the same label on one product", async () => {
+		const message = await errorOf(() =>
+			db.query(
+				`insert into product_price_guide (product_id, label, price_cents)
+				 values ($1, '6" — 2 layers', 9900)`,
+				[customCake],
+			),
+		);
+		expect(message).toContain("product_price_guide_product_id_label_key");
+	});
+
+	it("goes when the product goes", async () => {
+		const created = await db.query<{ id: string }>(
+			`insert into products (name, slug, unit_price_cents, price_on_request)
+			 values ('Dessert table', 'dessert-table', 0, true) returning id`,
+		);
+		const id = created.rows[0]!.id;
+
+		await db.query(
+			"insert into product_price_guide (product_id, label, price_cents) values ($1, 'Ten guests', 12000)",
+			[id],
+		);
+		await db.query("delete from products where id = $1", [id]);
+
+		const left = await db.query<{ n: number }>(
+			"select count(*)::int as n from product_price_guide where product_id = $1",
+			[id],
+		);
+		expect(left.rows[0]!.n).toBe(0);
+	});
+});
+
+/**
  * A flavour of the customer's own, and what the frosting should be.
  *
  * The browser decides which of these questions to put; `place_order` decides

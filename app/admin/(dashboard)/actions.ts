@@ -68,6 +68,13 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		return fail("The bundle prices couldn't be read. Please try again.");
 	}
 
+	let priceGuide: unknown = [];
+	try {
+		priceGuide = JSON.parse(String(formData.get("priceGuide") ?? "[]"));
+	} catch {
+		return fail("The price guide couldn't be read. Please try again.");
+	}
+
 	let variants: unknown = [];
 	let optionGroups: unknown = [];
 	let removedVariants: unknown = [];
@@ -107,6 +114,8 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		allergens: formData.getAll("allergens").map(String),
 		sortOrder: formData.get("sortOrder") ?? 0,
 		tiers,
+		priceGuide,
+		priceGuideNote: formData.get("priceGuideNote") ?? "",
 		variantLabel: formData.get("variantLabel") ?? "Flavour",
 		optionGroups,
 		variants,
@@ -141,6 +150,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		sort_order: input.sortOrder,
 		variant_label: input.variantLabel,
 		price_on_request: input.priceOnRequest,
+		price_guide_note: input.priceGuideNote,
 		wants_brief: input.wantsBrief,
 		wants_custom_flavour: input.wantsCustomFlavour,
 	};
@@ -168,6 +178,23 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 			})),
 		);
 		if (error) return fail("The product saved, but its bundle prices didn't. Please try again.");
+	}
+
+	// Replaced wholesale, like the tiers above and for the same reason: a line of
+	// the guide has no identity worth keeping. Nothing points at one, no order
+	// was ever priced from one, and the list is short enough to rewrite.
+	await supabase.from("product_price_guide").delete().eq("product_id", productId!);
+	if (input.priceGuide.length > 0) {
+		const { error } = await supabase.from("product_price_guide").insert(
+			input.priceGuide.map((row, index) => ({
+				product_id: productId!,
+				label: row.label,
+				price_cents: row.priceCents,
+				is_addition: row.isAddition,
+				sort_order: index + 1,
+			})),
+		);
+		if (error) return fail("The product saved, but its price guide didn't. Please try again.");
 	}
 
 	const variantError = await saveVariants(

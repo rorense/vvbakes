@@ -53,6 +53,8 @@ type ProductRow = {
 	wants_brief: boolean;
 	/** The product page asks for a flavour of their own, and for what the frosting should be. */
 	wants_custom_flavour: boolean;
+	/** The line under the price guide, in her own words. Null hides it. */
+	price_guide_note: string | null;
 	created_at: string;
 	updated_at: string;
 };
@@ -62,6 +64,16 @@ type ProductPriceTierRow = {
 	product_id: string;
 	qty: number;
 	price_cents: number;
+};
+
+type ProductPriceGuideRow = {
+	id: string;
+	product_id: string;
+	label: string;
+	price_cents: number;
+	/** Rendered as "+ $10" rather than "from $45". */
+	is_addition: boolean;
+	sort_order: number;
 };
 
 type ProductVariantRow = {
@@ -333,6 +345,20 @@ export type Database = {
 				Relationships: [
 					{
 						foreignKeyName: "product_price_tiers_product_id_fkey";
+						columns: ["product_id"];
+						isOneToOne: false;
+						referencedRelation: "products";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			product_price_guide: {
+				Row: ProductPriceGuideRow;
+				Insert: Writable<ProductPriceGuideRow, "product_id" | "label" | "price_cents">;
+				Update: Partial<ProductPriceGuideRow>;
+				Relationships: [
+					{
+						foreignKeyName: "product_price_guide_product_id_fkey";
 						columns: ["product_id"];
 						isOneToOne: false;
 						referencedRelation: "products";

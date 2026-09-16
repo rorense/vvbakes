@@ -68,6 +68,30 @@ interface TierDraft {
 }
 
 /**
+ * One line of the price guide being edited: '8" — 3 layers', 75, a starting
+ * price rather than an add-on.
+ *
+ * No id, unlike an extra: nothing points at one of these, so a save replaces
+ * the list outright and `key` is the draft's own. The price is the string in
+ * the box, for the reason `ExtraDraft` gives.
+ */
+interface PriceGuideDraft {
+	key: string;
+	label: string;
+	price: string;
+	isAddition: boolean;
+}
+
+function initialPriceGuide(product: Product | null): PriceGuideDraft[] {
+	return (product?.priceGuide ?? []).map((row, index) => ({
+		key: `guide-${index}`,
+		label: row.label,
+		price: (row.priceCents / 100).toString(),
+		isAddition: row.isAddition,
+	}));
+}
+
+/**
  * One option in one group, being edited: "Chocolate", "3 layers".
  *
  * `id` is the database row's, and empty for one the owner has just added;
@@ -259,6 +283,12 @@ export function ProductForm({
 	const [unitLabel, setUnitLabel] = useState(product?.unitLabel ?? "each");
 	const [qtyStep, setQtyStep] = useState(String(product?.qtyStep ?? 1));
 	const [tiers, setTiers] = useState<TierDraft[]>(() => initialTiers(product));
+	const [priceGuide, setPriceGuide] = useState<PriceGuideDraft[]>(() => initialPriceGuide(product));
+	const [priceGuideNote, setPriceGuideNote] = useState(product?.priceGuideNote ?? "");
+	// Controlled, unlike the two switches beside it, because the price guide is
+	// only worth showing her on a product this is on for. Still submitted either
+	// way; see the hidden fields.
+	const [priceOnRequest, setPriceOnRequest] = useState(product?.priceOnRequest ?? false);
 	const [extraRows, setExtraRows] = useState<ExtraDraft[]>(() =>
 		toExtraDrafts(product?.extras ?? []),
 	);
@@ -281,6 +311,19 @@ export function ProductForm({
 		tiers
 			.filter((tier) => tier.qty.trim() !== "" && tier.price.trim() !== "")
 			.map((tier) => ({ qty: tier.qty, priceCents: tier.price })),
+	);
+
+	// A row with nothing typed in either box is someone who pressed "Add" and
+	// changed their mind. One with a label and no price is a real mistake, and is
+	// left in for the server to complain about.
+	const priceGuideJson = JSON.stringify(
+		priceGuide
+			.map((row) => ({
+				label: row.label.trim(),
+				priceCents: row.price.trim(),
+				isAddition: row.isAddition,
+			}))
+			.filter((row) => row.label !== "" || row.priceCents !== ""),
 	);
 
 	// The id travels with the row, unlike the bundle prices above, which are
@@ -420,6 +463,19 @@ export function ProductForm({
 				type="hidden"
 				name="tiers"
 				value={tiersJson}
+			/>
+			{/* Both submitted whether or not the product is priced on request, so
+			    that switching it off and saving does not quietly throw away a guide
+			    she spent ten minutes on. Only the shop decides to show them. */}
+			<input
+				type="hidden"
+				name="priceGuide"
+				value={priceGuideJson}
+			/>
+			<input
+				type="hidden"
+				name="priceGuideNote"
+				value={priceGuideNote}
 			/>
 			<input
 				type="hidden"
@@ -671,6 +727,17 @@ export function ProductForm({
 					error={errors.tiers}
 				/>
 
+				{priceOnRequest ? (
+					<PriceGuideFieldset
+						rows={priceGuide}
+						setRows={setPriceGuide}
+						note={priceGuideNote}
+						setNote={setPriceGuideNote}
+						error={listErrorFrom(errors, "priceGuide")}
+						noteError={errors.priceGuideNote}
+					/>
+				) : null}
+
 				<PricePreview
 					unitPrice={submittedUnitPrice}
 					unitLabel={unitLabel}
@@ -814,8 +881,9 @@ export function ProductForm({
 					<Switch
 						name="priceOnRequest"
 						label="Price on request"
-						description="For work you price after seeing the brief. The shop shows 'Price on request' instead of a number, the item adds nothing to the customer's total, and you set the price on the order once it comes in."
-						defaultChecked={product?.priceOnRequest ?? false}
+						description="For work you price after seeing the brief. The shop shows 'Price on request' instead of a number, the item adds nothing to the customer's total, and you set the price on the order once it comes in. Starting prices for it go under Price, above."
+						checked={priceOnRequest}
+						onChange={(event) => setPriceOnRequest(event.target.checked)}
 					/>
 					<Switch
 						name="wantsBrief"
@@ -951,6 +1019,106 @@ function TierFieldset({
 					Add a bundle price
 				</button>
 			) : null}
+		</fieldset>
+	);
+}
+
+/**
+ * Where a product priced on request says what its prices start at.
+ *
+ * "Price on request" is honest and it is also a wall: someone with no idea
+ * whether a birthday cake is forty dollars or four hundred mostly does not
+ * ask. These lines are the answer to that and nothing more — no basket reads
+ * them, no order is priced from them, and the note underneath is where she
+ * says what moves the number.
+ *
+ * Shown only while the switch down in Availability is on, because on any other
+ * product there is a real price table and this would be a second, vaguer answer
+ * to the same question. The rows are submitted either way, so flicking it off
+ * and saving does not throw the guide away.
+ */
+function PriceGuideFieldset({
+	rows,
+	setRows,
+	note,
+	setNote,
+	error,
+	noteError,
+}: {
+	rows: PriceGuideDraft[];
+	setRows: (next: PriceGuideDraft[]) => void;
+	note: string;
+	setNote: (next: string) => void;
+	error?: string;
+	noteError?: string;
+}) {
+	return (
+		<fieldset className="mt-6 flex flex-col gap-3">
+			<legend className="text-sm font-medium">Starting prices</legend>
+			<p className="text-cocoa-soft text-xs">
+				Shown on the product page in place of a price. A line reading &ldquo;6&Prime; &mdash; 2
+				layers&rdquo; at 45 comes out as <span className="font-medium">from $45</span>. None of it
+				is ever charged: you still price the order yourself once the brief comes in.
+			</p>
+
+			<DraftList
+				rows={rows}
+				setRows={setRows}
+				legend="The lines of the guide"
+				noun="line"
+				max={8}
+				error={error}
+				blank={() => ({
+					key: `guide-${Date.now()}`,
+					label: "",
+					price: "",
+					isAddition: false,
+				})}
+				labelOf={(row, index) => row.label || `line ${index + 1}`}
+				fields={(row, index, update) => (
+					<>
+						<label className="flex flex-1 flex-col gap-1">
+							<span className="text-cocoa-soft text-xs">What it&rsquo;s for</span>
+							<Input
+								value={row.label}
+								placeholder={index === 0 ? '6" — 2 layers' : ""}
+								onChange={(event) => update({ label: event.target.value })}
+							/>
+						</label>
+
+						<label className="flex w-full flex-col gap-1 sm:w-28">
+							<span className="text-cocoa-soft text-xs">Price</span>
+							<Input
+								value={row.price}
+								inputMode="decimal"
+								placeholder={index === 0 ? "45" : ""}
+								onChange={(event) => update({ price: event.target.value })}
+							/>
+						</label>
+					</>
+				)}
+				body={(row, _index, update) => (
+					<Switch
+						label="Adds to the others"
+						description={
+							'Reads as "+ $10" rather than "from $10". For an extra layer or an extra tier — something added to one of the prices above rather than a starting price of its own.'
+						}
+						checked={row.isAddition}
+						onChange={(event) => update({ isAddition: event.target.checked })}
+					/>
+				)}
+			/>
+
+			<label className="flex flex-col gap-1">
+				<span className="text-cocoa-soft text-xs">The line underneath (optional)</span>
+				<Input
+					value={note}
+					placeholder="Custom designs and premium flavours may cost extra."
+					onChange={(event) => setNote(event.target.value)}
+					invalid={Boolean(noteError)}
+				/>
+				{noteError ? <p className="text-danger text-xs font-medium">{noteError}</p> : null}
+			</label>
 		</fieldset>
 	);
 }

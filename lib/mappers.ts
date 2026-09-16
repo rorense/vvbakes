@@ -17,6 +17,7 @@ import {
 	type OrderEvent,
 	type OrderItem,
 	type OrderItemExtra,
+	type PriceGuideRow,
 	type PriceTier,
 	type PrivateSettings,
 	type Review,
@@ -35,6 +36,7 @@ type ReviewRow = Tables["reviews"]["Row"];
 type ExtraRow = Tables["product_extras"]["Row"];
 type ProductRow = Tables["products"]["Row"];
 type TierRow = Tables["product_price_tiers"]["Row"];
+type GuideRow = Tables["product_price_guide"]["Row"];
 type VariantRow = Tables["product_variants"]["Row"];
 type OptionGroupRow = Tables["product_option_groups"]["Row"];
 type OptionRow = Tables["product_options"]["Row"];
@@ -104,6 +106,12 @@ function toExtra(row: ExtraColumns): Extra {
 
 function toPriceTier(row: Pick<TierRow, "qty" | "price_cents">): PriceTier {
 	return { qty: row.qty, priceCents: row.price_cents };
+}
+
+type PriceGuideColumns = Pick<GuideRow, "label" | "price_cents" | "is_addition" | "sort_order">;
+
+function toPriceGuideRow(row: PriceGuideColumns): PriceGuideRow {
+	return { label: row.label, priceCents: row.price_cents, isAddition: row.is_addition };
 }
 
 type VariantColumns = Pick<
@@ -178,11 +186,12 @@ function toProductOptionGroup(row: OptionGroupColumns): ProductOptionGroup {
  * it degrades to `GenericStringError` with no explanation worth reading.
  */
 export const PRODUCT_SELECT =
-	"*, product_price_tiers (qty, price_cents), product_extras (id, name, description, price_cents, is_available, sort_order), product_variants (id, name, unit_price_cents, image_path, allergens, is_available, sort_order, product_variant_options (option_id)), product_option_groups (id, name, sort_order, product_options (id, name, image_path, allergens, is_available, sort_order))";
+	"*, product_price_tiers (qty, price_cents), product_price_guide (label, price_cents, is_addition, sort_order), product_extras (id, name, description, price_cents, is_available, sort_order), product_variants (id, name, unit_price_cents, image_path, allergens, is_available, sort_order, product_variant_options (option_id)), product_option_groups (id, name, sort_order, product_options (id, name, image_path, allergens, is_available, sort_order))";
 
 export function toProduct(
 	row: ProductRow & {
 		product_price_tiers?: Array<Pick<TierRow, "qty" | "price_cents">> | null;
+		product_price_guide?: PriceGuideColumns[] | null;
 		product_variants?: VariantColumns[] | null;
 		product_option_groups?: OptionGroupColumns[] | null;
 		product_extras?: ExtraColumns[] | null;
@@ -199,6 +208,12 @@ export function toProduct(
 		qtyStep: row.qty_step,
 		minPerOrder: row.min_per_order,
 		tiers: (row.product_price_tiers ?? []).map(toPriceTier).sort((a, b) => a.qty - b.qty),
+		// Sorted here because `sort_order` does not survive the mapping. The order
+		// she put these in is the order they read in: sizes counting up, add-ons last.
+		priceGuide: (row.product_price_guide ?? [])
+			.slice()
+			.sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label))
+			.map(toPriceGuideRow),
 		variantLabel: row.variant_label,
 		variants: (row.product_variants ?? []).map(toProductVariant).sort(bySortOrder),
 		optionGroups: (row.product_option_groups ?? []).map(toProductOptionGroup).sort(bySortOrder),
@@ -217,6 +232,7 @@ export function toProduct(
 		priceOnRequest: row.price_on_request ?? false,
 		wantsBrief: row.wants_brief ?? false,
 		wantsCustomFlavour: row.wants_custom_flavour ?? false,
+		priceGuideNote: row.price_guide_note ?? null,
 	};
 }
 

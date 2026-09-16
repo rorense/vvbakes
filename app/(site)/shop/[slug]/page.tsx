@@ -153,16 +153,47 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
 							    A product priced on request has none of that to say. Every
 							    row here would be quoting the placeholder sitting in
-							    `unitPriceCents`, so the whole table gives way to the one
-							    line that is actually true. */}
+							    `unitPriceCents`, so the whole table gives way to what it can
+							    say: where its prices start, if she has said, and otherwise
+							    the one line that is actually true.
+
+							    The guide is a guide. Nothing is priced from it — the line
+							    still totals zero until she quotes it — so the sentence under
+							    it has to go on saying that a real number is coming. */}
 							{product.priceOnRequest ? (
 								<div className="flex flex-col gap-2">
 									<SectionLabel as="h2">Price</SectionLabel>
-									<p className="text-cocoa-soft text-sm">
-										It depends on the size and how much work goes on top, so I price it once I know
-										what you&rsquo;re after. Tell me below and I&rsquo;ll come back to you with a
-										number and where to send it.
-									</p>
+									{product.priceGuide.length > 0 ? (
+										<>
+											<HairlineList as="dl">
+												{product.priceGuide.map((row) => (
+													<HairlineRow
+														key={row.label}
+														as="div">
+														<dt className="text-sm">{row.label}</dt>
+														<dd className="font-display text-lg italic">
+															{row.isAddition ? "+ " : "from "}
+															{formatPrice(row.priceCents)}
+														</dd>
+													</HairlineRow>
+												))}
+											</HairlineList>
+											{product.priceGuideNote ? (
+												<p className="text-cocoa-soft text-sm">{product.priceGuideNote}</p>
+											) : null}
+											<p className="text-cocoa-soft text-sm">
+												Where a cake like that starts, not a quote. Tell me below what you&rsquo;re
+												after and I&rsquo;ll come back to you with the real number and where to send
+												it.
+											</p>
+										</>
+									) : (
+										<p className="text-cocoa-soft text-sm">
+											It depends on the size and how much work goes on top, so I price it once I
+											know what you&rsquo;re after. Tell me below and I&rsquo;ll come back to you
+											with a number and where to send it.
+										</p>
+									)}
 								</div>
 							) : product.variants.length === 0 || product.tiers.length > 0 ? (
 								<div className="flex flex-col gap-2">
