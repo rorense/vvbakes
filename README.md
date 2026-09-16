@@ -80,6 +80,10 @@ Then run `supabase/seed.sql` once. The easiest way is to paste it into the
 rows, the seven weekday rows, three categories and the five products from the
 market menu. It is safe to run more than once.
 
+The custom cake is not in there. It is created by a migration instead, with its
+sizes attached, because it is a product built out of rows the seed has no way to
+write idempotently — so `/shop` ends up with six products, not five.
+
 No bank details are in that file. You enter those in the admin later.
 
 ### 3. Create your login
@@ -248,16 +252,60 @@ Prices are also computed in the browser so the form can show a running total.
 so a test runs both across many quantities and tier shapes and fails if they
 ever disagree on a single cent.
 
+### What a customer says about one item
+
+Every product asks for a note. Products that want more can ask for two other
+things as well, switched on per product in the admin:
+
+- **Ask for photos and a link** (`wants_brief`) adds an uploader and a link
+  field. For the things a picture is the brief for.
+- **Ask for a flavour of their own** (`wants_custom_flavour`) adds a flavour box
+  and a question about the frosting. For cupcakes you will make in a flavour
+  that is not on the menu — not for a pandan chiffon, which comes how it comes.
+
+All of it belongs to **the line**, not to the order. That is the part worth
+knowing, because it used not to: there was one description at the bottom of the
+order form covering everything in the basket, which had nowhere to put the
+second cake when somebody ordered two different ones. A brief now travels on the
+item it describes, is shown under that line everywhere an order is rendered, and
+is part of what makes a line its own line — two cakes described differently stay
+two lines however alike the rest of them looks. `cartLineKey` in `lib/cart.ts`
+and the `group by` in `place_order` agree on that, and have to: the browser and
+the database fold the same lines together or the total on the page is not the
+total that gets charged.
+
+The frosting is one question with two ways to answer it — a tick box for "to
+match the flavour", or type what you want. The tick wins if both arrive, and the
+column has a constraint refusing a row that tries to give two. `frostingLabel`
+in `lib/brief.ts` turns the pair back into one sentence, so the basket, the
+order page, the admin and the emails all word it identically.
+
+Asking for a flavour of your own does not make an item unpriced. The menu price
+is real; it is just a price the owner may add to once she has read what is being
+asked, and the shop says so before the order is placed, on the order page after
+it, and in the "I've got your request" email. The moment she sets a price, the
+caveat disappears everywhere at once.
+
 ### Inspiration photos and links
 
-Almost nobody describes a cake in words alone, so an order can carry up to three
-photos and one link. The photos are re-encoded to WebP in the browser at around
+Almost nobody describes a cake in words alone, so a line can carry up to three
+photos and one link, and an order up to six photos across all its lines
+(`MAX_INSPIRATION_PHOTOS` and `MAX_ORDER_INSPIRATION_PHOTOS` in
+`lib/constants.ts`). The photos are re-encoded to WebP in the browser at around
 400 KB each and then travel **with the order itself**, not through an upload
 endpoint of their own: by the time they reach Supabase Storage the submission
 has already passed the honeypot, the timing check and the per-address rate
 limit, which is why the `order-inspiration` bucket has no anonymous insert
 policy. If `place_order` then refuses the order, the uploaded files are removed
 again rather than left behind.
+
+Between being chosen on a product page and being sent, the files sit in the
+browser's own IndexedDB — the cart in `localStorage` holds only their ids. So a
+basket filled on a phone and submitted from a laptop arrives without them, and
+the order form counts the gap and says so rather than pretending. Each line's
+photos are appended under `linePhotos:<n>`, where n is that line's position in
+the submitted items, which is the only thing tying a photo to the cake it
+describes; an index naming no line is refused rather than guessed at.
 
 The bucket is public to read, like the product one, because the photos are shown
 in the admin, in the owner's notification email and on the customer's own order
@@ -268,9 +316,30 @@ The link is the one part of an order a stranger writes that ends up inside an
 `href`. `new URL()` will happily parse `javascript:`, so every place that renders
 it checks the scheme first through `isHttpUrl` in `lib/validation.ts`.
 
-A photo or a link with no words at all is a complete request: `place_order`
-counts either as a brief, so someone who has the cake saved on their phone and
-nothing to add is no longer turned away with "your order is empty".
+### Extras
+
+Candles, a gift box, a card: things that ride along with whatever was ordered.
+Each product has **its own list**, edited on that product's page beside its
+flavours and its bundle prices, so candles on a tiered cake can cost something
+different from candles on a cupcake and neither is a shop-wide decision.
+
+They are priced per unit of the line, so two cakes with candles is two sets of
+candles. Bundle tiers do not apply — a bundle is your price for several of one
+product, and nobody has quoted you for four sets of candles. A free extra is a
+real one and still worth offering; it reads as "Free" rather than "$0.00".
+
+An extra belongs to its product on the way in as well. `place_order` refuses an
+id that names an extra on a *different* product, which matters beyond tidiness:
+the basket is `localStorage` and the ids in it are the customer's to edit, so
+without that check a line could carry the cheap candles off one product onto a
+cake priced for the good ones. An unknown id and a switched-off one come back
+the same way, as `EXTRA_UNAVAILABLE`.
+
+Extras are snapshotted onto the order like everything else — name, price and
+all — so renaming or deleting one never rewrites an order already placed. The
+one thing an extra does *not* do is take its line down with it: if you delete an
+extra while a basket is open, the order form drops the extra, says so, and keeps
+the cake.
 
 ### Bundle pricing
 
@@ -285,36 +354,96 @@ single-unit price nobody can buy. Nothing in the seed uses it. Cookies looked
 like that shape at first, but a `$5` pack of two is one unit, not two, and
 saying so reads better on the menu and counts better in the basket.
 
+### Price on request
+
+Some work cannot be priced before you have seen the brief. Tick **Price on
+request** on a product and the shop stops quoting a number for it: the card and
+the product page say "Price on request", the line adds nothing to the
+customer's total, and the order arrives with the line reading "Price to follow"
+rather than `$0.00`, which beside a custom cake reads as one you are giving
+away.
+
+The custom cake is a product like any other because of this. It used to be a
+second form at the bottom of the order page, with no product to browse to and
+no way to order one alongside a box of cupcakes. Now it sits in the shop, asks
+its questions like anything else, and the order it produces is an ordinary
+order with one unpriced line on it.
+
+You set the price on the order, in the admin, in the card above the status
+buttons. An order with an unpriced line cannot be confirmed until you do, since
+confirming sends bank details and a total that would be leaving the cake out.
+Where an order holds both — $24 of cupcakes and a cake nobody has priced — the
+figure reads "So far" rather than "Total", everywhere it appears.
+
 ### Flavours, sizes and other variants
 
-A cake is not one thing. It is chocolate, or carrot, or red velvet, and those
-are not the same price. Add them under **Flavours** on the product form: each
-one is a name and a price of its own, and what the choice is *called* is a field
-too, so a cake asks for a flavour and a tin asks for a size.
+A cake is not one thing. It is chocolate, or carrot, or red velvet, and it might
+come in one layer or three — and none of those are the same price.
 
-The product keeps everything else: one photo, one description, one set of
-allergens, one place in the shop. Adding the first variant turns the product
-into something a customer picks from; removing the last one turns it back into a
-single item at the price above. There is no switch to forget.
+Turn on **This is sold in variants** on the product form and you are asked two
+kinds of thing:
+
+1. **Questions and their answers.** "Flavour": chocolate, carrot, lemon.
+   "Layers": one, three. Up to three questions, and what each is *called* is a
+   field, so a cake asks for a flavour and a tin asks for a size.
+2. **A price for every combination**, in a grid generated from the answers.
+   "Chocolate · Three layers" costs whatever you decide it costs. There is no
+   base price with a per-layer surcharge, because a formula would make the one
+   thing you actually want to say the one thing you could not.
+
+Leave a row of the grid blank and that combination is one you do not make: the
+picker greys it out and nobody can order a three layer lemon you have never
+baked. A product that asks a single question stores no questions at all — the
+question is `variant_label` and the answers are the variants themselves, which
+is how every product worked before a second question was possible and how most
+of them will keep working. `optionGroups` in `lib/pricing.ts` is the only place
+that difference is handled; everything above it sees a list of questions either
+way.
 
 A few things worth knowing:
 
-- **Each flavour can sell out on its own.** A product with every flavour off
-  reads as sold out, and the shop card says so.
-- **"Most per order" counts the product, not the flavour.** A maximum of four
-  means four cakes, not four of each.
-- **A bundle price buys that many of one flavour.** "4 for $12" is four
+- **A photo and extra allergens live on the answer, not the combination.** The
+  walnuts are in the carrot cake at one layer and at three, so you tick them
+  once. A nine-row grid should not ask for the same photo nine times.
+- **Anything can sell out on its own.** Switching off "Carrot" takes every
+  carrot combination with it. A product with nothing left to buy reads as sold
+  out and the shop card says so.
+- **"Minimum per order" counts the product, not the flavour.** A minimum of six
+  cupcakes is met by three chocolate and three vanilla, so it is checked against
+  the basket rather than against either line.
+- **A bundle price buys that many of one combination.** "4 for $12" is four
   chocolate, not a mixed box, so it is a bigger discount on a dearer flavour
-  than on a cheaper one. The admin's price preview shows the answer per flavour
-  before you save, which is the point of it.
+  than on a cheaper one. The admin's price preview shows the answer per
+  combination before you save, which is the point of it.
 - **Orders keep the flavour they named.** `order_items` snapshots the name the
   same way it snapshots the product's, so renaming, repricing or deleting a
-  flavour never rewrites an order that has already been placed.
+  combination never rewrites an order that has already been placed. This is also
+  why a save updates rows in place rather than replacing them.
+- **Turning the switch off removes every variant**, and the form says so in red,
+  naming them, before you save. That is the only way to get there: a save that
+  would drop a variant nobody listed is refused outright, because an empty
+  submission is also what a form that has gone wrong sends.
 
-The stand-in catalogue used without a database has no variants in it, because it
-mirrors `supabase/seed.sql` and the seed is a straight transcription of the
-printed market menu. Add one in `/admin` to see the picker.
+The stand-in catalogue used without a database has one product that asks two
+questions — the celebration cake in `lib/demo-data.ts`, walnuts on the carrot
+and no three layer lemon — so the picker, the greying-out and the price grid can
+all be seen on a fresh clone with no Supabase project at all.
 
+### The time they would like it
+
+The calendar books a **day**. Under it there is one optional field asking
+roughly what time, because every order used to mean "some time in the window"
+and the answer came back by email one customer at a time.
+
+It is a request, not a booking. Capacity still counts orders per day and never
+times, nothing locks a slot, and the time is never checked against your pickup
+window — that window is prose you typed in the admin and there is nothing here
+to check against. The form shows it beside the field so nobody asks for nine in
+the morning on a day you open at four, and you confirm a time when you confirm
+the order. An empty answer is a real answer and most orders give it.
+
+Every place it is rendered says "around", worded once in `formatDateLongWithTime`
+so the hedge cannot drift apart.
 ### What is private
 
 `orders` has no row-level-security policy for anonymous visitors, and no insert
@@ -420,7 +549,8 @@ data, the owner account, the security boundary, storage and email. Then:
 
 ```bash
 npm test          # migrations, RLS policies, pricing, availability,
-                  # analytics redaction
+                  # analytics redaction, and that `npm run check` still
+                  # knows about every table and function
 npm run typecheck
 npm run build
 ```
@@ -440,9 +570,11 @@ and never at a customer's address.
 
 Then, by hand:
 
-**The catalogue.** `/shop` should show three bands with five products, priced
-"$3 each · 4 for $12", "$5 / pack", "$5 / slice" and "$3 / slice". Toggle a
-product to sold out in the admin and reload, the badge should appear.
+**The catalogue.** `/shop` should show three bands with six products: the five
+off the market menu, priced "$3 each · 4 for $12", "$5 / pack", "$5 / slice" and
+"$3 / slice", plus the custom cake reading "Price on request" with a size to
+choose. Toggle a product to sold out in the admin and reload, the badge should
+appear.
 
 **An order.** Add five cupcakes and two packs of cookies; the total should be
 exactly `$25.00`, and the cupcake line should read
@@ -450,11 +582,21 @@ exactly `$25.00`, and the cupcake line should read
 Submit it, then check that you got the notification email and the customer got
 the acknowledgement.
 
-**A cake with a picture.** Place an order with an empty basket, two photos and a
-Pinterest link. It should be accepted, the photos should appear in the admin
-next to the price box, in your notification email and on the customer's order
-page, and the link should open. Then try `javascript:alert(1)` in the link
-field; the form should refuse it.
+**A cake with a picture.** Open `/shop/custom-cake`, pick a size, attach two
+photos and a Pinterest link, and add it to the order alongside a box of
+cupcakes. The basket should show the brief under that line and a total that
+reads "So far", because the cake has no price yet. Submit it. The photos should
+appear in the admin next to the price box, in your notification email and on the
+customer's order page, and the link should open. Set a price on the order and
+the total should become a total, everywhere at once.
+
+Then try `javascript:alert(1)` in the link field; the form should refuse it.
+
+**An extra.** Add candles to a product in the admin, order two of that product
+with the candles ticked, and check the line reads two sets rather than one.
+Delete the extra while the basket is still open and reload the order form: the
+extra should come off, the page should say so, and the cake should still be
+there.
 
 **Confirming.** Open the order in the admin and confirm it. The customer's email
 should now carry the bank details, the reference and the full pickup address.
@@ -496,8 +638,10 @@ components/
   admin/         the admin's own components
 emails/          the five transactional emails
 lib/             pricing, availability, dates, Supabase clients, validation
+scripts/         setup check, icon build, email preview and test send
 supabase/        migrations and the seed
 tests/           SQL run against a real Postgres, in-process
+proxy.ts         refreshes the owner's session, /admin only
 ```
 
 Two pieces of logic exist twice on purpose, pricing and availability, once in
