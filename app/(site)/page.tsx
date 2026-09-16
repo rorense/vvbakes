@@ -174,7 +174,7 @@ export default async function HomePage() {
 							    in rose, which is the colour the ring was drawn in. */}
 							<ArchFrame
 								tone="butter"
-								className="border-rose aspect-4/5 w-full border-6 sm:border-8">
+								className="border-rose aspect-4/5 w-full border-16 sm:border-20">
 								<Image
 									src="/hero-badge.png"
 									alt=""
