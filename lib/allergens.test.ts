@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allergenSentence, allergensFor, extraAllergens } from "./allergens";
+import { allergenSentence, allergensFor } from "./allergens";
 import type { Allergen } from "./types";
 
 function product(allergens: Allergen[]) {
@@ -47,18 +47,6 @@ describe("allergensFor", () => {
 			"dairy",
 			"sesame",
 		]);
-	});
-});
-
-describe("extraAllergens", () => {
-	it("is only what this variant adds", () => {
-		expect(extraAllergens(product(["gluten", "dairy"]), variant(["dairy", "nuts"]))).toEqual([
-			"nuts",
-		]);
-	});
-
-	it("is empty when the variant adds nothing new", () => {
-		expect(extraAllergens(product(["gluten"]), variant(["gluten"]))).toEqual([]);
 	});
 });
 
