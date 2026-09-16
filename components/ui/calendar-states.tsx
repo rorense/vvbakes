@@ -55,9 +55,9 @@ export const DAY_STATE: Record<PublicDayState, { className: string; label: strin
 };
 
 /** The states worth explaining under the grid. The rest are self-evident. */
-export const LEGEND_STATES: readonly PublicDayState[] = ["available", "full", "too-soon"];
+const LEGEND_STATES: readonly PublicDayState[] = ["available", "full", "too-soon"];
 
-export const LEGEND_COPY: Partial<Record<PublicDayState, string>> = {
+const LEGEND_COPY: Partial<Record<PublicDayState, string>> = {
 	available: "Open for orders",
 	full: "Fully booked",
 	"too-soon": "Not enough notice",

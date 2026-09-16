@@ -113,7 +113,7 @@ export function compareTimes(a: string, b: string): number {
  * "HH:MM". Both are read and the seconds are dropped, because a collection
  * time accurate to the second is not a thing anybody meant.
  */
-export function formatTime(value: string | null | undefined): string | null {
+function formatTime(value: string | null | undefined): string | null {
 	if (!value) return null;
 	const match = /^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(value.trim());
 	if (!match) return null;

@@ -91,7 +91,7 @@ export function toReview(row: ReviewRow): Review {
 /** The columns `PRODUCT_SELECT` asks for; `product_id` is implied by the nesting. */
 type ExtraColumns = Omit<ExtraRow, "product_id" | "created_at" | "updated_at">;
 
-export function toExtra(row: ExtraColumns): Extra {
+function toExtra(row: ExtraColumns): Extra {
 	return {
 		id: row.id,
 		name: row.name,

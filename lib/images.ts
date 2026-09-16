@@ -74,7 +74,7 @@ export function fallbackAccent(product: Pick<Product, "slug">, behind?: Accent |
 }
 
 /** Alt text for a product photo, falling back to something descriptive. */
-export function productImageAlt(product: Pick<Product, "name" | "imageAlt">): string {
+function productImageAlt(product: Pick<Product, "name" | "imageAlt">): string {
 	return product.imageAlt?.trim() || `${product.name} from vvbakes`;
 }
 
