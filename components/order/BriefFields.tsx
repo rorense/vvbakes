@@ -160,7 +160,7 @@ export function BriefFields({
 				</label>
 				<p className="text-cocoa-soft text-xs">
 					{product.wantsBrief
-						? "The occasion, roughly how many people, flavours, colours, what it says on top. The more you tell me, the better I can price it."
+						? "The occasion, any specific flavour, colour, design requests. The more details you provide, the better I can prepare, price and bring your vision to life."
 						: "Writing on top, a colour, something to leave out. Anything I should know about this one."}
 				</p>
 				<Textarea
@@ -171,7 +171,7 @@ export function BriefFields({
 					onChange={(event) => patch({ note: event.target.value })}
 					placeholder={
 						product.wantsBrief
-							? "e.g. 30th birthday, about 12 people, chocolate, nothing too sweet. Happy Birthday Sam on top."
+							? "e.g. Cake is for a 50th birthday party, is it possible to request a custom “happy 50th birthday topper”, make the cake less sweet."
 							: "e.g. no sprinkles on the pink ones"
 					}
 				/>
