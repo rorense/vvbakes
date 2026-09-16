@@ -12,7 +12,6 @@ import {
 	briefKey,
 	briefPhotoIds,
 	frostingLabel,
-	isEmptyBrief,
 	MAX_BRIEF_FLAVOUR,
 	MAX_BRIEF_NOTE,
 	normaliseBrief,
@@ -72,7 +71,6 @@ describe("normaliseBrief", () => {
 		expect(normaliseBrief({ frostingMatchesFlavour: true })).toEqual({
 			frostingMatchesFlavour: true,
 		});
-		expect(isEmptyBrief({ frostingMatchesFlavour: true })).toBe(false);
 	});
 
 	it("drops an unticked box rather than storing false", () => {
@@ -93,14 +91,6 @@ describe("frostingLabel", () => {
 		expect(frostingLabel(null, false)).toBeNull();
 		expect(frostingLabel("   ", false)).toBeNull();
 		expect(frostingLabel(undefined, undefined)).toBeNull();
-	});
-});
-
-describe("isEmptyBrief", () => {
-	it("agrees with normaliseBrief about what counts as nothing", () => {
-		expect(isEmptyBrief({ note: "  " })).toBe(true);
-		expect(isEmptyBrief({ photoIds: ["a"] })).toBe(false);
-		expect(isEmptyBrief({ inspirationUrl: "https://example.com" })).toBe(false);
 	});
 });
 

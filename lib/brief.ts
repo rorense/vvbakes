@@ -155,8 +155,3 @@ export function briefKey(brief: CartBrief | null | undefined): string {
 export function briefPhotoIds(brief: CartBrief | null | undefined): string[] {
 	return normaliseBrief(brief)?.photoIds ?? [];
 }
-
-/** True when there is genuinely nothing to show for this brief. */
-export function isEmptyBrief(brief: CartBrief | null | undefined): boolean {
-	return normaliseBrief(brief) === undefined;
-}
