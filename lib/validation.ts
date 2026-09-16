@@ -73,6 +73,40 @@ function withScheme(value: string): string | null {
 	return /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`;
 }
 
+/**
+ * True when no two of these share a name.
+ *
+ * Case-folded, because "Vanilla" and "vanilla" are one flavour to a customer
+ * reading the picker even though the unique index in the database would let
+ * both through. Four lists are checked this way — a product's combinations,
+ * its extras, its questions, and the answers to any one question — and they
+ * have to agree, or the admin refuses a save the database would have taken or
+ * the other way round.
+ */
+function namesAreUnique(rows: ReadonlyArray<{ name: string }>): boolean {
+	const names = rows.map((row) => row.name.toLowerCase());
+	return new Set(names).size === names.length;
+}
+
+/**
+ * An email address the owner may leave blank, stored as null when she does.
+ *
+ * Two of these: the address customers reply to, and the one new orders are
+ * announced at. Checked with `z.email()` after the empty case rather than
+ * before, because an empty string is a real answer and not a malformed
+ * address.
+ */
+const optionalEmail = z
+	.string()
+	.trim()
+	.max(120)
+	.transform((value) => (value === "" ? null : value))
+	.nullable()
+	.refine(
+		(value) => value === null || z.email().safeParse(value).success,
+		"That email address doesn't look right",
+	);
+
 const optionalText = (max: number) =>
 	z
 		.string()
@@ -301,38 +335,22 @@ export const productSchema = z
 		message: "Two bundles have the same quantity",
 		path: ["tiers"],
 	})
-	.refine(
-		(value) => {
-			// Case-folded, because "Vanilla" and "vanilla" are one flavour to a
-			// customer reading the picker even though the unique index would let
-			// both through.
-			const names = value.variants.map((variant) => variant.name.toLowerCase());
-			return new Set(names).size === names.length;
-		},
-		{ message: "Two of these have the same name", path: ["variants"] },
-	)
-	.refine(
-		(value) => {
-			const names = value.extras.map((extra) => extra.name.toLowerCase());
-			return new Set(names).size === names.length;
-		},
-		{ message: "Two of those extras have the same name", path: ["extras"] },
-	)
-	.refine(
-		(value) => {
-			const names = value.optionGroups.map((group) => group.name.toLowerCase());
-			return new Set(names).size === names.length;
-		},
-		{ message: "Two of these questions have the same name", path: ["optionGroups"] },
-	)
-	.refine(
-		(value) =>
-			value.optionGroups.every((group) => {
-				const names = group.options.map((option) => option.name.toLowerCase());
-				return new Set(names).size === names.length;
-			}),
-		{ message: "Two answers to one question have the same name", path: ["optionGroups"] },
-	)
+	.refine((value) => namesAreUnique(value.variants), {
+		message: "Two of these have the same name",
+		path: ["variants"],
+	})
+	.refine((value) => namesAreUnique(value.extras), {
+		message: "Two of those extras have the same name",
+		path: ["extras"],
+	})
+	.refine((value) => namesAreUnique(value.optionGroups), {
+		message: "Two of these questions have the same name",
+		path: ["optionGroups"],
+	})
+	.refine((value) => value.optionGroups.every((group) => namesAreUnique(group.options)), {
+		message: "Two answers to one question have the same name",
+		path: ["optionGroups"],
+	})
 	// Questions and combinations arrive together or not at all. A product with
 	// questions nobody can buy an answer to, or combinations that answer nothing,
 	// is a half-written product rather than a state the shop knows how to render.
@@ -467,16 +485,7 @@ export const settingsSchema = z.object({
 	deliveryEnabled: z.boolean(),
 	deliveryFeeCents: dollars,
 	deliveryAreaText: optionalText(300),
-	contactEmail: z
-		.string()
-		.trim()
-		.max(120)
-		.transform((value) => (value === "" ? null : value))
-		.nullable()
-		.refine(
-			(value) => value === null || z.email().safeParse(value).success,
-			"That email address doesn't look right",
-		),
+	contactEmail: optionalEmail,
 	contactPhone: optionalText(30),
 	instagramHandle: z
 		.string()
@@ -494,16 +503,7 @@ export const settingsSchema = z.object({
 	bankAccountName: optionalText(80),
 	bankAccountNumber: optionalText(40),
 	pickupAddress: optionalText(300),
-	notificationEmail: z
-		.string()
-		.trim()
-		.max(120)
-		.transform((value) => (value === "" ? null : value))
-		.nullable()
-		.refine(
-			(value) => value === null || z.email().safeParse(value).success,
-			"That email address doesn't look right",
-		),
+	notificationEmail: optionalEmail,
 });
 
 // --- helpers ----------------------------------------------------------------
