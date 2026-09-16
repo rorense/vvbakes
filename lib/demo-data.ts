@@ -85,7 +85,7 @@ export const DEMO_PRODUCTS: Product[] = [
 	// Mirrors the product seeded by
 	// supabase/migrations/20260916000003_custom_cake_product.sql. It leads its
 	// category because it is the thing she mostly makes, and it is the only one
-	// here with no price: the sizes are questions, not price points.
+	// here with no price: the sizes are options, not price points.
 	demoProduct({
 		id: "demo-0",
 		slug: "custom-cake",
@@ -229,14 +229,14 @@ export const DEMO_PRODUCTS: Product[] = [
 		sortOrder: 5,
 		allergens: ["gluten", "dairy", "egg"],
 	}),
-	// The only product here that asks two questions, and the only reason it
+	// The only product here with two option groups, and the only reason it
 	// exists: without one, nothing in demo mode renders an option group, and the
 	// picker, the greying-out and the admin's price grid are all invisible to
 	// anyone running a fresh clone.
 	//
 	// It is worth reading as the shape the real thing takes. The walnuts sit on
-	// the "Carrot" answer rather than on each of its three combinations, which is
-	// what answers carry allergens for. The matrix has a hole in it — there is no
+	// the "Carrot" option rather than on each of its three combinations, which is
+	// what options carry allergens for. The matrix has a hole in it — there is no
 	// three-layer lemon — because she does not make one, and a hole is a
 	// combination left unpriced rather than a row switched off.
 	demoProduct({
@@ -269,7 +269,7 @@ export const DEMO_PRODUCTS: Product[] = [
 						id: "demo-6-o-carrot",
 						name: "Carrot",
 						imagePath: null,
-						// On the answer, so it reaches all three carrot combinations.
+						// On the option, so it reaches all three carrot combinations.
 						allergens: ["nuts"],
 						isAvailable: true,
 						sortOrder: 1,

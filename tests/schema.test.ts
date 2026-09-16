@@ -1435,15 +1435,15 @@ describe("the email delivery trail", () => {
 });
 
 /**
- * A product that asks two questions rather than one: three flavours by two
+ * A product with two option groups rather than one: three flavours by two
  * layer counts, priced one combination at a time.
  *
  * The flat-variant tests above are the other half of this. Nothing there has a
  * row in any of these tables, and the fact that they still pass unchanged is
- * the point: asking a second question is something a product opts into, not
- * something every product had done to it.
+ * the point: a second group is something a product opts into, not something
+ * every product had done to it.
  */
-describe("variants made of several answers", () => {
+describe("variants made of several options", () => {
 	let cakeId: string;
 	let flavourGroup: string;
 	let layerGroup: string;
@@ -1458,8 +1458,8 @@ describe("variants made of several answers", () => {
 		return result.rows[0]!.id;
 	}
 
-	/** A priced combination, linked to the answers it is made of. */
-	async function makeVariant(name: string, cents: number, answers: string[]): Promise<string> {
+	/** A priced combination, linked to the options it is made of. */
+	async function makeVariant(name: string, cents: number, options: string[]): Promise<string> {
 		const created = await db.query<{ id: string }>(
 			`insert into product_variants (product_id, name, unit_price_cents) values ($1, $2, $3)
 			 returning id`,
@@ -1467,11 +1467,11 @@ describe("variants made of several answers", () => {
 		);
 		const variantId = created.rows[0]!.id;
 
-		for (const answer of answers) {
+		for (const option of options) {
 			await db.query(
 				`insert into product_variant_options (variant_id, group_id, option_id)
 				 select $1, o.group_id, o.id from product_options o where o.id = $2`,
-				[variantId, answer],
+				[variantId, option],
 			);
 		}
 		return variantId;
@@ -1536,7 +1536,7 @@ describe("variants made of several answers", () => {
 		expect(items.rows[0]!.variant_name).toBe("Carrot · 2 layers");
 	});
 
-	it("takes every combination of an answer down when the answer sells out", async () => {
+	it("takes every combination of an option down when the option sells out", async () => {
 		await db.query("update product_options set is_available = false where id = $1", [
 			optionIds.chocolate,
 		]);
@@ -1588,7 +1588,7 @@ describe("variants made of several answers", () => {
 		await db.query("update products set min_per_order = null where id = $1", [cakeId]);
 	});
 
-	it("refuses a combination that answers one question twice", async () => {
+	it("refuses a combination that takes two options from one group", async () => {
 		const message = await errorOf(async () =>
 			db.query(
 				`insert into product_variant_options (variant_id, group_id, option_id)
@@ -1599,9 +1599,9 @@ describe("variants made of several answers", () => {
 		expect(message).toContain("product_variant_options_pkey");
 	});
 
-	it("refuses an answer filed under a question it does not belong to", async () => {
-		// Half-built on purpose: a combination that already answered the layers
-		// question would trip the key above before the foreign key was reached.
+	it("refuses an option filed under a group it does not belong to", async () => {
+		// Half-built on purpose: a combination that already held a layers option
+		// would trip the key above before the foreign key was reached.
 		const half = await makeVariant("Half built", 100, [optionIds.chocolate!]);
 
 		const message = await errorOf(async () =>
@@ -1616,15 +1616,15 @@ describe("variants made of several answers", () => {
 		await db.query("delete from product_variants where id = $1", [half]);
 	});
 
-	it("stops selling a combination that has lost one of its answers", async () => {
+	it("stops selling a combination that has lost one of its options", async () => {
 		const lemon = await makeOption(flavourGroup, "Lemon", 9);
 		const lemonTwo = await makeVariant("Lemon · 2 layers", 4800, [lemon, optionIds.two!]);
 
 		await db.query("delete from product_options where id = $1", [lemon]);
 
-		// Deleting the answer takes the link to it and nothing else, so the
-		// combination is still here, still switched on, and now answers one of the
-		// two questions the product asks.
+		// Deleting the option takes the link to it and nothing else, so the
+		// combination is still here, still switched on, and now draws on one of
+		// the two groups the product offers.
 		const links = await db.query("select 1 from product_variant_options where variant_id = $1", [
 			lemonTwo,
 		]);
@@ -1643,7 +1643,7 @@ describe("variants made of several answers", () => {
 		await db.query("delete from product_variants where id = $1", [lemonTwo]);
 	});
 
-	it("takes the whole question down with the product", async () => {
+	it("takes the whole group down with the product", async () => {
 		const spare = await db.query<{ id: string }>(
 			`insert into products (name, slug, unit_price_cents, sort_order)
 			 values ('Spare', 'spare-cake', 100, 92) returning id`,
@@ -1661,8 +1661,8 @@ describe("variants made of several answers", () => {
 		expect(left.rows).toHaveLength(0);
 	});
 
-	it("carries a combination name longer than a single answer's onto the order", async () => {
-		// Two 60-character answers joined is 123 characters, which is what the
+	it("carries a combination name longer than a single option's onto the order", async () => {
+		// Two 60-character options joined is 123 characters, which is what the
 		// widened columns are for. One character under the limit on both ends.
 		const long = await makeOption(layerGroup, "L".repeat(60), 8);
 		const name = `${"C".repeat(57)} · ${"L".repeat(60)}`;

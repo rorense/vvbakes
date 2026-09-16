@@ -2,7 +2,7 @@
  * The admin's save, replayed against real PostgreSQL.
  *
  * `saveVariants` in app/admin/(dashboard)/actions.ts writes a product's
- * questions, answers and priced combinations through PostgREST as a fixed
+ * option groups, options and priced combinations through PostgREST as a fixed
  * sequence of eleven statements. Everything about it that can go wrong is about
  * that sequence rather than about any one statement: what order the deletes and
  * the inserts happen in, what the cascades take with them, and whether a row an
@@ -62,7 +62,7 @@ interface VariantIn {
 	name: string;
 	unitPriceCents: number;
 	isAvailable?: boolean;
-	/** One index per question, into that question's answers. */
+	/** One index per group, into that group's options. */
 	options: number[];
 }
 
@@ -149,7 +149,7 @@ async function replaySave(
 			[groupId, kept(group.options)],
 		);
 
-		// 5. upsert the answers that already have a row
+		// 5. upsert the options that already have a row
 		for (const [at, option] of group.options.entries()) {
 			if (!option.id) continue;
 			await db.query(
@@ -171,7 +171,7 @@ async function replaySave(
 			);
 		}
 
-		// 6. insert the new answers
+		// 6. insert the new options
 		const saved: string[] = [];
 		for (const [at, option] of group.options.entries()) {
 			if (option.id) {
@@ -237,7 +237,7 @@ async function replaySave(
 		variantIds.push(made.rows[0]!.id);
 	}
 
-	// 10. read what these combinations answer now, so an unchanged one is left
+	// 10. read what these combinations draw on now, so an unchanged one is left
 	//     alone. See the comment in saveVariants for why that matters.
 	const wanted = variants.flatMap((variant, index) =>
 		variant.options.map((chosen, group) => ({
@@ -288,14 +288,14 @@ async function variantRows(productId: string) {
 		id: string;
 		name: string;
 		unit_price_cents: number;
-		answers: string | null;
+		options: string | null;
 	}>(
 		`select v.id, v.name, v.unit_price_cents,
 			(select string_agg(o.name, ' | ' order by g.sort_order)
 			 from product_variant_options vo
 			 join product_options o on o.id = vo.option_id
 			 join product_option_groups g on g.id = vo.group_id
-			 where vo.variant_id = v.id) as answers
+			 where vo.variant_id = v.id) as options
 		 from product_variants v
 		 where v.product_id = $1
 		 order by v.sort_order`,
@@ -327,7 +327,7 @@ async function order(productId: string, variantId: string | null, qty = 1) {
 	return result.rows[0]!;
 }
 
-/** A cake with three flavours and no questions: the shape every shop already has. */
+/** A cake with three flavours and no groups: the shape every shop already has. */
 async function aFlatCake(slug: string): Promise<{ id: string; variantIds: string[] }> {
 	const made = await db.query<{ id: string }>(
 		`insert into products (name, slug, unit_price_cents, unit_label, variant_label, sort_order)
@@ -349,7 +349,7 @@ async function aFlatCake(slug: string): Promise<{ id: string; variantIds: string
 	return { id, variantIds: variants.rows.map((r) => r.id) };
 }
 
-describe("converting a product that has only ever asked one question", () => {
+describe("converting a product that has only ever had one group", () => {
 	let cakeId: string;
 	let before: string[];
 	let orderId: string;
@@ -397,7 +397,7 @@ describe("converting a product that has only ever asked one question", () => {
 		expect(item.rows[0]!.variant_name).toBe("Carrot");
 	});
 
-	it("moves the photo and the allergens onto the answer", async () => {
+	it("moves the photo and the allergens onto the option", async () => {
 		await replaySave(
 			cakeId,
 			[
@@ -449,7 +449,7 @@ describe("converting a product that has only ever asked one question", () => {
 	});
 });
 
-describe("adding a second question to a product that already has one", () => {
+describe("adding a second group to a product that already has one", () => {
 	let cakeId: string;
 	let saved: Awaited<ReturnType<typeof replaySave>>;
 	let firstOrder: string;
@@ -527,7 +527,7 @@ describe("adding a second question to a product that already has one", () => {
 			"Carrot · 2 layers",
 			"Lemon · 2 layers",
 		]);
-		expect(rows.map((r) => r.answers)).toEqual([
+		expect(rows.map((r) => r.options)).toEqual([
 			"Chocolate | 2 layers",
 			"Chocolate | 3 layers",
 			"Carrot | 2 layers",
@@ -610,7 +610,7 @@ describe("what a later save takes away", () => {
 		orderId = (await order(cakeId, saved.variantIds[2]!)).id;
 	});
 
-	it("removes an answer and the combination made of it, and the order survives", async () => {
+	it("removes an option and the combination made of it, and the order survives", async () => {
 		// Lemon goes. The form simply stops listing it and its combination.
 		await replaySave(
 			cakeId,
@@ -643,7 +643,7 @@ describe("what a later save takes away", () => {
 		expect(item.rows[0]!.variant_name).toBe("Lemon");
 	});
 
-	it("takes the questions away again when the product goes back to one price", async () => {
+	it("takes the groups away again when the product goes back to one price", async () => {
 		// The switch is off, which is what sets removeVariants, so the empty
 		// submission is meant and is carried out.
 		await replaySave(cakeId, [], []);
@@ -661,7 +661,7 @@ describe("what a later save takes away", () => {
 		expect((await order(cakeId, null)).total_cents).toBe(4500);
 	});
 
-	it("renames an answer without rewriting what an order said", async () => {
+	it("renames an option without rewriting what an order said", async () => {
 		await replaySave(
 			cakeId,
 			[
@@ -702,7 +702,7 @@ describe("what the database refuses", () => {
 		cakeId = cake.id;
 	});
 
-	it("refuses two answers with the same name under one question", async () => {
+	it("refuses two options with the same name under one group", async () => {
 		const message = await errorOf(() =>
 			replaySave(
 				cakeId,
@@ -713,7 +713,7 @@ describe("what the database refuses", () => {
 		expect(message).toContain("product_options_group_id_name_key");
 	});
 
-	it("refuses two questions with the same name on one product", async () => {
+	it("refuses two groups with the same name on one product", async () => {
 		const message = await errorOf(() =>
 			replaySave(
 				cakeId,
@@ -746,7 +746,7 @@ describe("what the database refuses", () => {
 	 * duplicate in it and the unique index fires. The admin turns this into
 	 * "rename one and save again", which is the whole reason that message exists.
 	 */
-	it("refuses a straight swap of two answer names", async () => {
+	it("refuses a straight swap of two option names", async () => {
 		const saved = await replaySave(
 			cakeId,
 			[{ name: "Flavour", options: [{ name: "Chocolate" }, { name: "Carrot" }] }],
@@ -776,13 +776,13 @@ describe("what the database refuses", () => {
 describe("what a customer sees while a save is in flight", () => {
 	/**
 	 * The links are cleared and rewritten a combination at a time, and between
-	 * the clearing and the rewriting that combination answers no questions at
-	 * all — which `place_order` refuses, because a combination that does not
-	 * answer every question is one whose flavour has been deleted.
+	 * the clearing and the rewriting that combination draws on no group at all
+	 * — which `place_order` refuses, because a combination that does not take an
+	 * option from every group is one whose flavour has been deleted.
 	 *
 	 * That window used to open for every combination on the product on every
 	 * save, so an order placed while the owner was repricing a cake came back
-	 * saying the flavour was unavailable. Now nothing that leaves the answers
+	 * saying the flavour was unavailable. Now nothing that leaves the options
 	 * alone touches a link at all, which is what repricing, renaming and selling
 	 * out all do.
 	 */
@@ -889,7 +889,7 @@ describe("what a customer sees while a save is in flight", () => {
 		expect((await order(cakeId, saved.variantIds[2]!)).total_cents).toBe(4800);
 	});
 
-	it("only rewrites the combination whose answer actually moved", async () => {
+	it("only rewrites the combination whose option actually moved", async () => {
 		// A fourth flavour arrives and the third combination is repointed at it.
 		// Only that one has moved; the other two must be left exactly as they are.
 		const before = await linkRows();
@@ -921,12 +921,12 @@ describe("what a customer sees while a save is in flight", () => {
 		expect(after.filter((r) => r.variant_id !== saved.variantIds[2])).toEqual(untouched);
 
 		const rows = await variantRows(cakeId);
-		expect(rows.find((r) => r.id === saved.variantIds[2])!.answers).toBe("Ube");
-		expect(rows.find((r) => r.id === saved.variantIds[0])!.answers).toBe("Chocolate");
+		expect(rows.find((r) => r.id === saved.variantIds[2])!.options).toBe("Ube");
+		expect(rows.find((r) => r.id === saved.variantIds[0])!.options).toBe("Chocolate");
 	});
 	it("still refuses an order for a combination caught mid-rewrite", async () => {
 		// The window has not been closed, only narrowed to the combinations whose
-		// answers are genuinely changing. This is what it looks like while it is
+		// options are genuinely changing. This is what it looks like while it is
 		// open, and is the reason the guard in place_order is worth having.
 		await db.query("delete from product_variant_options where variant_id = $1", [
 			saved.variantIds[0],

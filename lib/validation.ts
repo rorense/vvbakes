@@ -79,7 +79,7 @@ function withScheme(value: string): string | null {
  * Case-folded, because "Vanilla" and "vanilla" are one flavour to a customer
  * reading the picker even though the unique index in the database would let
  * both through. Four lists are checked this way — a product's combinations,
- * its extras, its questions, and the answers to any one question — and they
+ * its extras, its option groups, and the options in any one group — and they
  * have to agree, or the admin refuses a save the database would have taken or
  * the other way round.
  */
@@ -209,7 +209,7 @@ const priceTierSchema = z.object({
 	priceCents: dollars,
 });
 
-/** One answer to one of a product's questions: "Chocolate", "3 layers". */
+/** One option in one of a product's option groups: "Chocolate", "3 layers". */
 const productOptionSchema = z.object({
 	id: z.string().uuid().optional(),
 	name: z.string().trim().min(1, "Give this one a name").max(60),
@@ -221,13 +221,13 @@ const productOptionSchema = z.object({
 });
 
 /**
- * One question, with its answers: "Flavour" — chocolate, carrot, red velvet.
+ * One option group, with its options: "Flavour" — chocolate, carrot, red velvet.
  *
- * The form labels one of these **Variant** and its answers **Options**, which
- * reads better over the boxes than "question" ever did. The names here stay as
- * they are because `variants` below already means a priced combination, all the
- * way down to the `product_variants` table, and two meanings for one word in
- * one file is worse than a label that does not match its field.
+ * The form labels one of these **Variant** and its options **Options**, which
+ * reads better over the boxes than "question" ever did. The code stops short of
+ * following it, because `variants` below already means a priced combination,
+ * all the way down to the `product_variants` table, and two meanings for one
+ * word in one file is worse than a label that does not match its field.
  */
 const productOptionGroupSchema = z.object({
 	id: z.string().uuid().optional(),
@@ -242,16 +242,16 @@ const productOptionGroupSchema = z.object({
  * re-creating every variant under new ids and cutting past orders loose from
  * the flavour they named.
  *
- * `options` says which answer this combination gives to each question, as an
- * index into that question's answers. Indexes rather than ids because most of
- * the answers in a first save do not have ids yet — they are being created by
+ * `options` says which option this combination takes from each group, as an
+ * index into that group's options. Indexes rather than ids because most of
+ * the options in a first save do not have ids yet — they are being created by
  * the same submission — and a position is something the form can always name.
  */
 const productVariantSchema = z.object({
 	id: z.string().uuid().optional(),
 	name: z.string().trim().min(1, "Give this one a name").max(120),
 	unitPriceCents: dollars,
-	/** Empty falls back to an answer's photo, then to the product's. */
+	/** Empty falls back to an option's photo, then to the product's. */
 	imagePath: optionalText(400),
 	/** Added to the product's allergens, never a replacement for them. */
 	allergens: z.array(z.enum(ALLERGENS)),
@@ -362,16 +362,18 @@ export const productSchema = z
 		message: "Two options in one variant have the same name",
 		path: ["optionGroups"],
 	})
-	// Questions and combinations arrive together or not at all. A product with
-	// questions nobody can buy an answer to, or combinations that answer nothing,
-	// is a half-written product rather than a state the shop knows how to render.
+	// Option groups and combinations arrive together or not at all. A product
+	// with groups nobody can buy an option from, or combinations built out of no
+	// options at all, is a half-written product rather than a state the shop
+	// knows how to render.
 	.refine((value) => value.optionGroups.length > 0 === value.variants.length > 0, {
 		message: "Something went wrong reading the variants. Please try again.",
 		path: ["variants"],
 	})
-	// Every combination answers every question exactly once, with an answer that
-	// exists. The form builds these itself, so a mismatch is a bug rather than
-	// something the owner typed, and it is refused rather than half-saved.
+	// Every combination takes exactly one option from every group, and only
+	// options that exist. The form builds these itself, so a mismatch is a bug
+	// rather than something the owner typed, and it is refused rather than
+	// half-saved.
 	.refine(
 		(value) =>
 			value.variants.every(

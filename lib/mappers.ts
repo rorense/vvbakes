@@ -165,8 +165,8 @@ function toProductOptionGroup(row: OptionGroupColumns): ProductOptionGroup {
 }
 
 /**
- * Everything a product page needs in one round trip, including the questions it
- * asks and the answers each variant is made of.
+ * Everything a product page needs in one round trip, including the option
+ * groups it offers and the options each variant is made of.
  *
  * Kept here rather than in the two query modules that use it because the shape
  * and `toProduct` have to agree: a column added to one and forgotten in the

@@ -256,7 +256,7 @@ type VariantInput = {
 	imagePath: string | null;
 	allergens: string[];
 	isAvailable: boolean;
-	/** One index per question, into that question's answers. */
+	/** One index per group, into that group's options. */
 	options: number[];
 };
 
@@ -277,7 +277,7 @@ function nameClash(message: string): string | null {
 }
 
 /**
- * Brings the product's questions, answers and priced combinations into line
+ * Brings the product's option groups, options and priced combinations into line
  * with what the form submitted.
  *
  * None of it is replaced wholesale the way bundle prices are, because all three
@@ -290,7 +290,7 @@ function nameClash(message: string): string | null {
  *
  * So rows the form still names are updated in place, rows it dropped are
  * deleted, and only genuinely new ones are inserted. Deletes cascade the way
- * the schema says: dropping a question takes its answers and every link to them
+ * the schema says: dropping a group takes its options and every link to them
  * with it, and dropping a combination takes its links.
  *
  * Returns a message on failure, or null when it worked.
@@ -322,7 +322,7 @@ async function saveVariants(
 	});
 	if (refused) return refused;
 
-	// --- the questions -------------------------------------------------------
+	// --- the option groups ---------------------------------------------------
 	// Deletes come first at every level, so a name freed by a removed row is
 	// available to a row that is taking it. PostgREST has no way to spell "not in
 	// the empty set", so clearing the lot and filtering down to the survivors
@@ -338,14 +338,14 @@ async function saveVariants(
 			name: group.name,
 			sort_order: index,
 		})),
-		// The answers below are filed under these ids, so they have to come back.
+		// The options below are filed under these ids, so they have to come back.
 		trackIds: true,
 		describeError: (message) => nameClash(message) ?? VARIANTS_FAILED,
 	});
 	if (!savedGroups.ok) return savedGroups.error;
 	const groupIds = savedGroups.ids;
 
-	// --- their answers -------------------------------------------------------
+	// --- their options -------------------------------------------------------
 	const optionIds: string[][] = [];
 
 	for (const [index, group] of groups.entries()) {
@@ -354,7 +354,7 @@ async function saveVariants(
 		const saved = await syncRows({
 			supabase,
 			table: "product_options",
-			// The only one of the four filed under a question rather than a product.
+			// The only one of the four filed under a group rather than a product.
 			parentColumn: "group_id",
 			parentId: groupId,
 			rows: group.options.map((option, at) => ({
@@ -398,19 +398,19 @@ async function saveVariants(
 	const variantIds = savedVariants.ids;
 
 	// --- what each combination is made of ------------------------------------
-	// Cleared and rewritten, but only for the combinations whose answers have
+	// Cleared and rewritten, but only for the combinations whose options have
 	// actually moved.
 	//
-	// Clearing first is what lets two combinations swap answers without a halfway
-	// state that breaks the one-answer-per-question key, so within a combination
-	// it has to stay. Doing it to *every* combination is what had to go: between
-	// the delete and the insert those rows answer no questions at all, and
-	// `place_order` refuses a combination that does not answer every question —
-	// the same guard that stops a deleted flavour being bought. A customer
-	// ordering in that window was told the flavour was unavailable when nothing
-	// of the sort was true.
+	// Clearing first is what lets two combinations swap options without a halfway
+	// state that breaks the one-option-per-group key, so within a combination it
+	// has to stay. Doing it to *every* combination is what had to go: between the
+	// delete and the insert those rows draw on no group at all, and `place_order`
+	// refuses a combination that does not take one option from every group — the
+	// same guard that stops a deleted flavour being bought. A customer ordering
+	// in that window was told the flavour was unavailable when nothing of the
+	// sort was true.
 	//
-	// Repricing, renaming and selling out all leave the answers alone, which is
+	// Repricing, renaming and selling out all leave the options alone, which is
 	// nearly every save she will ever make, and those now touch no link at all.
 	const wanted = variants.flatMap((variant, index) =>
 		variant.options.map((chosen, group) => ({
@@ -433,9 +433,9 @@ async function saveVariants(
 		for (const row of data ?? []) current.set(key(row), row.option_id);
 	}
 
-	// A combination is stale if any answer it should have differs from what it
-	// has, or if it still has an answer to a question it no longer belongs to —
-	// which is what a question being removed looks like from here.
+	// A combination is stale if any option it should have differs from what it
+	// has, or if it still holds an option from a group it no longer belongs to —
+	// which is what a group being removed looks like from here.
 	const stale = new Set<string>();
 	for (const link of wanted) {
 		if (current.get(key(link)) !== link.option_id) stale.add(link.variant_id);

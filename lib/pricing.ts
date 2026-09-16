@@ -122,7 +122,7 @@ export function hasVariants(product: Product): boolean {
 }
 
 /**
- * The separator between the answers in a variant's name: "Chocolate · 3 layers".
+ * The separator between the options in a variant's name: "Chocolate · 3 layers".
  *
  * Written into `product_variants.name` by the admin and read back everywhere
  * else, including by an order placed a year ago, so it is a constant rather
@@ -131,19 +131,18 @@ export function hasVariants(product: Product): boolean {
 export const VARIANT_NAME_SEPARATOR = " · ";
 
 /**
- * The questions this product asks, whether or not it has said so out loud.
+ * The option groups this product offers, whether or not it has said so out loud.
  *
- * A product that asks two — flavour and layers — stores them as real rows. A
- * product that asks one does not store anything: the question is
- * `product.variantLabel` and the answers are the variants themselves, which is
- * how every product worked before a second question was possible, and how most
- * of them will keep working.
+ * A product with two — flavour and layers — stores them as real rows. A product
+ * with one stores nothing: the group is `product.variantLabel` and its options
+ * are the variants themselves, which is how every product worked before a
+ * second group was possible, and how most of them will keep working.
  *
- * Rather than making every caller handle both, the single-question case is
- * dressed up as one group here. Its `id` is empty, which is what marks it as
- * having no row behind it; its options borrow the variants' ids, names, photos,
- * allergens and availability, because for that product an answer and a variant
- * are the same thing. Nothing downstream needs to know which kind it got.
+ * Rather than making every caller handle both, the single-group case is dressed
+ * up as one group here. Its `id` is empty, which is what marks it as having no
+ * row behind it; its options borrow the variants' ids, names, photos, allergens
+ * and availability, because for that product an option and a variant are the
+ * same thing. Nothing downstream needs to know which kind it got.
  */
 export function optionGroups(product: Product): ProductOptionGroup[] {
 	if (product.optionGroups.length > 0) return product.optionGroups;
@@ -167,16 +166,16 @@ export function optionGroups(product: Product): ProductOptionGroup[] {
 }
 
 /**
- * Which answers a variant is made of, as ids.
+ * Which options a variant is made of, as ids.
  *
- * The stored list, except for a product that asks one question, where the
- * variant is its own answer. See `optionGroups`.
+ * The stored list, except for a product with one option group, where the
+ * variant is its own option. See `optionGroups`.
  */
 export function variantOptionIds(product: Product, variant: ProductVariant): string[] {
 	return product.optionGroups.length > 0 ? variant.optionIds : [variant.id];
 }
 
-/** The answers a variant is made of, as rows, in the order the groups ask. */
+/** The options a variant is made of, as rows, in the order the groups offer. */
 export function variantOptions(product: Product, variant: ProductVariant): ProductOption[] {
 	const ids = new Set(variantOptionIds(product, variant));
 	return optionGroups(product)
@@ -188,8 +187,8 @@ export function variantOptions(product: Product, variant: ProductVariant): Produ
  * True when a customer can put this exact combination in their basket.
  *
  * Two switches have to agree: the combination's own, and the one on every
- * answer it is made of. Selling out of carrots takes "Carrot · 1 layer" and
- * "Carrot · 3 layers" with it, which is the whole reason the answers carry a
+ * option it is made of. Selling out of carrots takes "Carrot · 1 layer" and
+ * "Carrot · 3 layers" with it, which is the whole reason the options carry a
  * switch of their own rather than making her find all three rows.
  *
  * `place_order` checks the same pair inside the transaction that writes the
@@ -201,8 +200,8 @@ export function isVariantAvailable(product: Product, variant: ProductVariant): b
 
 	const options = variantOptions(product, variant);
 
-	// A combination that no longer answers every question is gone rather than
-	// cheap. Deleting an answer takes the links to it with it and leaves the
+	// A combination that no longer draws from every group is gone rather than
+	// cheap. Deleting an option takes the links to it with it and leaves the
 	// combination behind half-described, and no selection on the page can name
 	// that, so it must not go on quoting a price from the menu either.
 	if (options.length !== optionGroups(product).length) return false;
@@ -221,7 +220,7 @@ export function defaultVariant(product: Product): ProductVariant | null {
 }
 
 /**
- * Which answer is chosen for each question, keyed by group id.
+ * Which option is chosen in each group, keyed by group id.
  *
  * The shape the pickers hold and `variantFor` reads. A group whose id is empty
  * is the implied single group, and an empty string is a perfectly good key for
@@ -244,7 +243,7 @@ export function variantFor(product: Product, selection: OptionSelection): Produc
 	);
 }
 
-/** The answers that make up a variant, as a selection a picker can start from. */
+/** The options that make up a variant, as a selection a picker can start from. */
 export function selectionFor(product: Product, variant: ProductVariant | null): OptionSelection {
 	const selection: OptionSelection = {};
 	if (!variant) return selection;
@@ -263,17 +262,17 @@ export function defaultSelection(product: Product): OptionSelection {
 }
 
 /**
- * True when picking this answer leads somewhere, given what is already picked.
+ * True when picking this option leads somewhere, given what is already picked.
  *
  * A matrix is allowed to have holes — the owner may simply not sell a three
- * layer lemon, or may have sold out of it — and an answer that cannot be
+ * layer lemon, or may have sold out of it — and an option that cannot be
  * combined with the current ones is offered greyed out rather than silently
- * leading to "not available" after the click. Only the *other* groups' answers
+ * leading to "not available" after the click. Only the *other* groups' options
  * are held fixed, so picking a flavour never disables the flavour itself.
  *
- * A product with one question has nothing to hold fixed, so every answer the
+ * A product with one group has nothing to hold fixed, so every option the
  * picker is given is selectable and nothing is ever greyed: the picker is only
- * given answers that are on sale in the first place.
+ * given options that are on sale in the first place.
  */
 export function isOptionSelectable(
 	product: Product,

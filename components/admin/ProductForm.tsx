@@ -68,7 +68,7 @@ interface TierDraft {
 }
 
 /**
- * One answer to one question, being edited: "Chocolate", "3 layers".
+ * One option in one group, being edited: "Chocolate", "3 layers".
  *
  * `id` is the database row's, and empty for one the owner has just added;
  * carrying it through the form is what lets the save update the existing row
@@ -89,7 +89,7 @@ interface OptionDraft {
 	isAvailable: boolean;
 }
 
-/** One question, being edited: "Flavour", with its answers under it. */
+/** One option group, being edited: "Flavour", with its options under it. */
 interface GroupDraft {
 	key: string;
 	id: string;
@@ -101,15 +101,15 @@ interface GroupDraft {
  * One priced combination — the thing a customer actually buys, and the row an
  * order points at.
  *
- * Held in a map keyed by the answers it is made of rather than in a list,
- * because the grid is generated from the questions and regenerates whenever she
- * adds an answer. A list would have to be reconciled by position on every
+ * Held in a map keyed by the options it is made of rather than in a list,
+ * because the grid is generated from the groups and regenerates whenever she
+ * adds an option. A list would have to be reconciled by position on every
  * keystroke; a map means a combination keeps its price and its id however the
  * grid is rebuilt around it, and a combination she removes and puts back finds
  * its old price waiting.
  *
  * `imagePath` and `allergens` are carried through unseen. They belong to the
- * answers now, but a product that was built before there were answers has them
+ * options now, but a product that was built before there were options has them
  * on the combination, and a save that dropped them would take a photo off a
  * product that has been showing it for months.
  */
@@ -130,8 +130,8 @@ const EMPTY_CELL: CellDraft = {
 };
 
 /**
- * Every combination the current questions describe, in reading order: the last
- * question varies fastest, so the flavours stay together and the layers count up
+ * Every combination the current groups describe, in reading order: the last
+ * group varies fastest, so the flavours stay together and the layers count up
  * inside them.
  */
 function combinationsOf(groups: GroupDraft[]): OptionDraft[][] {
@@ -171,11 +171,11 @@ function initialTiers(product: Product | null): TierDraft[] {
 }
 
 /**
- * The questions this product asks, ready to edit.
+ * The option groups this product offers, ready to edit.
  *
- * Read through `optionGroups`, so a product that has never asked more than one
- * arrives here as the single question it has always been rather than as an
- * empty form. Its answers have no rows of their own — `optionGroups` borrows
+ * Read through `optionGroups`, so a product that has never had more than one
+ * arrives here as the single group it has always been rather than as an empty
+ * form. Its options have no rows of their own — `optionGroups` borrows
  * the variants' ids to stand in for them — so their ids are dropped and the
  * first save creates them for real. The variants themselves keep their ids, in
  * `initialCells` below, which is what keeps past orders pointing at something.
@@ -204,8 +204,8 @@ function initialGroups(product: Product | null): GroupDraft[] {
 function initialCells(product: Product | null, groups: GroupDraft[]): Record<string, CellDraft> {
 	if (!product) return {};
 
-	// A product that has only ever asked one question says "sold out" about the
-	// flavour, and the flavour is an answer now, so that is where the switch is
+	// A product that has only ever had one group says "sold out" about the
+	// flavour, and the flavour is an option now, so that is where the switch is
 	// read back in. The combination is left on: the two multiply, so what a
 	// customer sees is identical, and the switch ends up where she will look for
 	// it rather than in two places at once.
@@ -215,8 +215,8 @@ function initialCells(product: Product | null, groups: GroupDraft[]): Record<str
 	for (const variant of product.variants) {
 		const chosen = new Set(variantOptionIds(product, variant));
 
-		// Built by walking the questions rather than the stored answers, because
-		// the key has to be in question order and the stored list is in whatever
+		// Built by walking the groups rather than the stored options, because
+		// the key has to be in group order and the stored list is in whatever
 		// order it came back.
 		const keys = optionGroups(product).map((group, index) => {
 			const at = group.options.findIndex((option) => chosen.has(option.id));
@@ -304,7 +304,7 @@ export function ProductForm({
 
 	const extrasError = listErrorFrom(errors, "extras");
 
-	// A half-typed row is not a question or an answer yet. Dropping them here
+	// A half-typed row is not a group or an option yet. Dropping them here
 	// rather than failing validation means an empty row left behind after "Add"
 	// is simply ignored.
 	//
@@ -333,14 +333,14 @@ export function ProductForm({
 		(combination) => cellFor(combination).price.trim() !== "",
 	);
 
-	// Questions and priced combinations travel together — a question nobody can
-	// buy an answer to is not something the shop can render. Until one price is
+	// Groups and priced combinations travel together — a group nobody can buy an
+	// option from is not something the shop can render. Until one price is
 	// typed this saves as a plain product, which is also how the old flat list
 	// behaved when every row was left blank.
 	const submittedGroups = filledVariants.length > 0 ? filledGroups : [];
 
 	// Which of the product's existing combinations this save would remove: one
-	// whose price has been cleared, or one whose answer has been taken away.
+	// whose price has been cleared, or one whose option has been taken away.
 	// Named out loud below so it is never a surprise, and named in the
 	// submission because the save refuses to delete a row nobody listed.
 	const submittedIds = new Set(
@@ -366,9 +366,9 @@ export function ProductForm({
 	const submittedUnitPrice =
 		!sellsVariants || typedPriceUsable ? unitPrice : (cheapestVariant?.toString() ?? "0");
 
-	// What the picker asks when this product is down to one question again. Kept
-	// in step with the first question rather than edited separately, so a product
-	// that loses its questions does not go back to asking something she renamed a
+	// What the picker asks when this product is down to one group again. Kept
+	// in step with the first group rather than edited separately, so a product
+	// that loses its groups does not go back to asking something she renamed a
 	// year ago.
 	const submittedVariantLabel = filledGroups[0]?.name.trim() || "Flavour";
 
@@ -396,7 +396,7 @@ export function ProductForm({
 				imagePath: cell.imagePath,
 				allergens: cell.allergens,
 				isAvailable: cell.isAvailable,
-				// By position, because most of these answers have no id yet: they are
+				// By position, because most of these options have no id yet: they are
 				// being created by this same submission. See `productVariantSchema`.
 				options: combination.map((option, group) =>
 					submittedGroups[group]!.options.indexOf(option),
@@ -441,7 +441,7 @@ export function ProductForm({
 				name="extras"
 				value={extrasJson}
 			/>
-			{/* Always submitted, questions or not, so that turning them off and on
+			{/* Always submitted, groups or not, so that turning them off and on
 			    again does not quietly rename what the picker asks for. */}
 			<input
 				type="hidden"
@@ -589,8 +589,8 @@ export function ProductForm({
 			<AdminCard title="Price">
 				<div className="grid gap-5 sm:grid-cols-3">
 					{sellsVariants ? (
-						// Every variant sets its own, so a box here would be a second answer to
-						// a question already asked above. Submitted unseen so the product still
+						// Every variant sets its own, so a box here would be a second price
+						// beside the ones typed above. Submitted unseen so the product still
 						// has a price to fall back on if the variants ever go.
 						<input
 							type="hidden"
@@ -956,24 +956,24 @@ function TierFieldset({
 }
 
 /**
- * The questions this product asks and the answers to each — flavours, sizes,
- * layer counts — submitted as one JSON field. Labelled **Variant** and
- * **Options** on screen; see `productOptionGroupSchema` for why the code keeps
- * the older words.
+ * The option groups this product offers and the options in each — flavours,
+ * sizes, layer counts — submitted as one JSON field. Labelled **Variant** and
+ * **Options** on screen; see `productOptionGroupSchema` for why the code does
+ * not follow the label all the way.
  *
  * Adding one turns the product into something a customer chooses from;
  * removing the last one turns it back into a single thing at the price above.
  * There is no switch to forget to flick.
  *
  * The prices are not here. They belong to whole combinations rather than to any
- * one answer, so they live in the grid below, which is generated from whatever
- * is typed here. What lives on an answer is what is true of it wherever it
+ * one option, so they live in the grid below, which is generated from whatever
+ * is typed here. What lives on an option is what is true of it wherever it
  * turns up: its name, its photo, whether it is on, and what it adds to the
  * allergens. The walnuts are in the carrot cake at every number of layers.
  *
  * The hidden `id` on each row is the existing database row's, and is why this
  * cannot be a plain list of names: it is what a save matches on, so renaming an
- * answer edits the row the combinations point at rather than replacing it.
+ * option edits the row the combinations point at rather than replacing it.
  */
 function GroupFieldset({
 	slug,
@@ -981,7 +981,7 @@ function GroupFieldset({
 	setGroups,
 	error,
 }: {
-	/** Where an answer's photo is filed in storage: the product's own folder. */
+	/** Where an option's photo is filed in storage: the product's own folder. */
 	slug: string;
 	groups: GroupDraft[];
 	setGroups: (next: GroupDraft[]) => void;
@@ -995,7 +995,7 @@ function GroupFieldset({
 		update(group, { options: patchItem(groups[group]!.options, option, patch) });
 	};
 
-	// Rebuilt from ALLERGENS rather than pushed onto, so an answer's list is
+	// Rebuilt from ALLERGENS rather than pushed onto, so an option's list is
 	// always in the same order as the product's and the chips below it.
 	const toggleAllergen = (group: number, option: number, allergen: Allergen, on: boolean) => {
 		const current = groups[group]!.options[option]!.allergens;
@@ -1006,9 +1006,9 @@ function GroupFieldset({
 		});
 	};
 
-	// How many rows the grid would have if this question gained one more answer.
+	// How many rows the grid would have if this group gained one more option.
 	// Three flavours by three layer counts is nine prices to type; the same two
-	// questions with ten answers each is a hundred, which is not a form any more.
+	// groups with ten options each is a hundred, which is not a form any more.
 	const roomFor = (group: number) =>
 		groups.reduce(
 			(total, one, index) => total * (one.options.length + (index === group ? 1 : 0)),
@@ -1074,7 +1074,7 @@ function GroupFieldset({
 										</label>
 
 										<div className="flex items-center gap-2">
-											{/* One answer can sell out without the rest of the product
+											{/* One option can sell out without the rest of the product
 											    going with it, and takes every combination it is part of
 											    with it, so availability lives on the row. */}
 											<button
@@ -1135,7 +1135,7 @@ function GroupFieldset({
 									</div>
 
 									{/* Folded away by default. Seven checkboxes on every row would
-									    bury the name, and most answers add nothing; the summary
+									    bury the name, and most options add nothing; the summary
 									    says what is ticked without opening it. */}
 									<details className="border-line border-t pt-3">
 										<summary className="text-cocoa-soft cursor-pointer text-xs">
@@ -1225,10 +1225,10 @@ function GroupFieldset({
 }
 
 /**
- * A price for every combination of the answers above.
+ * A price for every combination of the options above.
  *
- * Generated rather than typed: the owner says what the questions and answers
- * are, and this asks her for the one thing that cannot be worked out from them.
+ * Generated rather than typed: the owner says what the groups and options are,
+ * and this asks her for the one thing that cannot be worked out from them.
  * Every combination is priced outright — there is no base price with a
  * surcharge per layer — because "Chocolate · 3 layers" costs whatever she
  * decides it costs, and a formula would make that the one thing she could not

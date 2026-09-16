@@ -19,18 +19,18 @@ import {
 	type ProductVariant,
 } from "./types";
 
-/** Something that declares a list of allergens: a variant, or one answer. */
+/** Something that declares a list of allergens: a variant, or one option. */
 type Declares = Pick<ProductVariant, "allergens">;
 
 /**
  * Everything the chosen variant contains, gathered from all three places an
  * allergen can be declared: the product, the combination itself, and each
- * answer it is built from.
+ * option it is built from.
  *
- * The answers matter once a product asks more than one question. The walnuts
+ * The options matter once a product has more than one group. The walnuts
  * belong to "Carrot", not to "Carrot · 3 layers", so ticking them once on the
- * flavour has to reach all three carrot rows. Callers hand in the answers with
- * `variantOptions(product, variant)`; a product that asks one question has none
+ * flavour has to reach all three carrot rows. Callers hand in the options with
+ * `variantOptions(product, variant)`; a product with one group has none
  * and the result is what it always was.
  *
  * Always returned in `ALLERGENS` order rather than the order the lists happened

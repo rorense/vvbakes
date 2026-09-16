@@ -10,7 +10,7 @@ import { AllergenChips, ProductImage } from "@/components/site/ProductCard";
 /**
  * What a product page is currently showing.
  *
- * Held as the answer to each question rather than as a variant, because that is
+ * Held as the option picked in each group rather than as a variant, because that is
  * what the pickers actually edit: changing the layer count leaves the flavour
  * alone, and the combination those two now name is looked up afterwards. A
  * selection that names no row — a hole in the matrix — resolves to a null
@@ -74,7 +74,7 @@ export function useVariantChoice(product: Product): VariantChoice {
 }
 
 /**
- * What the chosen combination contains: the product's allergens, the answers'
+ * What the chosen combination contains: the product's allergens, the options'
  * and its own.
  *
  * The whole block moves with the selection, heading included. A cake with no

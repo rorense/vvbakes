@@ -83,18 +83,18 @@ export interface ProductVariant {
 	isAvailable: boolean;
 	sortOrder: number;
 	/**
-	 * Which answer this variant gives to each of the product's questions, when
-	 * the product asks more than one. Empty for a product that asks one, where
-	 * the variant *is* the answer. See `optionGroups` in lib/pricing.ts.
+	 * Which option this variant takes from each of the product's option groups,
+	 * when the product has more than one. Empty for a product with one, where
+	 * the variant *is* the option. See `optionGroups` in lib/pricing.ts.
 	 */
 	optionIds: string[];
 }
 
 /**
- * One answer to one of a product's questions: "Chocolate", "3 layers".
+ * One option in one of a product's option groups: "Chocolate", "3 layers".
  *
  * The photo and the allergens belong here rather than on the variant because
- * they belong to the answer: the walnuts are in the carrot cake at every number
+ * they belong to the option: the walnuts are in the carrot cake at every number
  * of layers, and a nine-row matrix should not ask for the same photo nine
  * times.
  */
@@ -105,16 +105,16 @@ export interface ProductOption {
 	imagePath: string | null;
 	/** Added to the product's allergens, never a replacement for them. */
 	allergens: Allergen[];
-	/** Off takes every combination made of this answer with it. */
+	/** Off takes every combination made of this option with it. */
 	isAvailable: boolean;
 	sortOrder: number;
 }
 
 /**
- * One question a product asks before it can be ordered: "Flavour", "Layers".
+ * One choice a product offers before it can be ordered: "Flavour", "Layers".
  *
- * A product that asks a single question stores no groups at all — the question
- * is `variantLabel` and the answers are the variants themselves. `optionGroups`
+ * A product with a single group stores no groups at all — the group is
+ * `variantLabel` and its options are the variants themselves. `optionGroups`
  * in lib/pricing.ts is the only place that difference is handled; everything
  * above it sees a list of groups either way.
  */
@@ -180,15 +180,15 @@ export interface Product {
 	/**
 	 * What this product calls its variants: "Flavour", "Size", "Filling".
 	 *
-	 * Only read when `optionGroups` is empty, where it is the single question
-	 * the variants below are answers to.
+	 * Only read when `optionGroups` is empty, where it names the single group
+	 * the variants below are the options of.
 	 */
 	variantLabel: string;
 	/** Empty for a product sold as one thing. */
 	variants: ProductVariant[];
 	/**
-	 * The questions this product asks, when it asks more than one. Empty is the
-	 * normal state: it means one question, named by `variantLabel`.
+	 * The option groups this product offers, when it has more than one. Empty is
+	 * the normal state: it means one group, named by `variantLabel`.
 	 */
 	optionGroups: ProductOptionGroup[];
 	/**

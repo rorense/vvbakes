@@ -1,5 +1,5 @@
 /**
- * How the admin's price grid is keyed, and how it survives the questions
+ * How the admin's price grid is keyed, and how it survives the option groups
  * changing underneath it.
  *
  * Lives here rather than beside the form because the form is a `.tsx`, and
@@ -39,7 +39,7 @@ export function cellKey(combination: readonly KeyedOption[]): string {
  * report "Product saved."
  *
  * So a combination with no cell of its own inherits from the saved cell that
- * answers the most of it, provided one of the two contains the other: adding a
+ * matches the most of it, provided one of the two contains the other: adding a
  * group carries each price onto every combination extending it, and removing
  * one collapses a row of them back onto the first. Half an overlap is not
  * inheritance — it is a different row — and is left alone.

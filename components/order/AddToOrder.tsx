@@ -30,15 +30,15 @@ import { useVariantChoice } from "./VariantChoice";
  * localStorage cart and confirms inline rather than navigating away, so someone
  * adding three things does not have to walk back to the shop twice.
  *
- * A product with variants answers its questions first — one picker per
- * question, so a cake asks for a flavour and then for a number of layers rather
- * than for one of nine mashed-together names. The answers resolve to a single
+ * A product with variants is picked from one group at a time — one picker per
+ * group, so a cake asks for a flavour and then for a number of layers rather
+ * than for one of nine mashed-together names. The options resolve to a single
  * combination, which is what carries the price and what goes in the basket,
  * because two combinations of one cake are two lines with two prices. Changing
  * any of them resets the "Added." note rather than silently moving the last
  * thing added.
  *
- * The extras come last and are a different kind of question: not "which one of
+ * The extras come last and are a different kind of choice: not "which one of
  * these" but "any of these as well", so they are checkboxes rather than a
  * radio group, and they are the same list on every product. They are part of
  * what makes a basket line its own line, so the same cake with candles and
@@ -157,7 +157,7 @@ export function AddToOrder({ product }: { product: Product }) {
 					</legend>
 					<div className="flex flex-wrap gap-2">
 						{group.options
-							// A sold-out answer is left out rather than shown struck through:
+							// A sold-out option is left out rather than shown struck through:
 							// the picker offers what can be bought, and the product's own
 							// "sold out" note covers the case where that is nothing.
 							.filter((option) => option.isAvailable)
