@@ -234,10 +234,45 @@
 		mask-repeat: repeat-x;
 	}
 
-	.dot-field {
-		background-image: url("/patterns/dots.svg");
-		background-size: 24px 24px;
-		opacity: 0.06;
+	/*
+	 * Hearts, dots and sparkles strewn across an intro band, the way a card shop
+	 * prints them behind a greeting. It replaced a field of plain dots, which is
+	 * what the client was reacting to when she asked for the hero to be "the same
+	 * colour" as the dates band: the two grounds were already the same paper, and
+	 * the texture on top was the whole of the difference.
+	 *
+	 * The same tile is laid twice, at sizes that share no common multiple and off
+	 * an offset that lines nothing up. One layer of a 220px tile repeats about six
+	 * times across a desktop hero, and the eye finds that: it reads the same five
+	 * hearts marching sideways. Two layers at 300 and 210 only agree again after
+	 * 2100px, which is wider than the band, so the same arrangement is never seen
+	 * twice. The smaller layer also draws its hearts smaller, which is the size
+	 * variation the reference picture has. The two layers union rather than
+	 * intersect, which is `mask-composite`'s default.
+	 *
+	 * It is a mask rather than a picture so that one tile serves five different
+	 * grounds. Colour comes from `currentColor`, so the band sets it with a
+	 * `text-*` utility and the strength with an `opacity-*` one: rose on the two
+	 * paper bands, a plain cocoa tint on the shop, where rose hearts would sink
+	 * into `bg-rose` and fight `bg-mint`. Prefixed as well as not, for the same
+	 * Safari versions `.torn-edge` above is prefixed for.
+	 */
+	.heart-field {
+		background-color: currentColor;
+		-webkit-mask-image: url("/patterns/hearts.svg"), url("/patterns/hearts.svg");
+		mask-image: url("/patterns/hearts.svg"), url("/patterns/hearts.svg");
+		-webkit-mask-size:
+			300px 300px,
+			210px 210px;
+		mask-size:
+			300px 300px,
+			210px 210px;
+		-webkit-mask-position:
+			0 0,
+			137px 91px;
+		mask-position:
+			0 0,
+			137px 91px;
 	}
 
 	.marquee-track {

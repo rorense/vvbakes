@@ -117,7 +117,7 @@ export default async function HomePage() {
 				tone="paper"
 				className="relative overflow-hidden">
 				<div
-					className="dot-field pointer-events-none absolute inset-0"
+					className="heart-field text-rose-deep pointer-events-none absolute inset-0 opacity-45"
 					aria-hidden="true"
 				/>
 				<Container

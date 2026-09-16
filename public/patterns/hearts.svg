@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
+	<!--
+		A scatter tile for the intro bands. Hearts carry the idea; the dots and
+		four-point sparkles are what stop a field of nothing but hearts reading as
+		clip art.
+
+		Nothing here is on a grid. The positions are hand-placed and deliberately
+		avoid rows, columns and even spacing, because the tile is repeated and any
+		alignment inside it turns into a visible lattice across the band. The tile
+		is laid twice at different sizes (see `.heart-field`), which is what makes
+		the repeat hard to catch at all.
+
+		This is used as a CSS mask, not as a picture, so the fill here is never
+		seen: the colour is whatever `.heart-field` is told to be, which is how one
+		tile can be rose on the paper bands and a plain tint on the shop's five
+		coloured ones. White rather than black because `mask-mode` is left at
+		`match-source` — white shows under either reading of that, where black
+		would vanish entirely if a browser chose luminance.
+	-->
+	<defs>
+		<path
+			id="h"
+			d="M5 9C5 9 0 5.5 0 2.8 0 1.1 1.2 0 2.6 0 3.7 0 4.6.7 5 1.5 5.4.7 6.3 0 7.4 0 8.8 0 10 1.1 10 2.8 10 5.5 5 9 5 9Z" />
+		<path
+			id="s"
+			d="M6 0C6.6 3.4 8.6 5.4 12 6 8.6 6.6 6.6 8.6 6 12 5.4 8.6 3.4 6.6 0 6 3.4 5.4 5.4 3.4 6 0Z" />
+	</defs>
+
+	<g fill="#fff">
+		<use href="#h" transform="translate(34 28) rotate(-14) scale(1.4) translate(-5 -4.5)" />
+		<use href="#h" transform="translate(148 62) rotate(12) scale(1) translate(-5 -4.5)" />
+		<use href="#h" transform="translate(88 132) rotate(-22) scale(1.6) translate(-5 -4.5)" />
+		<use href="#h" transform="translate(192 158) rotate(8) scale(1.1) translate(-5 -4.5)" />
+		<use href="#h" transform="translate(28 190) rotate(18) scale(.9) translate(-5 -4.5)" />
+
+		<use href="#s" transform="translate(70 52) scale(.65) translate(-6 -6)" />
+		<use href="#s" transform="translate(172 128) scale(.8) translate(-6 -6)" />
+		<use href="#s" transform="translate(122 168) scale(.9) translate(-6 -6)" />
+
+		<circle cx="96" cy="18" r="2.6" />
+		<circle cx="186" cy="36" r="1.8" />
+		<circle cx="58" cy="78" r="2.2" />
+		<circle cx="128" cy="100" r="1.6" />
+		<circle cx="14" cy="122" r="3" />
+		<circle cx="206" cy="108" r="1.8" />
+		<circle cx="160" cy="196" r="2.4" />
+	</g>
+</svg>
