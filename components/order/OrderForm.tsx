@@ -13,19 +13,18 @@ import { formatDateShort, type IsoDate } from "@/lib/dates";
 import { loadPhotos, sweepPhotos } from "@/lib/photo-store";
 import {
 	extrasTotalCents,
+	findExtras,
 	findVariant,
 	formatMoney,
 	hasVariants,
 	isValidQty,
 	isVariantAvailable,
 	minOrderQty,
-	minQty,
 	normaliseExtraIds,
 	priceProduct,
 } from "@/lib/pricing";
 import type {
 	CartBrief,
-	Extra,
 	PickableDate,
 	Product,
 	PublicCalendarMonth,
@@ -130,10 +129,14 @@ export function OrderForm({
 					// Resolved against this product's own list, not a shop-wide one: an
 					// id that belongs to another product names nothing here, which is
 					// the same answer `place_order` gives it.
+					//
+					// `findExtras` hands them back in the owner's order rather than in
+					// whatever order the cart's ids sort into. That is the order the
+					// product page offered them in and the order the confirmation email
+					// and the order page list them in, so the basket now agrees with
+					// all three instead of being the one place they came out shuffled.
 					const wanted = normaliseExtraIds(line.extraIds);
-					const chosen = wanted
-						.map((id) => product.extras.find((extra) => extra.id === id))
-						.filter((extra): extra is Extra => Boolean(extra?.isAvailable));
+					const chosen = findExtras(product.extras, wanted).filter((extra) => extra.isAvailable);
 
 					return {
 						// What the cart itself holds, stale ids and all. Removing or
@@ -507,7 +510,7 @@ export function OrderForm({
 								<Stepper
 									size="sm"
 									value={line.qty}
-									min={minQty(line.product)}
+									min={line.product.qtyStep}
 									max={null}
 									step={line.product.qtyStep}
 									label={

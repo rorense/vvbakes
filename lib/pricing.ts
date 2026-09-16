@@ -468,11 +468,6 @@ export function priceRange(product: Product): string {
 		: `${formatPrice(low)} – ${formatPrice(high)} ${suffix}`;
 }
 
-/** The smallest quantity one line of this product can hold. */
-export function minQty(product: Product): number {
-	return product.qtyStep;
-}
-
 /**
  * The least of this product an order may contain, counted across every
  * variant.
