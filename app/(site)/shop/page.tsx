@@ -102,7 +102,7 @@ export default async function ShopPage() {
 					    Lighter than the paper bands too — here the hearts sit behind the
 					    cakes rather than behind a welcome. */}
 					<div
-						className="heart-field text-cocoa pointer-events-none absolute inset-0 opacity-10"
+						className="heart-field text-cocoa pointer-events-none absolute inset-0 opacity-5"
 						aria-hidden="true"
 					/>
 					<Container
