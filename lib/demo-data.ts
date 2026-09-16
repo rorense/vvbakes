@@ -3,7 +3,17 @@
  *
  * The point is that `npm run dev` works on a fresh clone, before anyone has
  * created a Supabase project, so the site can be designed and reviewed against
- * real-looking content. It mirrors supabase/seed.sql exactly.
+ * real-looking content.
+ *
+ * It follows supabase/seed.sql for the products themselves, which are the
+ * printed market menu transcribed, but it is deliberately no longer the same
+ * data. The seed puts nothing on a live shop that the owner has not agreed to
+ * sell: no variants, no extras, no prices she never quoted. This has all three,
+ * because a catalogue with none of them shows none of the shop's features and
+ * a fresh clone would look like a simpler site than it is.
+ *
+ * So: every feature a product can have should be represented here by at least
+ * one product, and `demo-6` exists only for that reason.
  *
  * Every page that falls back to this also renders a banner saying so (see
  * components/site/DemoBanner.tsx), and `lib/queries.ts` logs a warning, so this
@@ -218,6 +228,126 @@ export const DEMO_PRODUCTS: Product[] = [
 		isFeatured: true,
 		sortOrder: 5,
 		allergens: ["gluten", "dairy", "egg"],
+	}),
+	// The only product here that asks two questions, and the only reason it
+	// exists: without one, nothing in demo mode renders an option group, and the
+	// picker, the greying-out and the admin's price grid are all invisible to
+	// anyone running a fresh clone.
+	//
+	// It is worth reading as the shape the real thing takes. The walnuts sit on
+	// the "Carrot" answer rather than on each of its three combinations, which is
+	// what answers carry allergens for. The matrix has a hole in it — there is no
+	// three-layer lemon — because she does not make one, and a hole is a
+	// combination left unpriced rather than a row switched off.
+	demoProduct({
+		id: "demo-6",
+		slug: "celebration-cake",
+		name: "Celebration cake",
+		categoryId: "demo-cat-3",
+		description:
+			"Choose a flavour and how many layers. Every combination is priced on its own, so a three layer chocolate costs what a three layer chocolate costs.",
+		// The fallback if the variants ever go. Every combination sets its own.
+		unitPriceCents: 4500,
+		unitLabel: "cake",
+		sortOrder: 6,
+		allergens: ["gluten", "dairy", "egg"],
+		optionGroups: [
+			{
+				id: "demo-6-g1",
+				name: "Flavour",
+				sortOrder: 0,
+				options: [
+					{
+						id: "demo-6-o-choc",
+						name: "Chocolate",
+						imagePath: null,
+						allergens: [],
+						isAvailable: true,
+						sortOrder: 0,
+					},
+					{
+						id: "demo-6-o-carrot",
+						name: "Carrot",
+						imagePath: null,
+						// On the answer, so it reaches all three carrot combinations.
+						allergens: ["nuts"],
+						isAvailable: true,
+						sortOrder: 1,
+					},
+					{
+						id: "demo-6-o-lemon",
+						name: "Lemon",
+						imagePath: null,
+						allergens: [],
+						isAvailable: true,
+						sortOrder: 2,
+					},
+				],
+			},
+			{
+				id: "demo-6-g2",
+				name: "Layers",
+				sortOrder: 1,
+				options: [
+					{
+						id: "demo-6-o-one",
+						name: "One layer",
+						imagePath: null,
+						allergens: [],
+						isAvailable: true,
+						sortOrder: 0,
+					},
+					{
+						id: "demo-6-o-three",
+						name: "Three layers",
+						imagePath: null,
+						allergens: [],
+						isAvailable: true,
+						sortOrder: 1,
+					},
+				],
+			},
+		],
+		variantLabel: "Flavour",
+		variants: [
+			{
+				id: "demo-6-v1",
+				name: "Chocolate · One layer",
+				unitPriceCents: 4500,
+				optionIds: ["demo-6-o-choc", "demo-6-o-one"],
+			},
+			{
+				id: "demo-6-v2",
+				name: "Chocolate · Three layers",
+				unitPriceCents: 7500,
+				optionIds: ["demo-6-o-choc", "demo-6-o-three"],
+			},
+			{
+				id: "demo-6-v3",
+				name: "Carrot · One layer",
+				unitPriceCents: 4800,
+				optionIds: ["demo-6-o-carrot", "demo-6-o-one"],
+			},
+			{
+				id: "demo-6-v4",
+				name: "Carrot · Three layers",
+				unitPriceCents: 7800,
+				optionIds: ["demo-6-o-carrot", "demo-6-o-three"],
+			},
+			{
+				id: "demo-6-v5",
+				name: "Lemon · One layer",
+				unitPriceCents: 4500,
+				optionIds: ["demo-6-o-lemon", "demo-6-o-one"],
+			},
+			// No three layer lemon: the hole in the matrix.
+		].map((variant, index) => ({
+			...variant,
+			imagePath: null,
+			allergens: [],
+			isAvailable: true,
+			sortOrder: index + 1,
+		})),
 	}),
 ];
 
