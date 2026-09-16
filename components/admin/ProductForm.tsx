@@ -170,6 +170,23 @@ function combinationsOf(groups: GroupDraft[]): OptionDraft[][] {
 	);
 }
 
+/**
+ * A few combinations named in a sentence, and a count for the rest.
+ *
+ * Thirty of them spelled out is a paragraph nobody reads, which is the same as
+ * not having been told. Four and a number is a warning that still fits on a
+ * line.
+ */
+function nameList(combinations: OptionDraft[][]): string {
+	const MOST = 4;
+	const names = combinations.map((combination) =>
+		combination.map((option) => option.name.trim()).join(VARIANT_NAME_SEPARATOR),
+	);
+	if (names.length <= MOST) return names.join(", ");
+
+	return `${names.slice(0, MOST).join(", ")} and ${names.length - MOST} more`;
+}
+
 /** How many combinations the owner is asked to price before it is too many. */
 const MAX_COMBINATIONS = 500;
 
@@ -372,26 +389,63 @@ export function ProductForm({
 	// A combination with no price is one she does not sell: the lemon in three
 	// layers, the tin in a size she stopped stocking. The grid still offers it,
 	// and leaving it blank is how she says no.
-	const filledVariants = combinations.filter(
-		(combination) => cellFor(combination).price.trim() !== "",
-	);
+	//
+	// Unless there is no price to leave blank. Nothing charges a product priced
+	// on request — `priceProduct` and `place_order` both stop before they reach
+	// `unit_price_cents` — so the grid has nothing to ask her, and a number
+	// typed into it would be a number nobody is ever shown or charged. Every
+	// combination is offered, and the row's own "Sold out" is how one is taken
+	// away: it greys the same pill, in the same place, as a combination she
+	// never made. Which is the difference between typing a zero into every cell
+	// of a nine-by-five grid and typing nothing at all.
+	const offeredVariants = priceOnRequest
+		? combinations
+		: combinations.filter((combination) => cellFor(combination).price.trim() !== "");
 
 	// Groups and priced combinations travel together — a group nobody can buy an
 	// option from is not something the shop can render. Until one price is
 	// typed this saves as a plain product, which is also how the old flat list
-	// behaved when every row was left blank.
-	const submittedGroups = filledVariants.length > 0 ? filledGroups : [];
+	// behaved when every row was left blank. Priced on request there is nothing
+	// to type, so this turns instead on whether the groups describe anything.
+	const submittedGroups = offeredVariants.length > 0 ? filledGroups : [];
 
 	// Which of the product's existing combinations this save would remove: one
 	// whose price has been cleared, or one whose option has been taken away.
-	// Named out loud below so it is never a surprise, and named in the
-	// submission because the save refuses to delete a row nobody listed.
+	// Priced on request only the second of those can happen, since every
+	// combination the groups describe is offered. Named out loud below so it is
+	// never a surprise, and named in the submission because the save refuses to
+	// delete a row nobody listed.
 	const submittedIds = new Set(
-		filledVariants.map((combination) => cellFor(combination).id).filter(Boolean),
+		offeredVariants.map((combination) => cellFor(combination).id).filter(Boolean),
 	);
 	const removedVariants = (product?.variants ?? []).filter(
 		(variant) => !submittedIds.has(variant.id),
 	);
+
+	// The other direction, and only where prices stopped saying which
+	// combinations are real: the ones this save would newly create.
+	//
+	// A priced product says "I do not make this" by leaving the box blank, and
+	// that hole survives every save. Priced on request there is no box, so the
+	// hole is about to be filled in — and a product switched to price on request
+	// and back would come out the other side offering a three layer lemon at
+	// $0.00 that it has never made. Rare, but silent, which is the part worth
+	// fixing: she is told which ones and can switch them to sold out before
+	// saving.
+	//
+	// Inherited cells are not new. Adding a second group turns six combinations
+	// into thirty, and `hangCells` carries each one's price onto the five that
+	// extend it, so those are the same six answers under longer names rather
+	// than something she has not seen. What is left here is a combination with
+	// no cell at all: a hole, or an option added since the last save.
+	//
+	// Nothing to say on a product that has no combinations yet either. Every row
+	// of a grid being filled in for the first time is new, and announcing that is
+	// announcing what she is looking at.
+	const addedVariants =
+		priceOnRequest && savedVariantCount > 0
+			? combinations.filter((combination) => !hungCells[cellKey(combination)])
+			: [];
 
 	// The product still needs a price of its own: the column is not null, and a
 	// product built out of variants from the start has never had one typed into
@@ -402,7 +456,7 @@ export function ProductForm({
 	const typedPrice = Number(unitPrice);
 	const typedPriceUsable =
 		unitPrice.trim() !== "" && Number.isFinite(typedPrice) && typedPrice >= 0;
-	const cheapestVariant = filledVariants
+	const cheapestVariant = offeredVariants
 		.map((combination) => Number(cellFor(combination).price))
 		.filter((price) => Number.isFinite(price) && price >= 0)
 		.sort((a, b) => a - b)[0];
@@ -430,12 +484,17 @@ export function ProductForm({
 	);
 
 	const variantsJson = JSON.stringify(
-		filledVariants.map((combination) => {
+		offeredVariants.map((combination) => {
 			const cell = cellFor(combination);
 			return {
 				id: cell.id || undefined,
 				name: combination.map((option) => option.name.trim()).join(VARIANT_NAME_SEPARATOR),
-				unitPriceCents: cell.price,
+				// `product_variants.unit_price_cents` is not null, and priced on
+				// request there is no box to have typed one into. Whatever was typed
+				// before the switch went on is kept rather than flattened, for the
+				// reason the product's own price field is kept: switching it back off
+				// should bring the prices back, not a column of zeroes.
+				unitPriceCents: priceOnRequest ? cell.price.trim() || "0" : cell.price,
 				imagePath: cell.imagePath,
 				allergens: cell.allergens,
 				isAvailable: cell.isAvailable,
@@ -594,7 +653,11 @@ export function ProductForm({
 						checked={sellsVariants}
 						onChange={(event) => setSellsVariants(event.target.checked)}
 						label="This is sold in variants"
-						description="A cake that comes in three flavours and one, two or three layers. Add one variant or two; every combination of the options gets a price of its own."
+						description={
+							priceOnRequest
+								? "A cake that comes in three sizes and two flavours. Add one variant or two; every combination of the options is something a customer can ask for."
+								: "A cake that comes in three flavours and one, two or three layers. Add one variant or two; every combination of the options gets a price of its own."
+						}
 					/>
 
 					{sellsVariants ? (
@@ -612,13 +675,23 @@ export function ProductForm({
 								cellFor={cellFor}
 								setCells={setCells}
 								savedVariantCount={savedVariantCount}
+								priceOnRequest={priceOnRequest}
 								error={errors.variants}
 							/>
 							{removedVariants.length > 0 ? (
 								<Notice tone="warning">
-									Saving now removes {removedVariants.map((variant) => variant.name).join(", ")}. A
-									combination with no price is one you don&rsquo;t make. Orders already placed keep
-									the name they were given.
+									Saving now removes {removedVariants.map((variant) => variant.name).join(", ")}.{" "}
+									{priceOnRequest
+										? "A combination is gone once the option it was made of is."
+										: "A combination with no price is one you don’t make."}{" "}
+									Orders already placed keep the name they were given.
+								</Notice>
+							) : null}
+							{addedVariants.length > 0 ? (
+								<Notice tone="warning">
+									Saving now starts offering {nameList(addedVariants)}. With no price to leave
+									blank, every combination of the options is one a customer can ask for — switch the
+									ones you don&rsquo;t make to sold out first.
 								</Notice>
 							) : null}
 						</>
@@ -727,6 +800,13 @@ export function ProductForm({
 					error={errors.tiers}
 				/>
 
+				{/* The guide takes the preview's place, and says the only thing there
+				    is to say about what this costs. A preview of a price nothing
+				    charges is a column of $0.00 — one block per combination, so a
+				    cake in nine sizes and five flavours is forty-five of them — and
+				    every figure in it is a cake she would be giving away if any of it
+				    were true. It is the price guide above that is worth checking
+				    before saving, so that is what is left here. */}
 				{priceOnRequest ? (
 					<PriceGuideFieldset
 						rows={priceGuide}
@@ -736,16 +816,16 @@ export function ProductForm({
 						error={listErrorFrom(errors, "priceGuide")}
 						noteError={errors.priceGuideNote}
 					/>
-				) : null}
-
-				<PricePreview
-					unitPrice={submittedUnitPrice}
-					unitLabel={unitLabel}
-					qtyStep={qtyStep}
-					tiers={tiers}
-					combinations={filledVariants}
-					cellFor={cellFor}
-				/>
+				) : (
+					<PricePreview
+						unitPrice={submittedUnitPrice}
+						unitLabel={unitLabel}
+						qtyStep={qtyStep}
+						tiers={tiers}
+						combinations={offeredVariants}
+						cellFor={cellFor}
+					/>
+				)}
 			</AdminCard>
 
 			<AdminCard title="Extras">
@@ -1405,6 +1485,14 @@ function GroupFieldset({
  * A blank price means she does not sell that one. It is left out of the save
  * rather than stored as zero, so the picker greys it out and nobody can order
  * a three layer lemon she has never made.
+ *
+ * None of which a product priced on request has any use for. Nothing charges
+ * one — `priceProduct` and `place_order` both stop before `unit_price_cents`,
+ * and the product page shows the price guide where the price table would be —
+ * so the boxes here would take numbers that are never read back, and every
+ * combination would need one typed into it merely to exist. So the column goes,
+ * and what is left is the list of combinations with the switch each of them
+ * already had. Nine sizes by five flavours is then nothing to fill in at all.
  */
 function PriceGrid({
 	groups,
@@ -1413,6 +1501,7 @@ function PriceGrid({
 	cellFor,
 	setCells,
 	savedVariantCount,
+	priceOnRequest,
 	error,
 }: {
 	groups: GroupDraft[];
@@ -1422,12 +1511,15 @@ function PriceGrid({
 	cellFor: (combination: OptionDraft[]) => CellDraft;
 	setCells: (next: Record<string, CellDraft>) => void;
 	savedVariantCount: number;
+	/** No price to ask for, so no price asked for. See the header. */
+	priceOnRequest: boolean;
 	error?: string;
 }) {
 	if (combinations.length === 0) {
 		return (
 			<p className="text-cocoa-soft text-sm">
-				Name a variant and at least one option above, and the prices to fill in will appear here.
+				Name a variant and at least one option above, and the{" "}
+				{priceOnRequest ? "combinations" : "prices to fill in"} will appear here.
 			</p>
 		);
 	}
@@ -1445,10 +1537,20 @@ function PriceGrid({
 
 	return (
 		<fieldset className="flex flex-col gap-3">
-			<legend className="text-sm font-medium">Prices</legend>
+			<legend className="text-sm font-medium">{priceOnRequest ? "Combinations" : "Prices"}</legend>
 			<p className="text-cocoa-soft text-xs">
-				One price per combination, in dollars. Leave a row blank for a combination you don&rsquo;t
-				make — it won&rsquo;t be offered.
+				{priceOnRequest ? (
+					<>
+						Every combination of the options above, and all of them can be asked for. There is no
+						price to set: you quote this one once the order comes in. Switch one to sold out and it
+						greys out on the page.
+					</>
+				) : (
+					<>
+						One price per combination, in dollars. Leave a row blank for a combination you
+						don&rsquo;t make — it won&rsquo;t be offered.
+					</>
+				)}
 			</p>
 
 			{combinations.map((combination) => {
@@ -1472,15 +1574,17 @@ function PriceGrid({
 							) : null}
 						</p>
 
-						<label className="flex w-28 flex-col gap-1">
-							<span className="text-cocoa-soft text-xs">Price ($)</span>
-							<input
-								inputMode="decimal"
-								className="border-line bg-paper focus-visible:border-cocoa w-full rounded-md border px-3 py-2 text-base"
-								value={cell.price}
-								onChange={(event) => patch(combination, { price: event.target.value })}
-							/>
-						</label>
+						{priceOnRequest ? null : (
+							<label className="flex w-28 flex-col gap-1">
+								<span className="text-cocoa-soft text-xs">Price ($)</span>
+								<input
+									inputMode="decimal"
+									className="border-line bg-paper focus-visible:border-cocoa w-full rounded-md border px-3 py-2 text-base"
+									value={cell.price}
+									onChange={(event) => patch(combination, { price: event.target.value })}
+								/>
+							</label>
+						)}
 
 						<button
 							type="button"
@@ -1498,7 +1602,10 @@ function PriceGrid({
 
 			{error ? <p className="text-danger text-xs font-medium">{error}</p> : null}
 
-			{priced.length === 0 ? (
+			{/* Only where a price is what says a combination is real. Priced on
+			    request every row above is saved, so there is always something to
+			    save and nothing here to warn about. */}
+			{priced.length === 0 && !priceOnRequest ? (
 				<p className="text-cocoa-soft text-xs">
 					{savedVariantCount > 0
 						? `Nothing is priced, so there is nothing to save. Give at least one combination a price, or turn off "This is sold in variants" to put this back to a single price.`

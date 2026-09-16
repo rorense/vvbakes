@@ -379,6 +379,20 @@ about a cake nobody has described yet. Leave the table empty and the page says
 only that the price depends on the brief, which is what every product priced on
 request said before there was one.
 
+Which is also why the switch takes the prices out of the admin wherever they
+would be beside the point. A product priced on request is asked for no price per
+combination and shown no price preview: the grid becomes a plain list of the
+combinations with the on/sold-out switch each already had, and the starting
+prices above take the preview's place. It is the one place where the rule below
+— a combination with no price is one you do not make — cannot apply, because
+there is no price to leave out. Every combination of the options is one a
+customer can ask for, and **sold out** is how you take one off the page.
+
+The two travel in one direction only. Ticking **Price on request** on a product
+that already has gaps in its grid fills them in, so the form names them first —
+_"Saving now starts offering Lemon · Three layers"_ — and you can switch those
+to sold out before you save.
+
 The custom cake is a product like any other because of this. It used to be a
 second form at the bottom of the order page, with no product to browse to and
 no way to order one alongside a box of cupcakes. Now it sits in the shop, asks
@@ -409,7 +423,8 @@ kinds of thing:
 
 Leave a row of the grid blank and that combination is one you do not make: the
 picker greys it out and nobody can order a three layer lemon you have never
-baked. A product with a single variant stores no option groups at all — the
+baked. (Not on a product priced on request, which has no prices to leave blank.
+See **Price on request** above.) A product with a single variant stores no option groups at all — the
 variant's name is `variant_label` and its options are the `product_variants`
 rows themselves, which is how every product worked before a second variant was
 possible and how most of them will keep working. `optionGroups` in
