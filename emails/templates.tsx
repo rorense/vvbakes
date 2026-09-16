@@ -1,5 +1,5 @@
 import { Section, Text } from "@react-email/components";
-import { formatDateLong } from "@/lib/dates";
+import { formatDateLong, formatDateLongWithTime } from "@/lib/dates";
 import { firstName } from "@/lib/names";
 import { formatMoney } from "@/lib/pricing";
 import type { Order, PrivateSettings, SiteSettings } from "@/lib/types";
@@ -48,11 +48,12 @@ function NewOrderOwnerEmail(ctx: EmailContext) {
 	return (
 		<EmailLayout
 			siteUrl={ctx.siteUrl}
-			preview={`${order.reference}, ${formatDateLong(order.pickupDate)}, ${formatMoney(order.totalCents)}`}
+			preview={`${order.reference}, ${formatDateLongWithTime(order.pickupDate, order.pickupTime)}, ${formatMoney(order.totalCents)}`}
 			heading={`New order ${order.reference}`}
 			footerNote="You're getting this because you're listed as the notification email in the admin settings.">
 			<Paragraph>
-				{order.customerName} has asked for {formatDateLong(order.pickupDate)}.
+				{order.customerName} has asked for{" "}
+				{formatDateLongWithTime(order.pickupDate, order.pickupTime)}.
 			</Paragraph>
 
 			<Label>Customer</Label>
@@ -149,7 +150,7 @@ function OrderReceivedEmail(ctx: EmailContext) {
 					{ label: "Reference", value: order.reference },
 					{
 						label: order.fulfilment === "delivery" ? "Delivery date" : "Pickup date",
-						value: formatDateLong(order.pickupDate),
+						value: formatDateLongWithTime(order.pickupDate, order.pickupTime),
 					},
 				]}
 			/>

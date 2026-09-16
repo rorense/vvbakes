@@ -16,7 +16,7 @@ import type { Order, OrderItem } from "@/lib/types";
 import { frostingLabel, hasCustomFlavour } from "@/lib/brief";
 import { inspirationImageUrl } from "@/lib/images";
 import { formatMoney } from "@/lib/pricing";
-import { formatDateLong } from "@/lib/dates";
+import { formatDateLongWithTime } from "@/lib/dates";
 import { isHttpUrl } from "@/lib/validation";
 
 /**
@@ -386,7 +386,7 @@ export function FulfilmentDetails({
 	pickupWindowText,
 	pickupInstructions,
 }: {
-	order: Pick<Order, "fulfilment" | "pickupDate" | "deliveryAddress">;
+	order: Pick<Order, "fulfilment" | "pickupDate" | "pickupTime" | "deliveryAddress">;
 	pickupAddress: string | null;
 	pickupWindowText: string | null;
 	pickupInstructions: string | null;
@@ -394,7 +394,7 @@ export function FulfilmentDetails({
 	const rows: Array<{ label: string; value: string }> = [
 		{
 			label: order.fulfilment === "delivery" ? "Delivery date" : "Pickup date",
-			value: formatDateLong(order.pickupDate),
+			value: formatDateLongWithTime(order.pickupDate, order.pickupTime),
 		},
 	];
 

@@ -537,6 +537,13 @@ export interface Order {
 	fulfilment: Fulfilment;
 	/** YYYY-MM-DD. */
 	pickupDate: string;
+	/**
+	 * Roughly when they hope to collect, as "HH:MM:SS". Null when they did not
+	 * say, which is most orders: the question is optional and an empty answer is
+	 * a real one. A request rather than a booking — nothing counts capacity by
+	 * it, and she confirms a time when she confirms the order.
+	 */
+	pickupTime: string | null;
 	customerName: string;
 	customerEmail: string;
 	customerPhone: string;

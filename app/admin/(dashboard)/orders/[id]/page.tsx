@@ -8,7 +8,7 @@ import {
 } from "@/lib/admin-queries";
 import { hasCustomFlavour } from "@/lib/brief";
 import { cn } from "@/lib/cn";
-import { formatDateLong } from "@/lib/dates";
+import { formatDateLong, formatDateLongWithTime } from "@/lib/dates";
 import { allowedTransitions, STATUS_TONES } from "@/lib/order-status";
 import { siteUrl } from "@/lib/constants";
 import { ORDER_STATUS_LABELS } from "@/lib/types";
@@ -144,7 +144,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 							<dt className="text-cocoa-soft text-sm">
 								{order.fulfilment === "delivery" ? "Delivery" : "Pickup"}
 							</dt>
-							<dd className="text-right text-sm font-medium">{formatDateLong(order.pickupDate)}</dd>
+							<dd className="text-right text-sm font-medium">
+								{formatDateLongWithTime(order.pickupDate, order.pickupTime)}
+							</dd>
 						</HairlineRow>
 						{order.deliveryAddress ? (
 							<HairlineRow as="div">

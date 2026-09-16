@@ -334,6 +334,7 @@ export function toOrder(row: OrderRow & { order_items?: OrderItemColumns[] | nul
 		status: row.status,
 		fulfilment: row.fulfilment,
 		pickupDate: row.pickup_date,
+		pickupTime: row.pickup_time,
 		customerName: row.customer_name,
 		customerEmail: row.customer_email,
 		customerPhone: row.customer_phone,

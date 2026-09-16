@@ -93,6 +93,7 @@ export async function placeOrder(
 	const parsed = orderInputSchema.safeParse({
 		items,
 		pickupDate: String(formData.get("pickupDate") ?? ""),
+		pickupTime: String(formData.get("pickupTime") ?? ""),
 		fulfilment: String(formData.get("fulfilment") ?? "pickup"),
 		customerName: String(formData.get("customerName") ?? ""),
 		customerEmail: String(formData.get("customerEmail") ?? ""),
@@ -148,6 +149,9 @@ export async function placeOrder(
 			frosting_matches_flavour: item.frostingMatchesFlavour ?? false,
 		})),
 		p_pickup_date: input.pickupDate,
+		// Null unless they said. Nothing downstream treats it as agreed: it is
+		// what she answers in the reply she was going to send anyway.
+		p_pickup_time: input.pickupTime,
 		p_fulfilment: input.fulfilment,
 		p_customer_name: input.customerName,
 		p_customer_email: input.customerEmail,

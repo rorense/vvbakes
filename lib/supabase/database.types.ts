@@ -159,6 +159,7 @@ type OrderRow = {
 	status: OrderStatusEnum;
 	fulfilment: FulfilmentEnum;
 	pickup_date: string;
+	pickup_time: string | null;
 	customer_name: string;
 	customer_email: string;
 	customer_phone: string;
@@ -532,6 +533,7 @@ export type Database = {
 					p_ip_hash: string | null;
 					p_inspiration_image_paths?: string[];
 					p_inspiration_url?: string | null;
+					p_pickup_time?: string | null;
 				};
 				Returns: Array<{
 					id: string;

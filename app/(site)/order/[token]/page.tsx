@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { formatDateLong } from "@/lib/dates";
+import { formatDateLongWithTime } from "@/lib/dates";
 import { getOrderByToken, getPrivateSettings } from "@/lib/orders";
 import { formatMoney } from "@/lib/pricing";
 import { getSettings } from "@/lib/queries";
@@ -222,7 +222,7 @@ function Fulfilment({
 	const rows: Array<{ label: string; value: string }> = [
 		{
 			label: order.fulfilment === "delivery" ? "Delivery date" : "Pickup date",
-			value: formatDateLong(order.pickupDate),
+			value: formatDateLongWithTime(order.pickupDate, order.pickupTime),
 		},
 	];
 

@@ -308,6 +308,16 @@ export function OrderForm({
 	const chosenDate = dates.find((date) => date.date === chosenDateValue) ?? dates[0] ?? null;
 	const pickupDate = chosenDate?.date ?? "";
 
+	// The window is the owner's own prose, typed in the admin, so it is repeated
+	// under the field rather than turned into a list of hours nobody promised.
+	// Without it someone asks for nine in the morning on a day she opens at four,
+	// and the first thing she has to write back is the thing the page knew.
+	const pickupWindow = settings.pickupWindowText?.replace(/[.\s]+$/, "");
+	const timeHint =
+		fulfilment === "delivery"
+			? "Roughly when suits you. I'll confirm a time when I reply."
+			: `Roughly when you'd like to collect.${pickupWindow ? ` ${pickupWindow}.` : ""} I'll confirm a time when I reply.`;
+
 	// On success, empty the cart and hand over to the thank-you page, which is
 	// the status page's front door: it says the request landed, then sends
 	// people on to the status link they'll come back to later.
@@ -569,6 +579,27 @@ export function OrderForm({
 				{fieldErrors.pickupDate ? (
 					<p className="text-danger mt-3 text-xs font-medium">{fieldErrors.pickupDate}</p>
 				) : null}
+
+				{/* Under the calendar, and optional. A day is the thing that has to be
+				    booked; the hour is a preference, and most people do not have one.
+				    It is uncontrolled because nothing on this page reads it — it goes
+				    to the server as a plain field and comes back on the order. */}
+				<div className="mt-8">
+					<Field
+						label={
+							fulfilment === "delivery" ? "Approximate delivery time" : "Approximate pickup time"
+						}
+						hint={timeHint}
+						className="sm:max-w-xs">
+						{(props) => (
+							<Input
+								{...props}
+								name="pickupTime"
+								type="time"
+							/>
+						)}
+					</Field>
+				</div>
 			</Step>
 
 			{settings.deliveryEnabled ? (

@@ -16,6 +16,24 @@ const isoDate = z
 	.regex(/^\d{4}-\d{2}-\d{2}$/, "Please choose a pickup date")
 	.refine((value) => !Number.isNaN(Date.parse(`${value}T00:00:00Z`)), "That date isn't valid");
 
+/**
+ * A time off a clock — "16:30" from the order form's time input, or null.
+ *
+ * Seconds are accepted and dropped: no browser sends them from a time field,
+ * and a collection time to the second is not a thing anyone meant. Anything
+ * that is not a time at all becomes null rather than an error, in the same
+ * spirit as `optionalText` below: the control is a native time input, so a
+ * value it could not have produced is a caller hand-rolling the form rather
+ * than a customer to be corrected.
+ */
+const clockTime = z
+	.string()
+	.trim()
+	.regex(/^$|^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/)
+	.transform((value) => (value === "" ? null : value.slice(0, 5)))
+	.nullable()
+	.catch(null);
+
 const slug = z
 	.string()
 	.trim()
@@ -130,6 +148,10 @@ export const orderInputSchema = z
 		// one for the sake of the orders already placed that way.
 		items: z.array(orderItemSchema).min(1, "Your order is empty.").max(20),
 		pickupDate: isoDate,
+		// Optional, and mostly left empty. Someone with no preference has given a
+		// real answer by saying nothing, so there is no default hour to fall back
+		// on and nothing here refuses an order over it.
+		pickupTime: clockTime,
 		fulfilment: z.enum(["pickup", "delivery"]),
 		customerName: z.string().trim().min(2, "Please tell us your name").max(80),
 		customerEmail: z

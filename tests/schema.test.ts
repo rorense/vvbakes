@@ -66,6 +66,8 @@ type PlaceArgs = {
 		frosting_matches_flavour?: boolean;
 	}>;
 	pickupDate: string;
+	/** Roughly when they hope to collect. Absent on most orders, and fine. */
+	pickupTime?: string | null;
 	fulfilment?: "pickup" | "delivery";
 	name?: string;
 	email?: string;
@@ -84,7 +86,7 @@ async function placeOrder(args: PlaceArgs) {
 		token: string;
 		reference: string;
 		total_cents: number;
-	}>("select * from place_order($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)", [
+	}>("select * from place_order($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)", [
 		JSON.stringify(args.items),
 		args.pickupDate,
 		args.fulfilment ?? "pickup",
@@ -97,6 +99,7 @@ async function placeOrder(args: PlaceArgs) {
 		args.ipHash ?? null,
 		args.photos ?? [],
 		args.inspirationUrl ?? null,
+		args.pickupTime ?? null,
 	]);
 	return result.rows[0]!;
 }
@@ -334,6 +337,35 @@ describe("place_order", () => {
 			[order.id],
 		);
 		expect(events.rows.map((e) => e.type)).toEqual(["created"]);
+	});
+
+	it("keeps the time they asked for, cut to the minute", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: await productId("brochi"), qty: 1 }],
+			pickupDate: await dateIn(7),
+			pickupTime: "16:30:45",
+		});
+
+		const row = await db.query<{ pickup_time: string }>(
+			"select pickup_time::text from orders where id = $1",
+			[order.id],
+		);
+		// The seconds go. A collection time to the second is not a thing anybody
+		// meant, and storing one would make a preference look like an appointment.
+		expect(row.rows[0]!.pickup_time).toBe("16:30:00");
+	});
+
+	it("takes an order from someone who never said a time", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: await productId("brochi"), qty: 1 }],
+			pickupDate: await dateIn(7),
+		});
+
+		const row = await db.query<{ pickup_time: string | null }>(
+			"select pickup_time::text from orders where id = $1",
+			[order.id],
+		);
+		expect(row.rows[0]!.pickup_time).toBeNull();
 	});
 
 	it("merges duplicate lines for the same product", async () => {

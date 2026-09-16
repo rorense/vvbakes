@@ -103,6 +103,34 @@ export function compareTimes(a: string, b: string): number {
 }
 
 /**
+ * "4:30pm", or "4pm" on the hour. Null for anything that is not a time.
+ *
+ * The shop already writes times this way — the pickup window in the settings
+ * reads like "Pickups 4–7pm" — so a time a customer asked for sits beside it
+ * rather than looking as though it came off a different site.
+ *
+ * Postgres hands these back as "HH:MM:SS" and a browser's time input sends
+ * "HH:MM". Both are read and the seconds are dropped, because a collection
+ * time accurate to the second is not a thing anybody meant.
+ */
+export function formatTime(value: string | null | undefined): string | null {
+	if (!value) return null;
+	const match = /^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(value.trim());
+	if (!match) return null;
+
+	const hours = Number(match[1]);
+	const minutes = Number(match[2]);
+	if (hours > 23 || minutes > 59) return null;
+
+	const suffix = hours < 12 ? "am" : "pm";
+	// Midnight and midday are both 12 on a clock face, not 0.
+	const clock = hours % 12 === 0 ? 12 : hours % 12;
+	return minutes === 0
+		? `${clock}${suffix}`
+		: `${clock}:${String(minutes).padStart(2, "0")}${suffix}`;
+}
+
+/**
  * Sunday-first, matching `getUTCDay()`. The long names come from the single
  * table in lib/types.ts and the short ones are cut from those, so there is no
  * second list of weekday names anywhere to fall out of step.
@@ -149,6 +177,19 @@ export function formatDateShort(date: IsoDate): string {
 export function formatDateLong(date: IsoDate): string {
 	const d = toUtcDate(date);
 	return `${WEEKDAY_LONG[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH_LONG[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/**
+ * "Saturday 20 September 2026, around 4:30pm", or just the date.
+ *
+ * Every place that shows a customer their collection — the status page, the
+ * admin, the emails — says it through this, so the hedge is worded once. The
+ * time is a preference the customer typed and not a slot anyone booked, and
+ * "around" is the whole of what keeps that true wherever it is read.
+ */
+export function formatDateLongWithTime(date: IsoDate, time: string | null | undefined): string {
+	const clock = formatTime(time);
+	return clock ? `${formatDateLong(date)}, around ${clock}` : formatDateLong(date);
 }
 
 /** "September 2026", the admin calendar's heading. */
