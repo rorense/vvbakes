@@ -2,7 +2,7 @@
 -- The custom cake's size picker says what the price guide says.
 --
 -- 20260917000001 gave the custom cake a table of starting prices written in
--- inches and layers — `6" — 2 layers, from $45`. The picker underneath it was
+-- inches and layers, "6 inch, 2 layers, from $45". The picker underneath it was
 -- still the one seeded in 20260916000003, which asks in headcount: "Six to
 -- eight people", "Ten to twelve people". So the page quoted a price for a size
 -- the customer could not then choose, and asked for a size that had no price.
@@ -14,9 +14,10 @@
 -- more than a bracket picked off a list.
 --
 -- Three of the five rows are renamed rather than replaced, so the ids survive.
--- Nothing points at a variant's *name* — `order_items` snapshots it at the
--- moment the order is placed — but a basket sitting in someone's localStorage
--- points at the id, and replacing the rows would empty it at the till.
+-- Nothing points at a variant's *name*, since `order_items` snapshots it at
+-- the moment the order is placed. But a basket sitting in someone's
+-- localStorage points at the id, and replacing the rows would empty it at the
+-- till.
 --
 -- Every statement is guarded twice over:
 --
@@ -46,36 +47,36 @@ where p.id = v.product_id and p.slug = 'custom-cake' and v.name = 'Two tiers';
 -- The three headcount brackets become the three sizes that already have a
 -- price, in the order they were in: smallest first.
 update product_variants v
-set name = '6" — 2 layers', sort_order = 1
+set name = '6" - 2 layers', sort_order = 1
 from products p
 where p.id = v.product_id
 	and p.slug = 'custom-cake'
 	and v.name = 'Six to eight people'
 	and not exists (
 		select 1 from product_variants taken
-		where taken.product_id = v.product_id and taken.name = '6" — 2 layers'
+		where taken.product_id = v.product_id and taken.name = '6" - 2 layers'
 	);
 
 update product_variants v
-set name = '6" — 3 layers', sort_order = 2
+set name = '6" - 3 layers', sort_order = 2
 from products p
 where p.id = v.product_id
 	and p.slug = 'custom-cake'
 	and v.name = 'Ten to twelve people'
 	and not exists (
 		select 1 from product_variants taken
-		where taken.product_id = v.product_id and taken.name = '6" — 3 layers'
+		where taken.product_id = v.product_id and taken.name = '6" - 3 layers'
 	);
 
 update product_variants v
-set name = '8" — 2 layers', sort_order = 3
+set name = '8" - 2 layers', sort_order = 3
 from products p
 where p.id = v.product_id
 	and p.slug = 'custom-cake'
 	and v.name = 'Fifteen to twenty people'
 	and not exists (
 		select 1 from product_variants taken
-		where taken.product_id = v.product_id and taken.name = '8" — 2 layers'
+		where taken.product_id = v.product_id and taken.name = '8" - 2 layers'
 	);
 
 -- The fourth priced size has no row to rename into, so it is created. Hung off
@@ -83,11 +84,11 @@ where p.id = v.product_id
 -- renames above actually ran here, so an install that has been reworked by hand
 -- does not quietly grow a size it never offered.
 insert into product_variants (product_id, name, unit_price_cents, sort_order)
-select p.id, '8" — 3 layers', 0, 4
+select p.id, '8" - 3 layers', 0, 4
 from products p
 where p.slug = 'custom-cake'
 	and exists (
 		select 1 from product_variants v
-		where v.product_id = p.id and v.name = '8" — 2 layers'
+		where v.product_id = p.id and v.name = '8" - 2 layers'
 	)
 on conflict (product_id, name) do nothing;

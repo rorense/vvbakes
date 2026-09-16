@@ -3,7 +3,7 @@
 --
 -- "Price on request" is honest and it is also a wall. Someone deciding whether
 -- to ask about a birthday cake has no idea whether the answer is forty dollars
--- or four hundred, so a good share of them never ask — and the ones who do ask
+-- or four hundred, so a good share of them never ask, and the ones who do ask
 -- are the ones a number would have put off. The owner asked for the sizes she
 -- makes most to carry a starting price, which is the shape every bakery's
 -- "from $45" line has: enough to know whether to keep reading, not a quote.
@@ -19,14 +19,14 @@
 --   products.price_guide_note   the caveat under them, in her words
 --
 -- Rows rather than a block of text because the shop already knows how to draw
--- a label-and-price table — the bundle prices are one — and because a price
+-- a label-and-price table (the bundle prices are one), and because a price
 -- typed into a sentence is a price nobody can be sure got updated.
 -- ---------------------------------------------------------------------------
 
 create table product_price_guide (
 	id uuid primary key default gen_random_uuid(),
 	product_id uuid not null references products (id) on delete cascade,
-	-- What the price is for: '6" — 2 layers', 'Additional layers'. Free text
+	-- What the price is for: a size, a layer count, 'Additional layers'. Free text
 	-- because the sizes she offers are hers to name, and the shop has no opinion
 	-- about inches or tiers.
 	label text not null check (length(btrim(label)) between 1 and 60),
@@ -36,8 +36,8 @@ create table product_price_guide (
 	-- "additional layers from $10" says something else entirely.
 	is_addition boolean not null default false,
 	sort_order int not null default 0,
-	-- Two lines called '8" — 3 layers' at two prices is a coin toss to whoever
-	-- is reading the table.
+	-- Two lines with the same label at two prices is a coin toss to whoever is
+	-- reading the table.
 	unique (product_id, label)
 );
 
@@ -81,10 +81,10 @@ insert into product_price_guide (product_id, label, price_cents, is_addition, so
 select p.id, g.label, g.price_cents, g.is_addition, g.sort_order
 from products p
 cross join (values
-	('6" — 2 layers', 4500, false, 1),
-	('6" — 3 layers', 5500, false, 2),
-	('8" — 2 layers', 6500, false, 3),
-	('8" — 3 layers', 7500, false, 4),
+	('6" - 2 layers', 4500, false, 1),
+	('6" - 3 layers', 5500, false, 2),
+	('8" - 2 layers', 6500, false, 3),
+	('8" - 3 layers', 7500, false, 4),
 	('Additional layers', 1000, true, 5)
 ) as g(label, price_cents, is_addition, sort_order)
 where p.slug = 'custom-cake'
