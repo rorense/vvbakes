@@ -166,7 +166,17 @@ export function InspirationPicker({
 			<p className="text-cocoa-soft text-xs">
 				{photos.length > 0
 					? `${photos.length} of ${MAX_INSPIRATION_PHOTOS} added. Big files are fine, they get resized here before sending.`
-					: `A cake you've seen, a colour, the handwriting you want on top. Up to ${MAX_INSPIRATION_PHOTOS}.`}
+					: "A cake you've seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture."}
+			</p>
+
+			{/* Said here, once, rather than in a reply to somebody already holding
+			    the cake: a reference is a starting point, and anything that has to
+			    come out exactly the same needs naming while there is still time to
+			    do it. */}
+			<p className="text-cocoa-soft text-xs">
+				{
+					"I'll get as close to your references as I can, though it won't come out an exact copy of the photos. If there's an element you want exactly the same, say which one in the notes."
+				}
 			</p>
 
 			{(message ?? error) ? (
