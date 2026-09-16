@@ -15,6 +15,7 @@ import {
 	settingsSchema,
 } from "@/lib/validation";
 import { eachDay } from "@/lib/dates";
+import { syncRows } from "@/lib/sync-rows";
 
 /**
  * Every admin mutation.
@@ -214,37 +215,27 @@ async function saveExtras(
 	const failed = "The product saved, but its extras didn't. Please try again.";
 	const clash = "Two of those extras have the same name. Rename one and save again.";
 
-	// PostgREST has no way to spell "not in the empty set", so clearing the lot
-	// and filtering down to the survivors have to be separate calls.
-	const kept = ids(extras);
-	const gone = supabase.from("product_extras").delete().eq("product_id", productId);
-	const { error: deleteError } =
-		kept.length > 0 ? await gone.not("id", "in", `(${kept.join(",")})`) : await gone;
-	if (deleteError) return failed;
+	// Nothing points at an extra's id after the save, so the inserts are not
+	// read back. See `trackIds`.
+	const result = await syncRows({
+		supabase,
+		table: "product_extras",
+		parentColumn: "product_id",
+		parentId: productId,
+		rows: extras.map((extra, index) => ({
+			id: extra.id,
+			product_id: productId,
+			name: extra.name,
+			description: extra.description,
+			price_cents: extra.priceCents,
+			is_available: extra.isAvailable,
+			sort_order: index + 1,
+		})),
+		describeError: (message) =>
+			message.includes("product_extras_product_id_name_key") ? clash : failed,
+	});
 
-	const rows = extras.map((extra, index) => ({
-		id: extra.id,
-		product_id: productId,
-		name: extra.name,
-		description: extra.description,
-		price_cents: extra.priceCents,
-		is_available: extra.isAvailable,
-		sort_order: index + 1,
-	}));
-
-	const existing = rows.filter((row) => row.id);
-	if (existing.length > 0) {
-		const { error } = await supabase.from("product_extras").upsert(existing);
-		if (error) return error.message.includes("product_extras_product_id_name_key") ? clash : failed;
-	}
-
-	const fresh = rows.filter((row) => !row.id).map(({ id: _id, ...row }) => row);
-	if (fresh.length > 0) {
-		const { error } = await supabase.from("product_extras").insert(fresh);
-		if (error) return error.message.includes("product_extras_product_id_name_key") ? clash : failed;
-	}
-
-	return null;
+	return result.ok ? null : result.error;
 }
 
 type OptionInput = {
@@ -348,40 +339,23 @@ async function saveVariants(
 	// available to a row that is taking it. PostgREST has no way to spell "not in
 	// the empty set", so clearing the lot and filtering down to the survivors
 	// have to be separate calls.
-	const keptGroups = ids(groups);
-	const groupsGone = supabase.from("product_option_groups").delete().eq("product_id", productId);
-	const { error: groupsDeleteError } =
-		keptGroups.length > 0
-			? await groupsGone.not("id", "in", `(${keptGroups.join(",")})`)
-			: await groupsGone;
-	if (groupsDeleteError) return VARIANTS_FAILED;
-
-	const groupRows = groups.map((group, index) => ({
-		id: group.id,
-		product_id: productId,
-		name: group.name,
-		sort_order: index,
-	}));
-
-	const existingGroups = groupRows.filter((row) => row.id);
-	if (existingGroups.length > 0) {
-		const { error } = await supabase.from("product_option_groups").upsert(existingGroups);
-		if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
-	}
-
-	const mintedGroups = new Map<string, string>();
-	const freshGroups = groupRows.filter((row) => !row.id).map(({ id: _id, ...row }) => row);
-	if (freshGroups.length > 0) {
-		const { data, error } = await supabase
-			.from("product_option_groups")
-			.insert(freshGroups)
-			.select("id, name");
-		if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
-		for (const row of data ?? []) mintedGroups.set(row.name, row.id);
-	}
-
-	const groupIds = groups.map((group) => group.id ?? mintedGroups.get(group.name));
-	if (groupIds.some((id) => !id)) return VARIANTS_FAILED;
+	const savedGroups = await syncRows({
+		supabase,
+		table: "product_option_groups",
+		parentColumn: "product_id",
+		parentId: productId,
+		rows: groups.map((group, index) => ({
+			id: group.id,
+			product_id: productId,
+			name: group.name,
+			sort_order: index,
+		})),
+		// The answers below are filed under these ids, so they have to come back.
+		trackIds: true,
+		describeError: (message) => nameClash(message) ?? VARIANTS_FAILED,
+	});
+	if (!savedGroups.ok) return savedGroups.error;
+	const groupIds = savedGroups.ids;
 
 	// --- their answers -------------------------------------------------------
 	const optionIds: string[][] = [];
@@ -389,85 +363,51 @@ async function saveVariants(
 	for (const [index, group] of groups.entries()) {
 		const groupId = groupIds[index]!;
 
-		const keptOptions = ids(group.options);
-		const optionsGone = supabase.from("product_options").delete().eq("group_id", groupId);
-		const { error: optionsDeleteError } =
-			keptOptions.length > 0
-				? await optionsGone.not("id", "in", `(${keptOptions.join(",")})`)
-				: await optionsGone;
-		if (optionsDeleteError) return VARIANTS_FAILED;
-
-		const optionRows = group.options.map((option, at) => ({
-			id: option.id,
-			group_id: groupId,
-			name: option.name,
-			image_path: option.imagePath,
-			allergens: option.allergens,
-			is_available: option.isAvailable,
-			sort_order: at,
-		}));
-
-		const existing = optionRows.filter((row) => row.id);
-		if (existing.length > 0) {
-			const { error } = await supabase.from("product_options").upsert(existing);
-			if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
-		}
-
-		const minted = new Map<string, string>();
-		const fresh = optionRows.filter((row) => !row.id).map(({ id: _id, ...row }) => row);
-		if (fresh.length > 0) {
-			const { data, error } = await supabase
-				.from("product_options")
-				.insert(fresh)
-				.select("id, name");
-			if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
-			for (const row of data ?? []) minted.set(row.name, row.id);
-		}
-
-		const saved = group.options.map((option) => option.id ?? minted.get(option.name));
-		if (saved.some((id) => !id)) return VARIANTS_FAILED;
-		optionIds.push(saved as string[]);
+		const saved = await syncRows({
+			supabase,
+			table: "product_options",
+			// The only one of the four filed under a question rather than a product.
+			parentColumn: "group_id",
+			parentId: groupId,
+			rows: group.options.map((option, at) => ({
+				id: option.id,
+				group_id: groupId,
+				name: option.name,
+				image_path: option.imagePath,
+				allergens: option.allergens,
+				is_available: option.isAvailable,
+				sort_order: at,
+			})),
+			// The link rows below name these, so they have to come back.
+			trackIds: true,
+			describeError: (message) => nameClash(message) ?? VARIANTS_FAILED,
+		});
+		if (!saved.ok) return saved.error;
+		optionIds.push(saved.ids);
 	}
 
 	// --- the combinations ----------------------------------------------------
-	const keptVariants = ids(variants);
-	const variantsGone = supabase.from("product_variants").delete().eq("product_id", productId);
-	const { error: variantsDeleteError } =
-		keptVariants.length > 0
-			? await variantsGone.not("id", "in", `(${keptVariants.join(",")})`)
-			: await variantsGone;
-	if (variantsDeleteError) return VARIANTS_FAILED;
-
-	const variantRows = variants.map((variant, index) => ({
-		id: variant.id,
-		product_id: productId,
-		name: variant.name,
-		unit_price_cents: variant.unitPriceCents,
-		image_path: variant.imagePath,
-		allergens: variant.allergens,
-		is_available: variant.isAvailable,
-		sort_order: index,
-	}));
-
-	const existingVariants = variantRows.filter((row) => row.id);
-	if (existingVariants.length > 0) {
-		const { error } = await supabase.from("product_variants").upsert(existingVariants);
-		if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
-	}
-
-	const mintedVariants = new Map<string, string>();
-	const freshVariants = variantRows.filter((row) => !row.id).map(({ id: _id, ...row }) => row);
-	if (freshVariants.length > 0) {
-		const { data, error } = await supabase
-			.from("product_variants")
-			.insert(freshVariants)
-			.select("id, name");
-		if (error) return nameClash(error.message) ?? VARIANTS_FAILED;
-		for (const row of data ?? []) mintedVariants.set(row.name, row.id);
-	}
-
-	const variantIds = variants.map((variant) => variant.id ?? mintedVariants.get(variant.name));
-	if (variantIds.some((id) => !id)) return VARIANTS_FAILED;
+	const savedVariants = await syncRows({
+		supabase,
+		table: "product_variants",
+		parentColumn: "product_id",
+		parentId: productId,
+		rows: variants.map((variant, index) => ({
+			id: variant.id,
+			product_id: productId,
+			name: variant.name,
+			unit_price_cents: variant.unitPriceCents,
+			image_path: variant.imagePath,
+			allergens: variant.allergens,
+			is_available: variant.isAvailable,
+			sort_order: index,
+		})),
+		// `order_items` points at these, which is the id that matters most.
+		trackIds: true,
+		describeError: (message) => nameClash(message) ?? VARIANTS_FAILED,
+	});
+	if (!savedVariants.ok) return savedVariants.error;
+	const variantIds = savedVariants.ids;
 
 	// --- what each combination is made of ------------------------------------
 	// Cleared and rewritten, but only for the combinations whose answers have

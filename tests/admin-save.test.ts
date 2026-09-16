@@ -19,6 +19,12 @@
  * transcription cannot get wrong — whether ids survive a conversion, whether a
  * past order keeps pointing at something, and what the database will and will
  * not accept.
+ *
+ * The half this cannot see is covered next door now. Steps 1 to 3, 4 to 6 and
+ * 8 to 10 below are all one helper, `syncRows` in lib/sync-rows.ts, and
+ * lib/sync-rows.test.ts runs the real thing against a recording client and
+ * asserts the order and the payloads. So a change to the sequence fails there,
+ * even though it still would not fail here.
  */
 import { beforeAll, afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb, errorOf, type TestDb } from "./pg";
