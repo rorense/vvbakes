@@ -4,30 +4,15 @@
 		{
 			"name": "vvbakes",
 			"runtimeExecutable": "npm",
-			"runtimeArgs": [
-				"run",
-				"dev"
-			],
+			"runtimeArgs": ["run", "dev"],
 			"port": 3000,
 			"autoPort": true
 		},
 		{
 			"name": "vvbakes-prod",
 			"runtimeExecutable": "npm",
-			"runtimeArgs": [
-				"run",
-				"start"
-			],
+			"runtimeArgs": ["run", "start"],
 			"port": 3001,
-			"autoPort": true
-		},
-		{
-			"name": "vvbakes-demo",
-			"runtimeExecutable": "node",
-			"runtimeArgs": [
-				"C:/Users/ryan/AppData/Local/Temp/claude/C--Users-ryan-OneDrive-Desktop-Code-vvbakes-menu/3ab52239-ea0d-493e-ba1f-50ba2da11b24/scratchpad/dev-demo.mjs"
-			],
-			"port": 3005,
 			"autoPort": true
 		}
 	]

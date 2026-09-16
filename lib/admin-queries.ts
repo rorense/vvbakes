@@ -248,11 +248,7 @@ export async function adminOrders(filters: OrderFilters = {}): Promise<OrderPage
  */
 export async function adminOrder(id: string): Promise<Order | null> {
 	const supabase = await createClient();
-	const { data } = await supabase
-		.from("orders")
-		.select(ORDER_SELECT)
-		.eq("id", id)
-		.maybeSingle();
+	const { data } = await supabase.from("orders").select(ORDER_SELECT).eq("id", id).maybeSingle();
 	return data ? toOrder(data) : null;
 }
 
