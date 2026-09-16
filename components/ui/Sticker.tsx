@@ -26,7 +26,10 @@ export function Sticker({
 
 	const sizes = {
 		sm: "w-24 p-3 text-2xs",
-		md: "w-32 p-4 text-xs sm:w-36",
+		// The step up waits for `lg`, because the only `md` sticker hangs off the
+		// home hero's arch and that arch is capped until `lg` too. Growing at `sm`
+		// put a 144px sticker on a 256px arch, over the badge's own wordmark.
+		md: "w-32 p-4 text-xs lg:w-36",
 	} as const;
 
 	return (

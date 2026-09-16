@@ -166,7 +166,13 @@ export default async function HomePage() {
 							</div>
 						</div>
 
-						<div className="relative lg:col-span-5">
+						{/* Capped until `lg`, where the grid finally gives the badge a column of
+						    its own. Uncapped it is `w-full` of the whole container on a phone,
+						    which made a 419px-tall arch the page's main event and pushed the
+						    buttons off the fold. The cap sits on this wrapper rather than on the
+						    frame so the sticker, positioned against it, shrinks with the arch
+						    rather than drifting off into the margin. */}
+						<div className="relative mx-auto w-full max-w-64 lg:col-span-5 lg:mx-0 lg:max-w-none">
 							{/* The badge fills the arch rather than sitting on a tile inside it. It is
 							    the ringless crop, and the frame is butter because that is the badge’s
 							    own ground — so the corners the circle cannot reach carry on the same
@@ -174,20 +180,20 @@ export default async function HomePage() {
 							    in rose, which is the colour the ring was drawn in. */}
 							<ArchFrame
 								tone="butter"
-								className="border-rose aspect-4/5 w-full border-16 sm:border-20">
+								className="border-rose aspect-4/5 w-full border-12 lg:border-20">
 								<Image
 									src="/hero-badge.png"
 									alt=""
 									aria-hidden="true"
 									width={706}
 									height={706}
-									sizes="(min-width: 1024px) 40vw, 100vw"
+									sizes="(min-width: 1024px) 40vw, 256px"
 									className="h-full w-full object-contain"
 									priority
 								/>
 							</ArchFrame>
 
-							<div className="absolute -bottom-6 -left-4 sm:-left-8">
+							<div className="absolute -bottom-6 -left-8">
 								<Sticker tone={availability.ordersOpen ? "rose-deep" : "cocoa"}>
 									{availability.ordersOpen ? (
 										nextDate ? (
