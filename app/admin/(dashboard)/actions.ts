@@ -267,10 +267,10 @@ function nameClash(message: string): string | null {
 		return "Two of those combinations came out with the same name. Rename one and save again.";
 	}
 	if (message.includes("product_option_groups_product_id_name_key")) {
-		return "Two of those questions have the same name. Rename one and save again.";
+		return "Two of those variants have the same name. Rename one and save again.";
 	}
 	if (message.includes("product_options_group_id_name_key")) {
-		return "Two answers to one question have the same name. Rename one and save again.";
+		return "Two options in one variant have the same name. Rename one and save again.";
 	}
 	return null;
 }

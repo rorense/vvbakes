@@ -220,11 +220,19 @@ const productOptionSchema = z.object({
 	isAvailable: z.boolean(),
 });
 
-/** One question, with its answers: "Flavour" — chocolate, carrot, red velvet. */
+/**
+ * One question, with its answers: "Flavour" — chocolate, carrot, red velvet.
+ *
+ * The form labels one of these **Variant** and its answers **Options**, which
+ * reads better over the boxes than "question" ever did. The names here stay as
+ * they are because `variants` below already means a priced combination, all the
+ * way down to the `product_variants` table, and two meanings for one word in
+ * one file is worse than a label that does not match its field.
+ */
 const productOptionGroupSchema = z.object({
 	id: z.string().uuid().optional(),
 	name: z.string().trim().min(1, "Give this one a name").max(30),
-	options: z.array(productOptionSchema).min(1, "A question needs an answer").max(20),
+	options: z.array(productOptionSchema).min(1, "A variant needs an option").max(40),
 });
 
 /**
@@ -317,12 +325,15 @@ export const productSchema = z
 		removeVariants: z.boolean(),
 		// The combinations this save knows it is removing. Anything the save would
 		// delete that is not in here is a form that has gone wrong, and is refused.
-		removedVariants: z.array(z.string().uuid()).max(60),
-		optionGroups: z.array(productOptionGroupSchema).max(3),
-		// Three flavours by three layer counts is nine, and a fourth question is
-		// not something a home bakery fills in by hand. The cap is the form's own
-		// guard said again where it cannot be skipped.
-		variants: z.array(productVariantSchema).max(60),
+		removedVariants: z.array(z.string().uuid()).max(500),
+		optionGroups: z.array(productOptionGroupSchema).max(5),
+		// Every combination is a price typed by hand and a card the form renders,
+		// so what bounds this is the grid staying usable rather than anything the
+		// table could not hold. The cap is the form's own guard said again where it
+		// cannot be skipped.
+		variants: z
+			.array(productVariantSchema)
+			.max(500, "That is more combinations than one grid can ask you to fill in"),
 		// What can be added to this product. Its own list, not a shared one, so two
 		// products may each have a "Candles" at their own price.
 		extras: z.array(extraSchema).max(20, "That is more extras than anyone will scroll past"),
@@ -344,11 +355,11 @@ export const productSchema = z
 		path: ["extras"],
 	})
 	.refine((value) => namesAreUnique(value.optionGroups), {
-		message: "Two of these questions have the same name",
+		message: "Two of these variants have the same name",
 		path: ["optionGroups"],
 	})
 	.refine((value) => value.optionGroups.every((group) => namesAreUnique(group.options)), {
-		message: "Two answers to one question have the same name",
+		message: "Two options in one variant have the same name",
 		path: ["optionGroups"],
 	})
 	// Questions and combinations arrive together or not at all. A product with

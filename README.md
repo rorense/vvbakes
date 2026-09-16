@@ -383,26 +383,30 @@ come in one layer or three — and none of those are the same price.
 Turn on **This is sold in variants** on the product form and you are asked two
 kinds of thing:
 
-1. **Questions and their answers.** "Flavour": chocolate, carrot, lemon.
-   "Layers": one, three. Up to three questions, and what each is *called* is a
-   field, so a cake asks for a flavour and a tin asks for a size.
-2. **A price for every combination**, in a grid generated from the answers.
+1. **Variants and their options.** "Flavour": chocolate, carrot, lemon.
+   "Layers": one, three. Up to five variants, and what each is *called* is a
+   field, so a cake offers a flavour and a tin offers a size.
+2. **A price for every combination**, in a grid generated from the options.
    "Chocolate · Three layers" costs whatever you decide it costs. There is no
    base price with a per-layer surcharge, because a formula would make the one
    thing you actually want to say the one thing you could not.
 
 Leave a row of the grid blank and that combination is one you do not make: the
 picker greys it out and nobody can order a three layer lemon you have never
-baked. A product that asks a single question stores no questions at all — the
-question is `variant_label` and the answers are the variants themselves, which
-is how every product worked before a second question was possible and how most
-of them will keep working. `optionGroups` in `lib/pricing.ts` is the only place
-that difference is handled; everything above it sees a list of questions either
-way.
+baked. A product with a single variant stores no option groups at all — the
+variant's name is `variant_label` and its options are the `product_variants`
+rows themselves, which is how every product worked before a second variant was
+possible and how most of them will keep working. `optionGroups` in
+`lib/pricing.ts` is the only place that difference is handled; everything above
+it sees a list of variants either way.
+
+The form says **Variant** and **Options** over the boxes. The schema and the
+tables say option group and option, because `variants` already means a priced
+combination everywhere under the form, down to `product_variants`.
 
 A few things worth knowing:
 
-- **A photo and extra allergens live on the answer, not the combination.** The
+- **A photo and extra allergens live on the option, not the combination.** The
   walnuts are in the carrot cake at one layer and at three, so you tick them
   once. A nine-row grid should not ask for the same photo nine times.
 - **Anything can sell out on its own.** Switching off "Carrot" takes every
@@ -424,8 +428,8 @@ A few things worth knowing:
   would drop a variant nobody listed is refused outright, because an empty
   submission is also what a form that has gone wrong sends.
 
-The stand-in catalogue used without a database has one product that asks two
-questions — the celebration cake in `lib/demo-data.ts`, walnuts on the carrot
+The stand-in catalogue used without a database has one product that offers two
+variants — the celebration cake in `lib/demo-data.ts`, walnuts on the carrot
 and no three layer lemon — so the picker, the greying-out and the price grid can
 all be seen on a fresh clone with no Supabase project at all.
 

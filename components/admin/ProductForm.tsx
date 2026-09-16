@@ -151,7 +151,20 @@ function combinationsOf(groups: GroupDraft[]): OptionDraft[][] {
 }
 
 /** How many combinations the owner is asked to price before it is too many. */
-const MAX_COMBINATIONS = 60;
+const MAX_COMBINATIONS = 500;
+
+/**
+ * How many of these one product may have.
+ *
+ * Named for the code's own words rather than the form's. The form labels an
+ * option group "Variant" and its options "Options", which reads well over the
+ * boxes but cannot be used here: `variants` already means a priced combination
+ * everywhere below this, down to the `product_variants` table.
+ */
+const MAX_OPTION_GROUPS = 5;
+
+/** How many options any one of them may offer. */
+const MAX_OPTIONS = 40;
 
 function initialTiers(product: Product | null): TierDraft[] {
 	return (product?.tiers ?? []).map((tier, index) => ({
@@ -528,7 +541,7 @@ export function ProductForm({
 						checked={sellsVariants}
 						onChange={(event) => setSellsVariants(event.target.checked)}
 						label="This is sold in variants"
-						description="A cake that comes in three flavours and one, two or three layers. Ask one question or two; every combination of the answers gets a price of its own."
+						description="A cake that comes in three flavours and one, two or three layers. Add one variant or two; every combination of the options gets a price of its own."
 					/>
 
 					{sellsVariants ? (
@@ -774,8 +787,8 @@ export function ProductForm({
 								value="on"
 							/>
 							<p className="text-cocoa-soft text-sm">
-								Every answer and every combination has its own on/sold-out switch, up in Variants.
-								Switching an answer off takes every combination made of it with it, and the product
+								Every option and every combination has its own on/sold-out switch, up in Variants.
+								Switching an option off takes every combination made of it with it, and the product
 								drops out of the shop by itself once nothing is left to buy.
 							</p>
 						</>
@@ -835,7 +848,7 @@ export function ProductForm({
 			<AdminCard title={sellsVariants ? "Allergens in every variant" : "Allergens"}>
 				<p className="text-cocoa-soft mb-4 text-sm">
 					{sellsVariants
-						? "Tick what every one of them contains. Anything only one of them has — walnuts in the carrot one — goes under Extra allergens on that answer, not here."
+						? "Tick what every one of them contains. Anything only one of them has — walnuts in the carrot one — goes under Extra allergens on that option, not here."
 						: "Tick anything this contains. Shown on the product page."}
 				</p>
 				<div className="grid gap-3 sm:grid-cols-3">
@@ -945,9 +958,11 @@ function TierFieldset({
 
 /**
  * The questions this product asks and the answers to each — flavours, sizes,
- * layer counts — submitted as one JSON field.
+ * layer counts — submitted as one JSON field. Labelled **Variant** and
+ * **Options** on screen; see `productOptionGroupSchema` for why the code keeps
+ * the older words.
  *
- * Asking a question turns the product into something a customer chooses from;
+ * Adding one turns the product into something a customer chooses from;
  * removing the last one turns it back into a single thing at the price above.
  * There is no switch to forget to flick.
  *
@@ -1010,7 +1025,7 @@ function GroupFieldset({
 					<fieldset
 						key={group.key}
 						className="border-line flex flex-col gap-4 rounded-md border p-4">
-						<legend className="px-1 text-sm font-medium">Question {groupIndex + 1}</legend>
+						<legend className="px-1 text-sm font-medium">Variant {groupIndex + 1}</legend>
 
 						<div className="flex flex-col gap-3 sm:flex-row sm:items-end">
 							<label className="flex flex-1 flex-col gap-1">
@@ -1027,7 +1042,7 @@ function GroupFieldset({
 								type="button"
 								onClick={() => setGroups(groups.filter((_, i) => i !== groupIndex))}
 								className="border-line hover:border-danger hover:text-danger min-h-11 rounded-md border px-3 text-sm">
-								Remove question
+								Remove variant
 							</button>
 						</div>
 
@@ -1146,7 +1161,7 @@ function GroupFieldset({
 								</div>
 							))}
 
-							{group.options.length < 20 && roomFor(groupIndex) <= MAX_COMBINATIONS ? (
+							{group.options.length < MAX_OPTIONS && roomFor(groupIndex) <= MAX_COMBINATIONS ? (
 								<button
 									type="button"
 									onClick={() =>
@@ -1169,7 +1184,7 @@ function GroupFieldset({
 								</button>
 							) : (
 								<p className="text-cocoa-soft text-xs">
-									That is as many as fit. Every answer here multiplies the prices to type below.
+									That is as many as fit. Every option here multiplies the prices to type below.
 								</p>
 							)}
 						</div>
@@ -1179,7 +1194,7 @@ function GroupFieldset({
 
 			{error ? <p className="text-danger text-xs font-medium">{error}</p> : null}
 
-			{groups.length < 3 ? (
+			{groups.length < MAX_OPTION_GROUPS ? (
 				<button
 					type="button"
 					onClick={() =>
@@ -1203,7 +1218,7 @@ function GroupFieldset({
 						])
 					}
 					className="border-line hover:border-cocoa rounded-pill w-fit border px-4 py-2 text-sm font-medium">
-					{groups.length === 0 ? "Ask a question" : "Ask another question"}
+					{groups.length === 0 ? "Add a variant" : "Add another variant"}
 				</button>
 			) : null}
 		</div>
@@ -1240,7 +1255,7 @@ function PriceGrid({
 	if (combinations.length === 0) {
 		return (
 			<p className="text-cocoa-soft text-sm">
-				Name a question and at least one answer above, and the prices to fill in will appear here.
+				Name a variant and at least one option above, and the prices to fill in will appear here.
 			</p>
 		);
 	}
