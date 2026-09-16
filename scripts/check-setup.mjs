@@ -12,6 +12,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
+import { FUNCTIONS, TABLES } from "./expected-schema.mjs";
 
 const RESET = "[0m";
 const paint = (code, text) => `[${code}m${text}${RESET}`;
@@ -147,36 +148,11 @@ report(
 
 // --- schema and seed --------------------------------------------------------
 
-/**
- * Every table the site reads or writes.
- *
- * Checked through the service key, which bypasses row level security, so an
- * error here means the table genuinely is not there rather than that the caller
- * was not allowed to see it.
- *
- * This list is the whole point of the section. The reads below it only touch
- * the handful of tables that existed when this script was written, so a project
- * missing everything added since — variants, questions, reviews, rate limits —
- * used to pass every check and then fall over on the first page load.
- */
-const TABLES = [
-	"admins",
-	"categories",
-	"products",
-	"product_price_tiers",
-	"product_variants",
-	"faqs",
-	"reviews",
-	"site_settings",
-	"site_settings_private",
-	"availability_rules",
-	"availability_overrides",
-	"orders",
-	"order_items",
-	"order_events",
-	"rate_limits",
-];
-
+// TABLES and FUNCTIONS come from scripts/expected-schema.mjs. They are the
+// whole point of this section: the reads further down only touch the handful
+// of tables that existed when this script was written, so a project missing
+// everything added since used to pass every check and then fall over on the
+// first page load. tests/expected-schema.test.ts keeps both lists honest.
 const missingTables = [];
 for (const table of TABLES) {
 	// `limit(0)` rather than `{ head: true }`: a HEAD request for a table that
@@ -193,23 +169,6 @@ report(
 	`Missing: ${missingTables.join(", ")}.\n` +
 		"        Run `npx supabase db push`. A migration has not been applied.",
 );
-
-/**
- * The functions, probed with arguments that do nothing.
- *
- * An empty id array renumbers no rows, a sweep only removes rate-limit rows
- * that have already expired, and clearing a bucket nothing has ever written to
- * deletes nothing. `record_attempt` is deliberately not called: it is the one
- * that writes, and it ships in the same migration as the two beside it.
- */
-const FUNCTIONS = [
-	["is_admin", {}],
-	["order_counts_between", { p_from: "2020-01-01", p_to: "2020-01-02" }],
-	["reorder_products", { p_ids: [] }],
-	["reorder_categories", { p_ids: [] }],
-	["sweep_rate_limits", {}],
-	["clear_attempts", { p_bucket: "setup-probe", p_key: "setup-probe" }],
-];
 
 const missingFunctions = [];
 for (const [name, args] of FUNCTIONS) {
