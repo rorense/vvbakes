@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { saveProduct } from "@/app/admin/(dashboard)/actions";
-import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
+import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, listErrorFrom } from "@/lib/action-state";
 import { cn } from "@/lib/cn";
 import { moveItem, patchItem } from "@/lib/list-edit";
 import {
@@ -292,12 +292,7 @@ export function ProductForm({
 			.filter((row) => row.name !== "" || row.description !== "" || row.priceCents !== ""),
 	);
 
-	// Zod reports these per row, as `extras.1.name`, and the rows submitted are
-	// not the rows on screen once the blank ones have been dropped. So the index
-	// is thrown away and the list carries one message, which is why those
-	// messages are written to make sense without it.
-	const extrasError =
-		errors.extras ?? Object.entries(errors).find(([key]) => key.startsWith("extras."))?.[1];
+	const extrasError = listErrorFrom(errors, "extras");
 
 	// A half-typed row is not a question or an answer yet. Dropping them here
 	// rather than failing validation means an empty row left behind after "Add"

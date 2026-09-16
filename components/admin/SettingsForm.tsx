@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { saveSettings } from "@/app/admin/(dashboard)/actions";
-import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
+import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, listErrorFrom } from "@/lib/action-state";
 import type { Faq, PrivateSettings, Review, SiteSettings } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Switch, Textarea } from "@/components/ui/Form";
@@ -39,14 +39,9 @@ export function SettingsForm({
 	// A pair with nothing in either box is someone who pressed "add" and changed
 	// their mind, so it is dropped rather than failed. One with a question and no
 	// answer is a real mistake and is left in for the server to complain about.
-	// Zod reports these per row, as `faqs.1.answer`, and the rows submitted are
-	// not the rows on screen once the blank ones have been dropped. So the index
-	// is deliberately thrown away and the list carries one message, which is why
-	// those messages are written to make sense without it.
-	const faqError =
-		errors.faqs ?? Object.entries(errors).find(([key]) => key.startsWith("faqs."))?.[1];
-	const reviewError =
-		errors.reviews ?? Object.entries(errors).find(([key]) => key.startsWith("reviews."))?.[1];
+	// See `listErrorFrom` for why the row index those failures carry is dropped.
+	const faqError = listErrorFrom(errors, "faqs");
+	const reviewError = listErrorFrom(errors, "reviews");
 
 	const faqsJson = JSON.stringify(
 		faqRows
