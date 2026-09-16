@@ -10,115 +10,13 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { render } from "@react-email/render";
 import { SUBJECTS, TEMPLATES, type EmailContext, type TemplateName } from "../emails/templates";
-import type { Order, PrivateSettings, SiteSettings } from "../lib/types";
-
-const order: Order = {
-	id: "11111111-1111-1111-1111-111111111111",
-	orderNumber: 1042,
-	reference: "VV1042",
-	token: "0123456789abcdef0123456789abcdef",
-	status: "confirmed",
-	fulfilment: "pickup",
-	pickupDate: "2026-09-19",
-	pickupTime: "16:30:00",
-	customerName: "Alex Whitiora",
-	customerEmail: "alex@example.com",
-	customerPhone: "021 555 0100",
-	deliveryAddress: null,
-	notes: "One of the cupcakes needs to be nut free please, my niece is allergic.",
-	customRequest: "Could you write 'Happy 30th Sam' on one of them?",
-	inspirationImagePaths: [],
-	inspirationUrl: null,
-	subtotalCents: 2000,
-	deliveryFeeCents: 0,
-	quoteCents: 0,
-	totalCents: 2000,
-	internalNotes: null,
-	cancellationReason: "I'm unwell and can't bake that weekend. So sorry.",
-	createdAt: "2026-09-11T02:00:00Z",
-	confirmedAt: "2026-09-11T03:00:00Z",
-	readyAt: null,
-	collectedAt: null,
-	cancelledAt: null,
-	items: [
-		{
-			id: "item-1",
-			productId: "p1",
-			productVariantId: null,
-			productName: "Cupcakes",
-			variantName: "Chocolate",
-			unitLabel: "each",
-			qty: 5,
-			lineTotalCents: 1500,
-			pricingNote: "1 x 4 for $12.00 + 1 x $3.00 each",
-			extras: [
-				{
-					id: "extra-1",
-					extraId: "e1",
-					name: "Candles",
-					qty: 5,
-					unitPriceCents: 100,
-					lineTotalCents: 500,
-					sortOrder: 1,
-				},
-			],
-			note: "Please keep this one away from the nut free ones.",
-			inspirationUrl: null,
-			inspirationImagePaths: [],
-			customFlavour: null,
-			frosting: null,
-			frostingMatchesFlavour: false,
-			priceOnRequest: false,
-		},
-		{
-			id: "item-2",
-			productId: "p2",
-			productVariantId: null,
-			productName: "Cookies",
-			variantName: null,
-			unitLabel: "each",
-			qty: 2,
-			lineTotalCents: 500,
-			pricingNote: "2 x $2.50 each",
-			extras: [],
-			note: null,
-			inspirationUrl: null,
-			inspirationImagePaths: [],
-			customFlavour: "Pandan, if you can get it",
-			frosting: null,
-			frostingMatchesFlavour: true,
-			priceOnRequest: false,
-		},
-	],
-};
-
-const settings: SiteSettings = {
-	businessName: "vvbakes",
-	tagline: "inspired desserts",
-	aboutText: null,
-	pickupSuburb: "Mt Roskill, Auckland",
-	pickupInstructions: "Park on the street and come to the side door.",
-	pickupWindowText: "Pickups 4–7pm",
-	leadTimeDays: 2,
-	cutoffTime: "20:00:00",
-	bookingWindowDays: 28,
-	timezone: "Pacific/Auckland",
-	ordersOpen: true,
-	ordersClosedMessage: null,
-	deliveryEnabled: false,
-	deliveryFeeCents: 0,
-	deliveryAreaText: null,
-	contactEmail: "hello@example.com",
-	contactPhone: "021 555 0199",
-	instagramHandle: "vv.bakes",
-};
-
-const privateSettings: PrivateSettings = {
-	bankAccountName: "V Example",
-	bankAccountNumber: "12-3456-7890123-00",
-	pickupAddress: "12 Example Road, Mt Roskill, Auckland 1041",
-	notificationEmail: "orders@example.com",
-};
+import {
+	customCakeOrder,
+	customOrder,
+	order,
+	privateSettings,
+	settings,
+} from "./example-order.mjs";
 
 const context: EmailContext = {
 	order,
@@ -129,29 +27,6 @@ const context: EmailContext = {
 	siteUrl: process.env.PREVIEW_SITE_URL ?? "http://localhost:3000",
 };
 
-/**
- * A custom cake: nothing off the menu, priced by the baker after she read the
- * request. This is the shape most of her orders take.
- */
-const customOrder: Order = {
-	...order,
-	reference: "VV1043",
-	token: "abcdef0123456789abcdef0123456789",
-	items: [],
-	subtotalCents: 0,
-	quoteCents: 8500,
-	totalCents: 8500,
-	customRequest:
-		"30th birthday, about 12 people. Chocolate, not too sweet. Pale pink if you can, and 'Happy Birthday Sam' on top.",
-	notes: "One guest is allergic to walnuts.",
-	// The photo paths resolve against NEXT_PUBLIC_SUPABASE_URL, which is not set
-	// when this script runs from a bare checkout, so they render as the link
-	// alone. That is the case worth previewing anyway: an email client that
-	// blocks remote images sees exactly this.
-	inspirationImagePaths: ["2026-09-11/example-one.webp", "2026-09-11/example-two.webp"],
-	inspirationUrl: "https://www.pinterest.com/pin/1234567890/",
-};
-
 const outDir = process.argv[2] ?? ".email-preview";
 await mkdir(outDir, { recursive: true });
 
@@ -159,6 +34,14 @@ const index: string[] = [];
 
 const scenarios: Array<{ suffix: string; ctx: EmailContext }> = [
 	{ suffix: "", ctx: context },
+	// The custom cake as it is ordered now: a line on the order, with no price
+	// on it until she sets one. This is the awkward one to render — a real
+	// subtotal that is not the whole total, so the figure reads "So far" and the
+	// unpriced line reads "—" rather than $0.00.
+	{ suffix: "-custom-cake", ctx: { ...context, order: customCakeOrder } },
+	// And as it was ordered before it was a product: no lines at all, the whole
+	// brief on the order itself. Nothing writes these any more, but the orders
+	// that carry one are still rendered from those columns.
 	{ suffix: "-custom", ctx: { ...context, order: customOrder } },
 ];
 
