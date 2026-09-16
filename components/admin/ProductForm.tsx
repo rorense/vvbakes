@@ -25,6 +25,7 @@ import {
 } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Checkbox, Field, FormError, Input, Select, Switch, Textarea } from "@/components/ui/Form";
+import { Notice } from "@/components/ui/Notice";
 import { useToastOnResult } from "@/components/ui/Toast";
 import { AdminCard } from "./AdminShell";
 import { DraftList } from "./DraftList";
@@ -546,11 +547,11 @@ export function ProductForm({
 								error={errors.variants}
 							/>
 							{removedVariants.length > 0 ? (
-								<p className="border-danger text-danger rounded-md border px-4 py-3 text-sm">
+								<Notice tone="warning">
 									Saving now removes {removedVariants.map((variant) => variant.name).join(", ")}. A
 									combination with no price is one you don&rsquo;t make. Orders already placed keep
 									the name they were given.
-								</p>
+								</Notice>
 							) : null}
 						</>
 					) : savedVariantCount > 0 ? (
@@ -563,11 +564,11 @@ export function ProductForm({
 								name="removeVariants"
 								value="on"
 							/>
-							<p className="border-danger text-danger rounded-md border px-4 py-3 text-sm">
+							<Notice tone="warning">
 								Saving now removes the {savedVariantCount}{" "}
 								{savedVariantCount === 1 ? "variant" : "variants"} this product has, and it goes
 								back to the one price below. Orders already placed keep the name they were given.
-							</p>
+							</Notice>
 						</>
 					) : null}
 				</div>

@@ -32,6 +32,7 @@ import type {
 } from "@/lib/types";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, FormError, Input, Textarea } from "@/components/ui/Form";
+import { Notice } from "@/components/ui/Notice";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { Stepper } from "@/components/ui/Stepper";
 import { ProductImage } from "@/components/site/ProductCard";
@@ -428,29 +429,29 @@ export function OrderForm({
 				n="01"
 				title="What you'd like">
 				{droppedCount > 0 ? (
-					<p className="border-line bg-paper-deep mb-4 rounded-md border px-4 py-3 text-sm">
+					<Notice className="mb-4">
 						{droppedCount === 1 ? "An item" : `${droppedCount} items`} in your order
 						{droppedCount === 1 ? " is" : " are"} no longer available and{" "}
 						{droppedCount === 1 ? "has" : "have"} been removed.
-					</p>
+					</Notice>
 				) : null}
 
 				{droppedExtras > 0 ? (
-					<p className="border-line bg-paper-deep mb-4 rounded-md border px-4 py-3 text-sm">
+					<Notice className="mb-4">
 						{droppedExtras === 1 ? "An extra" : `${droppedExtras} extras`} you added{" "}
 						{droppedExtras === 1 ? "is" : "are"} no longer available, so{" "}
 						{droppedExtras === 1 ? "it has" : "they have"} been taken off. Everything else is still
 						here.
-					</p>
+					</Notice>
 				) : null}
 
 				{lostPhotos > 0 ? (
-					<p className="border-line bg-paper-deep mb-4 rounded-md border px-4 py-3 text-sm">
+					<Notice className="mb-4">
 						{lostPhotos === 1 ? "A photo" : `${lostPhotos} photos`} you added{" "}
 						{lostPhotos === 1 ? "isn't" : "aren't"} on this device any more — photos stay in the
 						browser they were chosen in until the order is sent. Everything you typed is still here,
 						and you can add {lostPhotos === 1 ? "it" : "them"} again from the product page.
-					</p>
+					</Notice>
 				) : null}
 
 				<HairlineList>
@@ -540,26 +541,28 @@ export function OrderForm({
 				</HairlineList>
 
 				{shortfalls.length > 0 ? (
-					<p
+					<Notice
+						tone="warning"
 						role="status"
-						className="border-danger text-danger mt-4 rounded-md border px-4 py-3 text-sm">
+						className="mt-4">
 						{shortfalls
 							.map(
 								(short) =>
 									`${short.product.name} is ordered ${short.minimum} at a time, and you have ${short.qty}.`,
 							)
 							.join(" ")}
-					</p>
+					</Notice>
 				) : null}
 
 				{tooManyPhotos ? (
-					<p
+					<Notice
+						tone="warning"
 						role="status"
-						className="border-danger text-danger mt-4 rounded-md border px-4 py-3 text-sm">
+						className="mt-4">
 						That&rsquo;s {attachedPhotos} photos across your order, and{" "}
 						{MAX_ORDER_INSPIRATION_PHOTOS} is the most I can take at once. Take a few off on the
 						product page, or send the rest through once I reply.
-					</p>
+					</Notice>
 				) : null}
 
 				<Link

@@ -20,6 +20,7 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { CopyValue } from "@/components/order/CopyValue";
 import { Inspiration } from "@/components/order/Inspiration";
 import { OrderLines } from "@/components/order/OrderLines";
+import { Notice } from "@/components/ui/Notice";
 
 export const dynamic = "force-dynamic";
 
@@ -88,9 +89,7 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
 					{order.status !== "cancelled" ? <Timeline status={order.status} /> : null}
 
 					{order.status === "cancelled" && order.cancellationReason ? (
-						<p className="border-line bg-paper-deep rounded-md border px-4 py-3 text-sm">
-							{order.cancellationReason}
-						</p>
+						<Notice>{order.cancellationReason}</Notice>
 					) : null}
 
 					{/* The receipt itself, on cream with a torn foot. */}

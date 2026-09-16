@@ -14,6 +14,7 @@ import { addMonths, formatDateLong, formatDateShort, formatMonth, MONDAY_FIRST }
 import type { AvailabilityRule, CalendarDay, DayState, Weekday } from "@/lib/types";
 import { WEEKDAY_NAMES } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
+import { Notice } from "@/components/ui/Notice";
 import { Field, FormError, Input, Switch } from "@/components/ui/Form";
 import { useToastedTransition, useToastOnResult } from "@/components/ui/Toast";
 import { AdminCard } from "./AdminShell";
@@ -260,11 +261,11 @@ function DayEditor({ day, onClose }: { day: CalendarDay; onClose: () => void }) 
 				</Field>
 
 				{day.orderCount > 0 ? (
-					<p className="border-line bg-paper-deep rounded-md border px-4 py-3 text-sm">
+					<Notice>
 						There {day.orderCount === 1 ? "is already an order" : "are already orders"} on this day.
 						Closing it will not cancel {day.orderCount === 1 ? "it" : "them"}. It only stops new
 						ones.
-					</p>
+					</Notice>
 				) : null}
 
 				{error ? <FormError>{error}</FormError> : null}

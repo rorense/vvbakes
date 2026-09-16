@@ -12,6 +12,7 @@ import { TRANSITION_EFFECTS, TRANSITION_LABELS } from "@/lib/order-status";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Textarea } from "@/components/ui/Form";
+import { Notice } from "@/components/ui/Notice";
 import { useToastOnResult } from "@/components/ui/Toast";
 import { AdminCard } from "./AdminShell";
 
@@ -178,9 +179,9 @@ export function OrderActions({
 				) : (
 					<div className="flex flex-col gap-4">
 						{needsPrice && transitions.includes("confirmed") ? (
-							<p className="border-line bg-paper-deep rounded-md border px-4 py-3 text-sm">
+							<Notice>
 								This one has no price on it yet, so it cannot be confirmed. Set one above first.
-							</p>
+							</Notice>
 						) : null}
 
 						<div className="flex flex-wrap gap-3">

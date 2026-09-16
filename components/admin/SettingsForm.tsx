@@ -6,6 +6,7 @@ import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, listErrorFrom } from "@/l
 import type { Faq, PrivateSettings, Review, SiteSettings } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Switch, Textarea } from "@/components/ui/Form";
+import { Notice } from "@/components/ui/Notice";
 import { useToastOnResult } from "@/components/ui/Toast";
 import { AdminCard } from "./AdminShell";
 import { DraftList } from "./DraftList";
@@ -463,10 +464,12 @@ export function SettingsForm({
 				</div>
 
 				{!emailConfigured ? (
-					<p className="border-danger bg-danger-tint text-danger mt-5 rounded-md border px-4 py-3 text-sm">
+					<Notice
+						tone="danger"
+						className="mt-5">
 						Email isn&rsquo;t configured on the server yet, so nothing is being sent. See the SMTP
 						settings in the README.
-					</p>
+					</Notice>
 				) : null}
 			</AdminCard>
 

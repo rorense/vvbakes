@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { formatDateLong, type IsoDate } from "@/lib/dates";
 import type { PickableDate, PublicCalendarMonth } from "@/lib/types";
 import { CALENDAR_COLUMNS, CalendarLegend, DAY_STATE } from "@/components/ui/calendar-states";
+import { Notice } from "@/components/ui/Notice";
 
 /**
  * Choosing a pickup date on a month calendar.
@@ -48,10 +49,10 @@ export function PickupCalendar({
 
 	if (dates.length === 0 || !month) {
 		return (
-			<p className="border-line bg-paper-deep rounded-md border px-4 py-3 text-sm">
+			<Notice>
 				No dates open for booking just now. Follow along on Instagram, that&rsquo;s where new dates
 				go up first.
-			</p>
+			</Notice>
 		);
 	}
 

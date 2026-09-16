@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import { cn } from "@/lib/cn";
+import { Notice } from "./Notice";
 
 const CONTROL =
 	"w-full rounded-md border border-line bg-paper px-4 py-3 text-base text-cocoa " +
@@ -196,14 +197,20 @@ export function Checkbox({
 	);
 }
 
-/** An error summary shown above a form's submit button. */
+/**
+ * An error summary shown above a form's submit button.
+ *
+ * A `Notice` in the tone that means something is wrong now, with the role that
+ * makes a screen reader interrupt for it. Kept as its own name because every
+ * form has exactly one of these and none of them should be choosing a tone.
+ */
 export function FormError({ children }: { children: React.ReactNode }) {
 	if (!children) return null;
 	return (
-		<p
-			role="alert"
-			className="border-danger bg-danger-tint text-danger rounded-md border px-4 py-3 text-sm">
+		<Notice
+			tone="danger"
+			role="alert">
 			{children}
-		</p>
+		</Notice>
 	);
 }
