@@ -4,6 +4,7 @@ import { instagramUrl } from "@/lib/constants";
 import { getSettings } from "@/lib/queries";
 import { Container, Section } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { Clause, Points, Term } from "@/components/site/Policy";
 
 // Settings supply the business name and the contact address, so this is cached
 // on the same timer as the rest of the public site and revalidated by hand when
@@ -22,27 +23,6 @@ export const metadata: Metadata = {
  * way a customer would care about — not for a typo.
  */
 const LAST_UPDATED = "15 September 2026";
-
-/**
- * One clause of the policy.
- *
- * Hairlines and a serif heading rather than a wall of legal text: this is the
- * same printed-card language as every other page, because a policy nobody reads
- * is not a policy. The prose is deliberately plain for the same reason.
- */
-function Clause({ title, children }: { title: string; children: React.ReactNode }) {
-	return (
-		<section className="border-line flex flex-col gap-3 border-t pt-8 first:border-t-0 first:pt-0">
-			<h2 className="font-display text-2xl">{title}</h2>
-			<div className="text-cocoa-soft flex flex-col gap-3">{children}</div>
-		</section>
-	);
-}
-
-/** A bulleted list, since preflight strips the markers and padding from `ul`. */
-function Points({ children }: { children: React.ReactNode }) {
-	return <ul className="flex list-disc flex-col gap-1.5 pl-5">{children}</ul>;
-}
 
 export default async function PrivacyPage() {
 	const settings = await getSettings();
@@ -157,16 +137,14 @@ export default async function PrivacyPage() {
 						<p>Three services keep the shop running, and each handles only what it needs to:</p>
 						<Points>
 							<li>
-								<strong className="text-cocoa font-medium">Supabase</strong> stores the orders and
-								any photos you attach.
+								<Term>Supabase</Term> stores the orders and any photos you attach.
 							</li>
 							<li>
-								<strong className="text-cocoa font-medium">Vercel</strong> hosts the site and runs
-								the code that takes the order.
+								<Term>Vercel</Term> hosts the site and runs the code that takes the order.
 							</li>
 							<li>
-								<strong className="text-cocoa font-medium">Resend</strong> delivers the emails, and
-								tells me if one bounced or was marked as spam.
+								<Term>Resend</Term> delivers the emails, and tells me if one bounced or was marked
+								as spam.
 							</li>
 						</Points>
 						<p>

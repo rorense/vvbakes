@@ -71,6 +71,11 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
 					</p>
 					<div className="text-cocoa-soft flex items-center gap-4 text-xs">
 						<Link
+							href="/terms"
+							className="hover:underline">
+							Terms
+						</Link>
+						<Link
 							href="/privacy"
 							className="hover:underline">
 							Privacy

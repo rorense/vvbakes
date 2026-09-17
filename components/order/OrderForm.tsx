@@ -749,26 +749,39 @@ export function OrderForm({
 				{error ? <FormError>{error}</FormError> : null}
 			</div>
 
-			{/* Desktop summary. On a phone the sticky bar below does this job. */}
-			<div className="hidden flex-col gap-4 sm:flex">
-				<Total
-					subtotal={subtotal}
-					deliveryFee={deliveryFee}
-					total={total}
-					hasUnpriced={hasUnpriced}
-					mayCostMore={mayCostMore}
-				/>
-				<div>
-					<Button
-						type="submit"
-						size="lg"
-						disabled={pending || !canSubmit}>
-						{pending ? "Sending…" : "Send order request"}
-					</Button>
+			{/* The totals and the real button. On a phone the sticky bar below does
+			    this job instead. */}
+			<div className="flex flex-col gap-4">
+				<div className="hidden flex-col gap-4 sm:flex">
+					<Total
+						subtotal={subtotal}
+						deliveryFee={deliveryFee}
+						total={total}
+						hasUnpriced={hasUnpriced}
+						mayCostMore={mayCostMore}
+					/>
+					<div>
+						<Button
+							type="submit"
+							size="lg"
+							disabled={pending || !canSubmit}>
+							{pending ? "Sending…" : "Send order request"}
+						</Button>
+					</div>
 				</div>
+
+				{/* Outside the block above so a phone sees it too: terms only hold
+				    someone who was shown them before they pressed the button, and
+				    the sticky bar has no room to say anything at all. */}
 				<p className="text-cocoa-soft text-xs">
 					This is a request, not a payment. I&rsquo;ll email you to confirm, with a price and where
-					to send it.
+					to send it. Sending it means you agree to the{" "}
+					<Link
+						href="/terms"
+						className="underline">
+						order terms
+					</Link>
+					.
 				</p>
 			</div>
 
