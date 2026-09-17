@@ -15,6 +15,7 @@ import {
 	settingsSchema,
 } from "@/lib/validation";
 import { eachDay } from "@/lib/dates";
+import { getProductSlugs } from "@/lib/queries";
 import { syncRows } from "@/lib/sync-rows";
 import { refusedRemoval } from "@/lib/variant-guard";
 
@@ -29,19 +30,58 @@ import { refusedRemoval } from "@/lib/variant-guard";
  * with `revalidateCatalogue()`.
  */
 
-function revalidateCatalogue(): void {
-	revalidatePath("/", "page");
-	revalidatePath("/shop", "page");
-	revalidatePath("/shop/[slug]", "page");
-	revalidatePath("/order", "page");
+/**
+ * WHY NONE OF THESE PASS "page": it does not work here, and used to be silently
+ * doing nothing at all.
+ *
+ * `revalidatePath(path, "page")` purges by cache tag, and the tag it builds is
+ * `path + "/page"`. The tag a rendered page actually carries is built from the
+ * route as the app directory keys it — which includes the route group. Every
+ * public page of this site lives in `(site)` or `(menu)`, so the tags on the
+ * shop page read `/(site)/shop/page` while `revalidatePath("/shop", "page")`
+ * asked for `/shop/page`, and nothing matched. Every call in here was a no-op
+ * from the day it was written; the pages were only ever coming back on the
+ * hour-long `revalidate` timer, which is short enough that it looked like it
+ * worked. See the keys in `.next/app-path-routes-manifest.json`, which are the
+ * tag source: `"/(site)/shop/[slug]/page": "/shop/[slug]"`.
+ *
+ * Without a type, the path is matched against the URL the visitor asked for,
+ * which has no route group in it and cannot go stale against one. So every
+ * fixed page below is named by its own URL, and the product pages are named one
+ * slug at a time.
+ *
+ * Verified against a production build on 2026-09-17: "page" purged none of `/`,
+ * `/shop`, `/shop/[slug]` or `/terms`, and the plain form purged all four.
+ */
+async function revalidateCatalogue(): Promise<void> {
+	revalidatePath("/");
+	revalidatePath("/shop");
+	revalidatePath("/order");
 	// The privacy page prints the business name and the contact address, so a
 	// settings save has to reach it too.
-	revalidatePath("/privacy", "page");
+	revalidatePath("/privacy");
+	// And the terms quote the delivery fee and the collection wording, which are
+	// the same settings. This page was missing from the list entirely.
+	revalidatePath("/terms");
 	// The market card is unlisted and its prices are hard-coded, but it quotes the
 	// bank account, and the day that changes is the day it must not still be
 	// showing the old one.
-	revalidatePath("/menu", "page");
+	revalidatePath("/menu");
 	revalidatePath("/sitemap.xml");
+
+	// The product pages, one URL at a time, because a pattern cannot be matched
+	// without the route group and a group is a thing someone renames.
+	//
+	// A slug that has just been deleted or renamed is not in this list any more,
+	// so the line below covers those: the grouped pattern purges every product
+	// page at once, old URL included. It is the undocumented half of this, which
+	// is why it is the backstop rather than the mechanism — if the `(site)` group
+	// is ever renamed this stops matching and every product that still exists is
+	// still purged by the loop.
+	for (const slug of await getProductSlugs()) {
+		revalidatePath(`/shop/${slug}`);
+	}
+	revalidatePath("/(site)/shop/[slug]", "page");
 }
 
 type State = FormState;
@@ -210,7 +250,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 	const extraError = await saveExtras(supabase, productId!, input.extras);
 	if (extraError) return fail(extraError);
 
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/products");
 	return ok();
 }
@@ -510,7 +550,7 @@ export async function toggleProductFlag(
 	const patch = field === "is_available" ? { is_available: value } : { is_featured: value };
 	await supabase.from("products").update(patch).eq("id", id);
 
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/products");
 }
 
@@ -521,7 +561,7 @@ export async function toggleProductFlag(
 export async function moveProduct(id: string, direction: "up" | "down"): Promise<void> {
 	await requireAdmin();
 	await move("products", "reorder_products", id, direction);
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/products");
 }
 
@@ -531,7 +571,7 @@ export async function deleteProduct(id: string): Promise<void> {
 	// Order lines snapshot the product name and price, so past orders survive
 	// this: the foreign key is `on delete set null`.
 	await supabase.from("products").delete().eq("id", id);
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/products");
 }
 
@@ -569,7 +609,7 @@ export async function saveCategory(_previous: State, formData: FormData): Promis
 
 	if (error) return fail(describe(error.message, "category"));
 
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/categories");
 	return ok();
 }
@@ -589,14 +629,14 @@ export async function deleteCategory(id: string): Promise<void> {
 	if ((count ?? 0) > 0) return;
 
 	await supabase.from("categories").delete().eq("id", id);
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/categories");
 }
 
 export async function moveCategory(id: string, direction: "up" | "down"): Promise<void> {
 	await requireAdmin();
 	await move("categories", "reorder_categories", id, direction);
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/categories");
 }
 
@@ -622,7 +662,7 @@ export async function saveWeekdayDefaults(_previous: State, formData: FormData):
 
 	if (error) return fail("Those days couldn't be saved. Please try again.");
 
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/availability");
 	return ok();
 }
@@ -656,7 +696,7 @@ export async function saveOverride(_previous: State, formData: FormData): Promis
 
 	if (error) return fail("That day couldn't be saved. Please try again.");
 
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/availability");
 	return ok();
 }
@@ -666,7 +706,7 @@ export async function clearOverride(date: string): Promise<void> {
 	await requireAdmin();
 	const supabase = await createClient();
 	await supabase.from("availability_overrides").delete().eq("date", date);
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/availability");
 }
 
@@ -699,7 +739,7 @@ export async function blockRange(_previous: State, formData: FormData): Promise<
 
 	if (error) return fail("Those dates couldn't be blocked. Please try again.");
 
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/availability");
 	return ok();
 }
@@ -807,7 +847,7 @@ export async function saveSettings(_previous: State, formData: FormData): Promis
 	const reviewError = await saveReviews(supabase, input.reviews);
 	if (reviewError) return fail(reviewError);
 
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin/settings");
 	return ok();
 }
@@ -874,7 +914,7 @@ export async function setOrdersOpen(open: boolean): Promise<void> {
 	await requireAdmin();
 	const supabase = await createClient();
 	await supabase.from("site_settings").update({ orders_open: open }).eq("id", 1);
-	revalidateCatalogue();
+	await revalidateCatalogue();
 	revalidatePath("/admin");
 }
 
