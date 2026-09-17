@@ -17,8 +17,8 @@
 
 		This is used as a CSS mask, not as a picture, so the fill here is never
 		seen: the colour is whatever `.heart-field` is told to be, which is how one
-		tile can be warm gold on the paper bands and a plain tint on the shop's five
-		coloured ones. White rather than black because `mask-mode` is left at
+		tile could serve grounds as different as the paper bands and the shop's five
+		colours. White rather than black because `mask-mode` is left at
 		`match-source` — white shows under either reading of that, where black
 		would vanish entirely if a browser chose luminance.
 	-->

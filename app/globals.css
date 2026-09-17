@@ -257,11 +257,12 @@
 	 * big as well as half again as far apart; that was visible in what she
 	 * approved.
 	 *
-	 * It is a mask rather than a picture so that one tile serves five different
-	 * grounds. Colour comes from `currentColor`, so the band sets it with a
-	 * `text-*` utility and the strength with an `opacity-*` one: rose on the two
-	 * paper bands, a plain cocoa tint on the shop, where rose hearts would sink
-	 * into `bg-rose` and fight `bg-mint`. Prefixed as well as not, for the same
+	 * It is a mask rather than a picture, so colour is the caller's to choose:
+	 * `currentColor` fills it, and the band sets the hue with a `text-*` utility
+	 * and the strength with an `opacity-*` one. Only the two paper bands wear it
+	 * now, both in peach, but the indirection is what let the shop's five coloured
+	 * grounds carry a cocoa tint while they had it, and it is what any future band
+	 * on a different ground would need. Prefixed as well as not, for the same
 	 * Safari versions `.torn-edge` above is prefixed for.
 	 */
 	.heart-field {

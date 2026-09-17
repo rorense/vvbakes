@@ -95,19 +95,8 @@ export default async function ShopPage() {
 					key={category.id}
 					id={category.slug}
 					aria-labelledby={`${category.slug}-heading`}
-					className={cn("relative overflow-hidden py-14 sm:py-20", ACCENT_BG[category.accent])}>
-					{/* Cocoa rather than the hero's rose: these five bands are rose, blush,
-					    butter, mint and peach, and a pink heart is invisible on two of
-					    them and at odds with a third. A tint darkens all five equally.
-					    Lighter than the paper bands too — here the hearts sit behind the
-					    cakes rather than behind a welcome. */}
-					<div
-						className="heart-field text-cocoa pointer-events-none absolute inset-0 opacity-5"
-						aria-hidden="true"
-					/>
-					<Container
-						width="wide"
-						className="relative">
+					className={cn("py-14 sm:py-20", ACCENT_BG[category.accent])}>
+					<Container width="wide">
 						{/* The heading runs slightly past the container edge, the way a
 						    magazine lets a display line bleed. */}
 						<h2
