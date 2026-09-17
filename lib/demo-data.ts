@@ -162,6 +162,7 @@ export const DEMO_PRODUCTS: Product[] = [
 			allergens: [],
 			isAvailable: true,
 			sortOrder: index + 1,
+			minPerOrder: null,
 			optionIds: [],
 		})),
 	}),
@@ -247,6 +248,7 @@ export const DEMO_PRODUCTS: Product[] = [
 			allergens: [],
 			isAvailable: true,
 			sortOrder: index + 1,
+			minPerOrder: null,
 			optionIds: [],
 		})),
 		wantsCustomFlavour: true,
@@ -306,6 +308,62 @@ export const DEMO_PRODUCTS: Product[] = [
 		unitLabel: "slice",
 		isFeatured: true,
 		sortOrder: 5,
+		// The two sizes she sells it in, as the shop has them: a slice at $3 and
+		// the whole cake at $45. The whole cake carries a minimum of its own,
+		// which supabase/migrations/20260918000011_variant_minimum.sql gives the
+		// real one, and this is the only place in demo mode that rule can be seen.
+		// Eight is a rule about slices; one cake is one cake.
+		minPerOrder: 8,
+		variantLabel: "Size",
+		optionGroups: [
+			{
+				id: "demo-5-g1",
+				name: "Size",
+				sortOrder: 0,
+				options: [
+					{
+						id: "demo-5-o-slice",
+						name: "Slice",
+						imagePath: null,
+						allergens: [],
+						isAvailable: true,
+						sortOrder: 0,
+					},
+					{
+						id: "demo-5-o-whole",
+						name: 'Whole 8" cake',
+						imagePath: null,
+						allergens: [],
+						isAvailable: true,
+						sortOrder: 1,
+					},
+				],
+			},
+		],
+		variants: [
+			{
+				id: "demo-5-v1",
+				name: "Slice",
+				unitPriceCents: 300,
+				imagePath: null,
+				allergens: [],
+				isAvailable: true,
+				sortOrder: 0,
+				minPerOrder: null,
+				optionIds: ["demo-5-o-slice"],
+			},
+			{
+				id: "demo-5-v2",
+				name: 'Whole 8" cake',
+				unitPriceCents: 4500,
+				imagePath: null,
+				allergens: [],
+				isAvailable: true,
+				sortOrder: 1,
+				minPerOrder: 1,
+				optionIds: ["demo-5-o-whole"],
+			},
+		],
 		// The one product here that does not ask for a note, mirroring
 		// supabase/migrations/20260918000001_product_note.sql. It comes how it
 		// comes, and it is the only thing in demo mode that shows the switch off.
@@ -430,6 +488,7 @@ export const DEMO_PRODUCTS: Product[] = [
 			allergens: [],
 			isAvailable: true,
 			sortOrder: index + 1,
+			minPerOrder: null,
 		})),
 	}),
 ];

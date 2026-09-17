@@ -696,10 +696,16 @@ export function unitPriceRange(product: Product): string {
  * the basket rather than to either line, and `place_order` counts it the same
  * way. Rounded up to a whole step defensively: the database already refuses a
  * minimum that is not a multiple of one.
+ *
+ * A combination carrying a minimum of its own answers for itself instead, and
+ * is left out of the product's count. That is the chiffon: eight is a rule
+ * about slices, and the whole cake beside them is one cake. Pass the
+ * combination being asked about, or leave it out to ask about the product.
  */
-export function minOrderQty(product: Product): number {
-	if (product.minPerOrder === null) return product.qtyStep;
-	const steps = Math.ceil(product.minPerOrder / product.qtyStep);
+export function minOrderQty(product: Product, variant?: ProductVariant | null): number {
+	const minimum = variant?.minPerOrder ?? product.minPerOrder;
+	if (minimum === null) return product.qtyStep;
+	const steps = Math.ceil(minimum / product.qtyStep);
 	return Math.max(product.qtyStep, steps * product.qtyStep);
 }
 

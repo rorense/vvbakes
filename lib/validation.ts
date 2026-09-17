@@ -284,6 +284,20 @@ const productVariantSchema = z.object({
 	/** Added to the product's allergens, never a replacement for them. */
 	allergens: z.array(z.enum(ALLERGENS)),
 	isAvailable: z.boolean(),
+	/**
+	 * Blank is the ordinary answer and means this combination counts towards
+	 * the product's minimum with all the others. A number takes it out of that
+	 * count and holds it to its own. Read the way `minPerOrder` on the product
+	 * is read, because it is the same box with the same blank in it.
+	 */
+	minPerOrder: z
+		.union([z.string(), z.number()])
+		.transform((value) => (String(value).trim() === "" ? null : Number(value)))
+		.nullable()
+		.refine(
+			(value) => value === null || (Number.isInteger(value) && value >= 1),
+			"Leave blank to count it with the rest",
+		),
 	options: z.array(z.coerce.number().int().min(0)),
 });
 
@@ -428,6 +442,19 @@ export const productSchema = z
 		message: "The minimum has to be a multiple of the step size",
 		path: ["minPerOrder"],
 	})
+	// The same rule for a combination's own minimum. Checked here rather than in
+	// the database, where a check constraint cannot see the step size on the
+	// other table. See 20260918000011_variant_minimum.sql.
+	.refine(
+		(value) =>
+			value.variants.every(
+				(variant) => variant.minPerOrder === null || variant.minPerOrder % value.qtyStep === 0,
+			),
+		{
+			message: "Each combination's minimum has to be a multiple of the step size",
+			path: ["variants"],
+		},
+	)
 	.refine((value) => new Set(value.tiers.map((tier) => tier.qty)).size === value.tiers.length, {
 		message: "Two bundles have the same quantity",
 		path: ["tiers"],

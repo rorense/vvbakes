@@ -146,6 +146,8 @@ interface CellDraft {
 	isAvailable: boolean;
 	imagePath: string;
 	allergens: Allergen[];
+	/** Blank counts this one towards the product's minimum with the others. */
+	minimum: string;
 }
 
 const EMPTY_CELL: CellDraft = {
@@ -154,6 +156,7 @@ const EMPTY_CELL: CellDraft = {
 	isAvailable: true,
 	imagePath: "",
 	allergens: [],
+	minimum: "",
 };
 
 /**
@@ -274,6 +277,7 @@ function initialCells(product: Product | null, groups: GroupDraft[]): Record<str
 			isAvailable: converting ? true : variant.isAvailable,
 			imagePath: variant.imagePath ?? "",
 			allergens: variant.allergens,
+			minimum: variant.minPerOrder === null ? "" : String(variant.minPerOrder),
 		};
 	}
 
@@ -530,6 +534,7 @@ export function ProductForm({
 				imagePath: cell.imagePath,
 				allergens: cell.allergens,
 				isAvailable: cell.isAvailable,
+				minPerOrder: cell.minimum,
 				// By position, because most of these options have no id yet: they are
 				// being created by this same submission. See `productVariantSchema`.
 				options: combination.map((option, group) =>
@@ -1716,6 +1721,13 @@ function PriceGrid({
 				)}
 			</p>
 
+			<p className="text-cocoa-soft text-xs">
+				Minimum is how many of that one combination an order has to have. Leave it blank and it
+				counts towards the product&rsquo;s own minimum along with everything else, which is what
+				flavours of one cake want. Fill it in where the combination is its own thing: a whole cake
+				sold beside slices is ordered one at a time, however many slices it takes to make an order.
+			</p>
+
 			{combinations.map((combination) => {
 				const cell = cellFor(combination);
 
@@ -1748,6 +1760,17 @@ function PriceGrid({
 								/>
 							</label>
 						)}
+
+						<label className="flex w-24 flex-col gap-1">
+							<span className="text-cocoa-soft text-xs">Minimum</span>
+							<input
+								inputMode="numeric"
+								placeholder="Any"
+								className="border-line bg-paper focus-visible:border-cocoa w-full rounded-md border px-3 py-2 text-base"
+								value={cell.minimum}
+								onChange={(event) => patch(combination, { minimum: event.target.value })}
+							/>
+						</label>
 
 						<button
 							type="button"

@@ -95,6 +95,8 @@ type ProductVariantRow = {
 	allergens: string[];
 	is_available: boolean;
 	sort_order: number;
+	/** Null counts this combination towards the product's minimum, not its own. */
+	min_per_order: number | null;
 	created_at: string;
 	updated_at: string;
 };

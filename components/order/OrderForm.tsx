@@ -271,19 +271,31 @@ export function OrderForm({
 	// cupcakes is met by three chocolate and three vanilla. So the lines are
 	// counted back together here, the way `place_order` counts them, rather than
 	// being checked one at a time — which would drop half a legitimate basket.
+	//
+	// Unless the combination carries a minimum of its own, which takes it out of
+	// that count and holds it to its own rule: eight is about chiffon slices, and
+	// the whole cake beside them is one cake. The same split `place_order` makes.
 	const shortfalls = useMemo(() => {
-		const totals = new Map<string, number>();
+		const totals = new Map<string, { line: (typeof lines)[number]; qty: number }>();
 		for (const line of lines) {
-			totals.set(line.product.id, (totals.get(line.product.id) ?? 0) + line.qty);
+			const own = line.variant?.minPerOrder != null;
+			const key = own ? `variant:${line.variant!.id}` : `product:${line.product.id}`;
+			const counted = totals.get(key);
+			if (counted) counted.qty += line.qty;
+			else totals.set(key, { line, qty: line.qty });
 		}
 
-		return [...totals.entries()]
-			.map(([productId, qty]) => {
-				const product = byId.get(productId)!;
-				return { product, qty, minimum: minOrderQty(product) };
-			})
+		return [...totals.values()]
+			.map(({ line, qty }) => ({
+				product: line.product,
+				// Named in the warning only where it is the thing being counted, so a
+				// basket short of cupcakes is not told which flavour to add.
+				variant: line.variant?.minPerOrder != null ? line.variant : null,
+				qty,
+				minimum: minOrderQty(line.product, line.variant),
+			}))
 			.filter((entry) => entry.qty < entry.minimum);
-	}, [lines, byId]);
+	}, [lines]);
 
 	const droppedCount = ready ? cart.lines.length - resolved.length : 0;
 	// Counted separately from the dropped lines: an extra going is a smaller thing
@@ -565,7 +577,11 @@ export function OrderForm({
 						{shortfalls
 							.map(
 								(short) =>
-									`${short.product.name} is ordered ${short.minimum} at a time, and you have ${short.qty}.`,
+									`${
+										short.variant
+											? `${short.product.name}, ${short.variant.name}`
+											: short.product.name
+									} is ordered ${short.minimum} at a time, and you have ${short.qty}.`,
 							)
 							.join(" ")}
 					</Notice>

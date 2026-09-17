@@ -175,6 +175,20 @@ describe("minOrderQty", () => {
 		// better than offering a quantity nothing will accept.
 		expect(minOrderQty(product({ qtyStep: 4, minPerOrder: 6 }))).toBe(8);
 	});
+
+	it("asks the combination first, where it carries a minimum of its own", () => {
+		const p = product({ minPerOrder: 8 });
+
+		// The chiffon: eight slices, and one whole cake beside them.
+		expect(minOrderQty(p, variant({ name: "Slice" }))).toBe(8);
+		expect(minOrderQty(p, variant({ name: "Whole cake", minPerOrder: 1 }))).toBe(1);
+
+		// Naming no combination is still the question about the product.
+		expect(minOrderQty(p)).toBe(8);
+
+		// Rounded up to a whole step the same way the product's own is.
+		expect(minOrderQty(product({ qtyStep: 4 }), variant({ name: "Box", minPerOrder: 6 }))).toBe(8);
+	});
 });
 
 /**
@@ -284,6 +298,7 @@ function variant(
 		allergens: [],
 		isAvailable: true,
 		sortOrder: 0,
+		minPerOrder: null,
 		optionIds: [],
 		...overrides,
 	};

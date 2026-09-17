@@ -102,6 +102,19 @@ export interface ProductVariant {
 	isAvailable: boolean;
 	sortOrder: number;
 	/**
+	 * The least of this combination an order may contain, counted on its own
+	 * rather than with the rest of the product.
+	 *
+	 * Null is the ordinary answer and what every combination had before this
+	 * existed: it counts towards `Product.minPerOrder` alongside every other
+	 * one, which is what makes a minimum of four cupcakes met by three
+	 * chocolate and one vanilla.
+	 *
+	 * The chiffon is what a number here is for. Eight is a rule about slices,
+	 * and the whole cake sold beside them is one cake.
+	 */
+	minPerOrder: number | null;
+	/**
 	 * Which option this variant takes from each of the product's option groups,
 	 * when the product has more than one. Empty for a product with one, where
 	 * the variant *is* the option. See `optionGroups` in lib/pricing.ts.

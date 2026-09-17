@@ -1112,6 +1112,47 @@ describe("variants", () => {
 		await db.query("update products set min_per_order = null where id = $1", [cakeId]);
 	});
 
+	it("counts a flavour carrying its own minimum on its own", async () => {
+		// The chiffon's shape: eight is a rule about the slices, and the whole
+		// cake sold beside them is ordered one at a time.
+		await db.query("update products set min_per_order = 8 where id = $1", [cakeId]);
+		await db.query("update product_variants set min_per_order = 1 where id = $1", [redVelvet]);
+
+		// One of it alone is a real order, though the product asks for eight.
+		const alone = await placeOrder({
+			items: [{ product_id: cakeId, variant_id: redVelvet, qty: 1 }],
+			pickupDate: await dateIn(7),
+		});
+		expect(alone.reference).toMatch(/^VV/);
+
+		// And it does not help the flavours that still count together: four
+		// chocolate is four of the eight the product asks for, whatever is
+		// sitting in the basket beside them.
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [
+					{ product_id: cakeId, variant_id: chocolate, qty: 4 },
+					{ product_id: cakeId, variant_id: redVelvet, qty: 4 },
+				],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("QTY_BELOW_MINIMUM");
+
+		// Its own number is a rule of its own, not an exemption from having one.
+		await db.query("update product_variants set min_per_order = 3 where id = $1", [redVelvet]);
+		const short = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: cakeId, variant_id: redVelvet, qty: 2 }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(short).toContain("QTY_BELOW_MINIMUM");
+
+		await db.query("update products set min_per_order = null where id = $1", [cakeId]);
+		await db.query("update product_variants set min_per_order = null where id = $1", [redVelvet]);
+	});
+
 	it("charges the lower rate past the minimum, and charges a split basket right", async () => {
 		// The mini cupcake arrangement on the cake fixture: two at the flavour's
 		// own price, everything after at the product's lower rate.

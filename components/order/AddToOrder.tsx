@@ -20,6 +20,7 @@ import {
 	minOrderQty,
 	optionGroups,
 	priceProduct,
+	variantFor,
 } from "@/lib/pricing";
 import type { CartExtra, Product } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
@@ -61,9 +62,11 @@ export function AddToOrder({ product }: { product: Product }) {
 	const { add } = useCart();
 	const groups = optionGroups(product);
 	const { selection, variant, choose } = useVariantChoice(product);
-	// Starts on the whole product's minimum: the commonest order, and one fewer
-	// thing to press. The stepper may be taken below it; see `floor`.
-	const [qty, setQty] = useState(() => minOrderQty(product));
+	// Starts on the minimum for what is showing: the commonest order, and one
+	// fewer thing to press. A combination with a minimum of its own is asked
+	// about rather than the product, so a whole chiffon cake opens on one where
+	// its slices open on eight. The stepper may be taken below it; see `floor`.
+	const [qty, setQty] = useState(() => minOrderQty(product, variant));
 	const [added, setAdded] = useState(false);
 	const [saving, setSaving] = useState(false);
 	// Held as a list rather than a map so the order it is written to the cart in
@@ -134,7 +137,43 @@ export function AddToOrder({ product }: { product: Product }) {
 	// counts the lines back together and says so if they do not reach it, and
 	// `place_order` counts them the same way inside the transaction.
 	const floor = product.qtyStep;
-	const minimum = minOrderQty(product);
+	const minimum = minOrderQty(product, variant);
+
+	/**
+	 * Picks an option, and starts the count again when that moves the rule about
+	 * how many.
+	 *
+	 * The chiffon is why. Eight is the minimum for its slices, so the picker
+	 * opens on eight; someone who then chooses the whole cake did not mean eight
+	 * of those, and was being handed a basket the shop would refuse.
+	 *
+	 * Only when the minimum itself moves. Swapping one flavour of cupcake for
+	 * another leaves a dozen alone, which is much the commoner thing to be doing
+	 * and not something to undo under someone's hands.
+	 */
+	function pick(groupId: string, optionId: string) {
+		const next = minOrderQty(product, variantFor(product, { ...selection, [groupId]: optionId }));
+		if (next !== minimum) setQty(next);
+		choose(groupId, optionId);
+		setAdded(false);
+	}
+
+	// How the minimum is worded, which turns on what it is a rule about. The
+	// product's own spreads across every combination and says so, because a
+	// stepper below it otherwise looks like it has forgotten. A combination
+	// carrying its own is counted alone, and the same sentence there would be
+	// promising something the basket does not do.
+	const ownMinimum = variant?.minPerOrder != null;
+	const minimumScope = () => {
+		if (ownMinimum) {
+			return groups.length === 1 ? ` of this ${groups[0]!.name.toLowerCase()}` : " of this one";
+		}
+		if (groups.length === 1) return `, across every ${groups[0]!.name.toLowerCase()}`;
+		return groups.length > 1 ? ", across every combination" : "";
+	};
+	const reachIt = ownMinimum
+		? "Add another to reach it."
+		: "Add another flavour, or more of this one, to reach it.";
 
 	/**
 	 * Puts this line in the basket, photos and all.
@@ -229,10 +268,7 @@ export function AddToOrder({ product }: { product: Product }) {
 											className="sr-only"
 											checked={chosen}
 											disabled={!selectable}
-											onChange={() => {
-												choose(group.id, option.id);
-												setAdded(false);
-											}}
+											onChange={() => pick(group.id, option.id)}
 										/>
 										{thumbnail ? (
 											<Image
@@ -407,16 +443,16 @@ export function AddToOrder({ product }: { product: Product }) {
 				) : null}
 			</div>
 
-			{product.minPerOrder !== null ? (
+			{/* Nothing to say where the minimum is one step: "at least 1 per order"
+			    is a rule about nothing. That is what a whole cake sold beside
+			    slices comes to, and it is the one the customer is least likely to
+			    want a sentence about. */}
+			{minimum > floor ? (
 				<p className="text-cocoa-soft text-xs">
-					At least {minimum} per order
-					{groups.length === 1 ? `, across every ${groups[0]!.name.toLowerCase()}` : ""}
-					{groups.length > 1 ? ", across every combination" : ""}.
-					{/* Said out loud now that the picker will let them go under it. The
-					    sentence above already promises the minimum counts across the
-					    flavours; without this, a stepper sitting on 1 looks like it has
-					    forgotten. */}
-					{qty < minimum ? " Add another flavour, or more of this one, to reach it." : ""}
+					At least {minimum} per order{minimumScope()}.
+					{/* Said out loud now that the picker will let them go under it.
+					    Without it, a stepper sitting on 1 looks like it has forgotten. */}
+					{qty < minimum ? ` ${reachIt}` : ""}
 				</p>
 			) : null}
 		</div>

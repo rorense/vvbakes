@@ -340,6 +340,8 @@ type VariantInput = {
 	imagePath: string | null;
 	allergens: string[];
 	isAvailable: boolean;
+	/** Null counts this one towards the product's minimum with the others. */
+	minPerOrder: number | null;
 	/** One index per group, into that group's options. */
 	options: number[];
 };
@@ -472,6 +474,7 @@ async function saveVariants(
 			image_path: variant.imagePath,
 			allergens: variant.allergens,
 			is_available: variant.isAvailable,
+			min_per_order: variant.minPerOrder,
 			sort_order: index,
 		})),
 		// `order_items` points at these, which is the id that matters most.
