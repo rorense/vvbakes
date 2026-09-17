@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrderByToken } from "@/lib/orders";
-import { recordOptOut } from "@/lib/unsubscribe";
+import { recordOptOut } from "@/lib/optouts";
 
 /**
  * The address in the feedback request's `List-Unsubscribe` header.

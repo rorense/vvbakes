@@ -1,7 +1,7 @@
 "use server";
 
 import { getOrderByToken } from "@/lib/orders";
-import { recordOptOut } from "@/lib/unsubscribe";
+import { recordOptOut } from "@/lib/optouts";
 import type { FormState } from "@/lib/action-state";
 import { actionError, actionOk } from "@/lib/types";
 

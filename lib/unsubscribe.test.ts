@@ -12,8 +12,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Order } from "./types";
 
-// `server-only` throws on import outside a React Server Component, and the
-// module under test imports it. Same shim as lib/instagram.test.ts.
+// `server-only` throws on import outside a React Server Component, and
+// lib/optouts.ts imports it. Same shim as lib/instagram.test.ts. Note that
+// lib/unsubscribe.ts deliberately does not, which is the whole point of the
+// split and is asserted at the bottom of this file.
 vi.mock("server-only", () => ({}));
 
 let selectResult: { data: unknown; error: { message: string } | null } = {
@@ -56,8 +58,11 @@ let configured = true;
 vi.mock("./supabase/env", () => ({ hasSupabaseConfig: () => configured }));
 vi.mock("./supabase/admin", () => ({ createAdminClient: () => fakeClient() }));
 
-const { OPTED_OUT, hasOptedOut, normaliseEmail, recordOptOut, unsubscribeHeaders } =
-	await import("./unsubscribe");
+// Two modules, one subject. The pure half is importable anywhere, which is what
+// lets scripts/send-test-email.mts build the real headers; the half that talks
+// to the table is server-only. See the docblock on lib/unsubscribe.ts.
+const { OPTED_OUT, normaliseEmail, unsubscribeHeaders } = await import("./unsubscribe");
+const { hasOptedOut, recordOptOut } = await import("./optouts");
 
 const ORDER = {
 	id: "order-1",
@@ -188,6 +193,19 @@ describe("recordOptOut", () => {
 	it("still reports success when only the trail entry failed", async () => {
 		insertError = { message: "connection lost" };
 		expect(await recordOptOut(ORDER, "link")).toBe(true);
+	});
+});
+
+describe("the split between the two modules", () => {
+	// The regression this file exists to stop coming back. On 2026-09-18 the
+	// headers lived beside the database calls, so `npm run emails:test` threw on
+	// import under tsx and the one check that can prove a mail client reads the
+	// header could not be run at all.
+	it("keeps the pure half importable without the server-only shim", async () => {
+		const source = await import("node:fs").then((fs) =>
+			fs.readFileSync(new URL("./unsubscribe.ts", import.meta.url), "utf8"),
+		);
+		expect(source).not.toContain('import "server-only"');
 	});
 });
 

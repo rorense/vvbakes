@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getOrderByToken } from "@/lib/orders";
 import { getSettings } from "@/lib/queries";
-import { hasOptedOut } from "@/lib/unsubscribe";
+import { hasOptedOut } from "@/lib/optouts";
 import { Container, Section } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { UnsubscribeForm } from "@/components/order/UnsubscribeForm";

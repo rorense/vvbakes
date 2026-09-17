@@ -5,7 +5,8 @@ import { Resend } from "resend";
 import { SUBJECTS, TEMPLATES, type EmailContext, type TemplateName } from "@/emails/templates";
 import { siteUrl } from "./constants";
 import { createAdminClient } from "./supabase/admin";
-import { OPTED_OUT, hasOptedOut, unsubscribeHeaders } from "./unsubscribe";
+import { hasOptedOut } from "./optouts";
+import { OPTED_OUT, unsubscribeHeaders } from "./unsubscribe";
 import type { Order, PrivateSettings, SiteSettings } from "./types";
 
 /**
