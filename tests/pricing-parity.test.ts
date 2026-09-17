@@ -144,6 +144,137 @@ describe("lib/pricing.ts agrees with price_for_qty on a variant", () => {
 	});
 });
 
+/**
+ * The other kind of price list: a rate for the first few and a cheaper one for
+ * everything after. Its own block because the two implementations have to agree
+ * on where the cheaper rate starts as well as on the arithmetic, and that is
+ * worked out from `min_per_order` and `qty_step` at both ends rather than
+ * stored.
+ */
+describe("lib/pricing.ts agrees with price_for_qty on a price after the minimum", () => {
+	const AFTER: Array<{
+		name: string;
+		unitPriceCents: number;
+		unitLabel: string;
+		qtyStep: number;
+		minPerOrder: number | null;
+		extraUnitPriceCents: number;
+	}> = [
+		{
+			name: "mini cupcakes: two boxes at $17.50, then $15",
+			unitPriceCents: 1750,
+			unitLabel: "box of 12",
+			qtyStep: 1,
+			minPerOrder: 2,
+			extraUnitPriceCents: 1500,
+		},
+		{
+			name: "no minimum at all, so the first one is the dear one",
+			unitPriceCents: 1750,
+			unitLabel: "each",
+			qtyStep: 1,
+			minPerOrder: null,
+			extraUnitPriceCents: 1500,
+		},
+		{
+			name: "a minimum that is not a whole number of steps",
+			unitPriceCents: 900,
+			unitLabel: "pack",
+			qtyStep: 4,
+			minPerOrder: 8,
+			extraUnitPriceCents: 750,
+		},
+		{
+			name: "a step above one with no minimum",
+			unitPriceCents: 500,
+			unitLabel: "pack",
+			qtyStep: 3,
+			minPerOrder: null,
+			extraUnitPriceCents: 400,
+		},
+		{
+			name: "free after the first few",
+			unitPriceCents: 1200,
+			unitLabel: "each",
+			qtyStep: 1,
+			minPerOrder: 3,
+			extraUnitPriceCents: 0,
+		},
+		{
+			name: "dearer after the minimum, which is allowed and should still agree",
+			unitPriceCents: 400,
+			unitLabel: "each",
+			qtyStep: 1,
+			minPerOrder: 2,
+			extraUnitPriceCents: 650,
+		},
+	];
+
+	for (const testCase of AFTER) {
+		it(testCase.name, async () => {
+			await db.query(
+				`update products
+				 set unit_price_cents = $1, unit_label = $2, qty_step = $3,
+				     min_per_order = $4, extra_unit_price_cents = $5
+				 where id = $6`,
+				[
+					testCase.unitPriceCents,
+					testCase.unitLabel,
+					testCase.qtyStep,
+					testCase.minPerOrder,
+					testCase.extraUnitPriceCents,
+					productId,
+				],
+			);
+
+			// The same rounding `minOrderQty` does, spelled out here rather than
+			// imported, so a change to it has to be made twice on purpose instead
+			// of agreeing with itself by construction.
+			const minimum =
+				testCase.minPerOrder === null
+					? testCase.qtyStep
+					: Math.max(
+							testCase.qtyStep,
+							Math.ceil(testCase.minPerOrder / testCase.qtyStep) * testCase.qtyStep,
+						);
+
+			const mismatches: string[] = [];
+
+			for (let qty = 1; qty <= 40; qty += 1) {
+				const sql = await db.query<{ total_cents: number; note: string }>(
+					"select total_cents, note from price_for_qty($1, $2)",
+					[productId, qty],
+				);
+				const fromDb = sql.rows[0]!;
+				const fromTs = priceForQty(testCase.unitPriceCents, [], qty, testCase.unitLabel, {
+					minimum,
+					unitPriceCents: testCase.extraUnitPriceCents,
+				});
+
+				if (fromDb.total_cents !== fromTs.totalCents) {
+					mismatches.push(
+						`qty ${qty}: database charges ${fromDb.total_cents}, form showed ${fromTs.totalCents}`,
+					);
+				}
+				if (fromDb.note !== fromTs.note) {
+					mismatches.push(`qty ${qty}: note "${fromDb.note}" vs "${fromTs.note}"`);
+				}
+			}
+
+			expect(mismatches).toEqual([]);
+		});
+	}
+
+	afterAll(async () => {
+		// The blocks below share this row and expect it back the way they found
+		// it; a rate left on it would reprice every one of their quantities.
+		await db?.query(
+			"update products set extra_unit_price_cents = null, min_per_order = null, qty_step = 1 where id = $1",
+			[productId],
+		);
+	});
+});
+
 describe("lib/pricing.ts agrees with price_for_qty", () => {
 	for (const testCase of CASES) {
 		it(testCase.name, async () => {

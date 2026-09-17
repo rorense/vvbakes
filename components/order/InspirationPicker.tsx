@@ -43,10 +43,20 @@ async function loadCompressor() {
 export function InspirationPicker({
 	photos,
 	onChange,
+	hint,
 	error,
 }: {
 	photos: InspirationPhoto[];
 	onChange: (photos: InspirationPhoto[]) => void;
+	/**
+	 * What to say the photos are of, in her words.
+	 *
+	 * The default below talks about a cake, because that is what the picker was
+	 * built for. On a box of cupcakes it is the wrong noun, and the product page
+	 * passes hers instead. Only shown while nothing has been chosen: once there
+	 * are photos the line counts them, which is the more useful thing to say.
+	 */
+	hint?: string | null;
 	/** What the server said about these photos, if it refused them. */
 	error?: string;
 }) {
@@ -166,7 +176,8 @@ export function InspirationPicker({
 			<p className="text-cocoa-soft text-xs">
 				{photos.length > 0
 					? `${photos.length} of ${MAX_INSPIRATION_PHOTOS} added. Big files are fine, they get resized here before sending.`
-					: "A cake you've seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture."}
+					: (hint ??
+						"A cake you've seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.")}
 			</p>
 
 			{/* Said here, once, rather than in a reply to somebody already holding

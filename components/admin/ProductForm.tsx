@@ -302,6 +302,20 @@ export function ProductForm({
 	);
 	const [unitLabel, setUnitLabel] = useState(product?.unitLabel ?? "each");
 	const [qtyStep, setQtyStep] = useState(String(product?.qtyStep ?? 1));
+	// Controlled, unlike the fields around them, because the preview underneath
+	// prices with both: the minimum decides how many are charged the price above
+	// and the rate decides what the rest cost, so a preview reading either off a
+	// stale render would show her a total she is not about to save.
+	const [minPerOrder, setMinPerOrder] = useState(
+		product?.minPerOrder === null || product?.minPerOrder === undefined
+			? ""
+			: String(product.minPerOrder),
+	);
+	const [extraUnitPrice, setExtraUnitPrice] = useState(
+		product?.extraUnitPriceCents === null || product?.extraUnitPriceCents === undefined
+			? ""
+			: (product.extraUnitPriceCents / 100).toString(),
+	);
 	const [tiers, setTiers] = useState<TierDraft[]>(() => initialTiers(product));
 	const [priceGuide, setPriceGuide] = useState<PriceGuideDraft[]>(() => initialPriceGuide(product));
 	const [priceGuideNote, setPriceGuideNote] = useState(product?.priceGuideNote ?? "");
@@ -317,6 +331,12 @@ export function ProductForm({
 	const [wantsNote, setWantsNote] = useState(product?.wantsNote ?? true);
 	const [noteHint, setNoteHint] = useState(product?.noteHint ?? "");
 	const [notePlaceholder, setNotePlaceholder] = useState(product?.notePlaceholder ?? "");
+	// Controlled for the reason `wantsNote` is: the wording box below it is only
+	// worth putting in front of her on a product that asks for photos at all.
+	// Still submitted either way, so switching it off and on again brings back
+	// what she typed.
+	const [wantsBrief, setWantsBrief] = useState(product?.wantsBrief ?? false);
+	const [inspirationHint, setInspirationHint] = useState(product?.inspirationHint ?? "");
 	const [extraRows, setExtraRows] = useState<ExtraDraft[]>(() =>
 		toExtraDrafts(product?.extras ?? []),
 	);
@@ -570,6 +590,13 @@ export function ProductForm({
 				name="notePlaceholder"
 				value={notePlaceholder}
 			/>
+			{/* Goes up whether or not the photo question is being asked, for the
+			    reason the two above do. */}
+			<input
+				type="hidden"
+				name="inspirationHint"
+				value={inspirationHint}
+			/>
 			<input
 				type="hidden"
 				name="optionGroups"
@@ -813,7 +840,7 @@ export function ProductForm({
 
 					<Field
 						label="Minimum per order"
-						hint="The fewest someone can order. Leave blank for no minimum."
+						hint="The fewest someone can order. Counted across every flavour, so two flavours can share it. Leave blank for no minimum."
 						error={errors.minPerOrder}
 						className="sm:col-span-1">
 						{(props) => (
@@ -821,8 +848,26 @@ export function ProductForm({
 								{...props}
 								name="minPerOrder"
 								inputMode="numeric"
-								defaultValue={product?.minPerOrder ?? ""}
+								value={minPerOrder}
+								onChange={(event) => setMinPerOrder(event.target.value)}
 								invalid={Boolean(errors.minPerOrder)}
+							/>
+						)}
+					</Field>
+
+					<Field
+						label="Price after the minimum"
+						hint="What each one past the minimum costs, if it is less than the first few: mini cupcakes at $17.50 a box for the first two and $15 a box after. Leave blank to charge the same for every one. Not for use with bundle prices below."
+						error={errors.extraUnitPriceCents}
+						className="sm:col-span-1">
+						{(props) => (
+							<Input
+								{...props}
+								name="extraUnitPrice"
+								inputMode="decimal"
+								value={extraUnitPrice}
+								onChange={(event) => setExtraUnitPrice(event.target.value)}
+								invalid={Boolean(errors.extraUnitPriceCents)}
 							/>
 						)}
 					</Field>
@@ -855,6 +900,8 @@ export function ProductForm({
 						unitPrice={submittedUnitPrice}
 						unitLabel={unitLabel}
 						qtyStep={qtyStep}
+						minPerOrder={minPerOrder}
+						extraUnitPrice={extraUnitPrice}
 						tiers={tiers}
 						combinations={offeredVariants}
 						cellFor={cellFor}
@@ -1025,8 +1072,25 @@ export function ProductForm({
 						name="wantsBrief"
 						label="Ask for photos and a link"
 						description="Adds an inspiration photo upload and a link field to this product's page. It also turns the note below into the brief itself, which asks for a paragraph rather than a line — so the note stays on whatever the switch under it says."
-						defaultChecked={product?.wantsBrief ?? false}
+						checked={wantsBrief}
+						onChange={(event) => setWantsBrief(event.target.checked)}
 					/>
+					{wantsBrief ? (
+						<Field
+							label="What the photos are of"
+							hint="The grey line under the photo picker. The usual wording talks about a cake, so reword it here for the things that aren't one."
+							error={errors.inspirationHint}>
+							{(props) => (
+								<Input
+									{...props}
+									value={inspirationHint}
+									onChange={(event) => setInspirationHint(event.target.value)}
+									placeholder="A cake you've seen and loved, the colour, design, etc."
+									invalid={Boolean(errors.inspirationHint)}
+								/>
+							)}
+						</Field>
+					) : null}
 					<Switch
 						name="wantsCustomFlavour"
 						label="Ask for a flavour of their own"
@@ -1730,6 +1794,8 @@ function PricePreview({
 	unitPrice,
 	unitLabel,
 	qtyStep,
+	minPerOrder,
+	extraUnitPrice,
 	tiers,
 	combinations,
 	cellFor,
@@ -1737,12 +1803,31 @@ function PricePreview({
 	unitPrice: string;
 	unitLabel: string;
 	qtyStep: string;
+	minPerOrder: string;
+	extraUnitPrice: string;
 	tiers: TierDraft[];
 	/** Only the priced ones; the blank rows are combinations she does not sell. */
 	combinations: OptionDraft[][];
 	cellFor: (combination: OptionDraft[]) => CellDraft;
 }) {
 	const step = Math.max(1, Math.round(Number(qtyStep) || 1));
+
+	// Half-typed is the normal state of a form, and "$1" on the way to "$15"
+	// would preview a price she is not saving. An unreadable rate is treated as
+	// no rate at all, which is what the field said before she touched it.
+	const extraCents = Math.round(Number(extraUnitPrice) * 100);
+	const afterMinimum =
+		extraUnitPrice.trim() !== "" && Number.isFinite(extraCents) && extraCents >= 0
+			? {
+					// The same rounding `minOrderQty` does, so the preview and the shop
+					// agree on which one is the first cheaper one.
+					minimum: Math.max(
+						step,
+						Math.ceil(Math.max(1, Math.round(Number(minPerOrder) || 1)) / step) * step,
+					),
+					unitPriceCents: extraCents,
+				}
+			: null;
 
 	const parsedTiers = tiers
 		.map((tier) => ({
@@ -1787,7 +1872,13 @@ function PricePreview({
 					</p>
 					<ul className="flex flex-col gap-1.5">
 						{quantities.map((qty) => {
-							const priced = priceForQty(column.cents, parsedTiers, qty, unitLabel || "each");
+							const priced = priceForQty(
+								column.cents,
+								parsedTiers,
+								qty,
+								unitLabel || "each",
+								afterMinimum,
+							);
 							return (
 								<li
 									key={qty}

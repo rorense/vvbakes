@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SITE_NAME, siteUrl } from "@/lib/constants";
-import { formatPrice, priceRule } from "@/lib/pricing";
+import { formatPrice, minOrderQty, priceRule, unitPriceRange } from "@/lib/pricing";
 import { getCategories, getProductBySlug, getProductSlugs, getSettings } from "@/lib/queries";
 import { Container, Section } from "@/components/ui/Container";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
@@ -195,21 +195,41 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 										</p>
 									)}
 								</div>
-							) : product.variants.length === 0 || product.tiers.length > 0 ? (
+							) : product.variants.length === 0 ||
+							  product.tiers.length > 0 ||
+							  product.extraUnitPriceCents !== null ? (
 								<div className="flex flex-col gap-2">
 									<SectionLabel as="h2">Price</SectionLabel>
 									<HairlineList as="dl">
-										{product.variants.length === 0 ? (
+										{/* Sold by the flavour, the per-unit row is normally skipped:
+										    the pills carry the prices and a single number here could
+										    only be one of them. A product with a cheaper rate past the
+										    minimum is the exception, because the row underneath makes
+										    no sense on its own: "$15 after the first two" with no
+										    first-two price beside it reads as the whole price. */}
+										{product.variants.length === 0 || product.extraUnitPriceCents !== null ? (
 											<HairlineRow as="div">
 												<dt className="text-sm">
-													{product.qtyStep > 1
-														? `Per ${product.qtyStep}`
-														: `Per ${product.unitLabel}`}
+													{product.extraUnitPriceCents !== null
+														? `Each of the first ${minOrderQty(product)}`
+														: product.qtyStep > 1
+															? `Per ${product.qtyStep}`
+															: `Per ${product.unitLabel}`}
 												</dt>
 												<dd className="font-display text-lg italic">
-													{product.qtyStep > 1
-														? formatPrice(product.unitPriceCents * product.qtyStep)
-														: formatPrice(product.unitPriceCents)}
+													{product.extraUnitPriceCents !== null
+														? unitPriceRange(product)
+														: product.qtyStep > 1
+															? formatPrice(product.unitPriceCents * product.qtyStep)
+															: formatPrice(product.unitPriceCents)}
+												</dd>
+											</HairlineRow>
+										) : null}
+										{product.extraUnitPriceCents !== null ? (
+											<HairlineRow as="div">
+												<dt className="text-sm">Each one after that</dt>
+												<dd className="font-display text-lg italic">
+													{formatPrice(product.extraUnitPriceCents)}
 												</dd>
 											</HairlineRow>
 										) : null}

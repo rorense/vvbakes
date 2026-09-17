@@ -236,6 +236,14 @@ function describeEvent(type: string, data: Record<string, unknown>): string {
 			return `The ${String(data.template)} email bounced: ${String(data.reason ?? "no reason given")}`;
 		case "email_complained":
 			return `${String(data.to)} marked the ${String(data.template)} email as spam`;
+		// What they wrote is deliberately not here. This log is append-only and a
+		// customer who comes back to correct themselves would leave their first
+		// draft in it for ever. The words live on /admin/feedback, where a
+		// rewrite replaces them.
+		case "feedback_received":
+			return data.consented
+				? "Left feedback, and said it may go on the website"
+				: "Left feedback, just for you";
 		default:
 			return type;
 	}

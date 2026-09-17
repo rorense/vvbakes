@@ -143,6 +143,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		unitLabel: formData.get("unitLabel") ?? "each",
 		qtyStep: formData.get("qtyStep") ?? 1,
 		minPerOrder: formData.get("minPerOrder") ?? "",
+		extraUnitPriceCents: formData.get("extraUnitPrice") ?? "",
 		imagePath: formData.get("imagePath") ?? "",
 		imageAlt: formData.get("imageAlt") ?? "",
 		isAvailable: checkbox(formData, "isAvailable"),
@@ -158,6 +159,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		wantsNote: checkbox(formData, "wantsNoteAsked") ? checkbox(formData, "wantsNote") : true,
 		noteHint: formData.get("noteHint") ?? "",
 		notePlaceholder: formData.get("notePlaceholder") ?? "",
+		inspirationHint: formData.get("inspirationHint") ?? "",
 		availabilityNote: formData.get("availabilityNote") ?? "",
 		allergens: formData.getAll("allergens").map(String),
 		sortOrder: formData.get("sortOrder") ?? 0,
@@ -189,6 +191,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		unit_label: input.unitLabel,
 		qty_step: input.qtyStep,
 		min_per_order: input.minPerOrder,
+		extra_unit_price_cents: input.extraUnitPriceCents,
 		image_path: input.imagePath,
 		image_alt: input.imageAlt,
 		is_available: input.isAvailable,
@@ -204,6 +207,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		wants_note: input.wantsNote,
 		note_hint: input.noteHint,
 		note_placeholder: input.notePlaceholder,
+		inspiration_hint: input.inspirationHint,
 	};
 
 	let productId = input.id;

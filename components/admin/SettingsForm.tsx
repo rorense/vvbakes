@@ -352,7 +352,11 @@ export function SettingsForm({
 				/>
 			</AdminCard>
 
-			<AdminCard title="Kind words">
+			{/* Named, because the feedback list links straight here: taking a
+			    published review down is done in this card and nowhere else. */}
+			<AdminCard
+				id="reviews"
+				title="Kind words">
 				<p className="text-cocoa-soft mb-5 text-sm">
 					Shown on the home page above &ldquo;How it works&rdquo;. Use the name the customer would
 					be happy to see on a public page. No reviews, no section.

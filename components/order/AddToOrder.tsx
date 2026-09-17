@@ -61,6 +61,8 @@ export function AddToOrder({ product }: { product: Product }) {
 	const { add } = useCart();
 	const groups = optionGroups(product);
 	const { selection, variant, choose } = useVariantChoice(product);
+	// Starts on the whole product's minimum: the commonest order, and one fewer
+	// thing to press. The stepper may be taken below it; see `floor`.
 	const [qty, setQty] = useState(() => minOrderQty(product));
 	const [added, setAdded] = useState(false);
 	const [saving, setSaving] = useState(false);
@@ -124,11 +126,15 @@ export function AddToOrder({ product }: { product: Product }) {
 	// the quantity is passed rather than added on once.
 	const extrasCents = extrasTotalCents(chosen, qty);
 
-	// The floor for this picker is the whole product's minimum, not one step.
-	// Someone splitting six cupcakes across two flavours does it in the basket,
-	// where the lines can be counted together; starting at three here would just
-	// be an order the database refuses.
-	const floor = minOrderQty(product);
+	// The picker starts at the whole product's minimum, because that is what most
+	// people are buying and landing on it saves them the presses. It does not
+	// *stop* there: a minimum is a rule about the product, met across every
+	// flavour, so someone buying twenty-four mini cupcakes as two boxes of twelve
+	// in two flavours has to be able to put one box in the basket. The basket
+	// counts the lines back together and says so if they do not reach it, and
+	// `place_order` counts them the same way inside the transaction.
+	const floor = product.qtyStep;
+	const minimum = minOrderQty(product);
 
 	/**
 	 * Puts this line in the basket, photos and all.
@@ -403,9 +409,14 @@ export function AddToOrder({ product }: { product: Product }) {
 
 			{product.minPerOrder !== null ? (
 				<p className="text-cocoa-soft text-xs">
-					At least {floor} per order
+					At least {minimum} per order
 					{groups.length === 1 ? `, across every ${groups[0]!.name.toLowerCase()}` : ""}
 					{groups.length > 1 ? ", across every combination" : ""}.
+					{/* Said out loud now that the picker will let them go under it. The
+					    sentence above already promises the minimum counts across the
+					    flavours; without this, a stepper sitting on 1 looks like it has
+					    forgotten. */}
+					{qty < minimum ? " Add another flavour, or more of this one, to reach it." : ""}
 				</p>
 			) : null}
 		</div>

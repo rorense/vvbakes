@@ -4,9 +4,11 @@ import { cache } from "react";
 import { countsFromRows } from "./availability";
 import type { IsoDate } from "./dates";
 import {
+	FEEDBACK_SELECT,
 	ORDER_SELECT,
 	PRODUCT_SELECT,
 	toCategory,
+	toFeedbackWithOrder,
 	toOrder,
 	toOrderEvent,
 	toOverride,
@@ -20,6 +22,7 @@ import type {
 	AvailabilityOverride,
 	AvailabilityRule,
 	Category,
+	FeedbackWithOrder,
 	Order,
 	OrderEvent,
 	OrderStatus,
@@ -271,6 +274,22 @@ export const adminOrderEvents = cache(async (orderId: string): Promise<OrderEven
 		.order("created_at", { ascending: false })
 		.limit(50);
 	return (data ?? []).map(toOrderEvent);
+});
+
+/**
+ * Everything customers have said, newest first.
+ *
+ * Not paged. A one-person bakery that takes a few orders a week and hears back
+ * from some of them will not reach a page's worth for years, and a cap with no
+ * way past it would quietly hide the oldest ones. Revisit if it ever does.
+ */
+export const adminFeedback = cache(async (): Promise<FeedbackWithOrder[]> => {
+	const supabase = await createClient();
+	const { data } = await supabase
+		.from("feedback")
+		.select(FEEDBACK_SELECT)
+		.order("created_at", { ascending: false });
+	return (data ?? []).map(toFeedbackWithOrder);
 });
 
 /** Counts for the dashboard tiles. */

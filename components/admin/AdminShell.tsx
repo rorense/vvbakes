@@ -33,6 +33,11 @@ const TABS = [
 		match: (p: string) => p.startsWith("/admin/availability"),
 	},
 	{
+		href: "/admin/feedback",
+		label: "Feedback",
+		match: (p: string) => p.startsWith("/admin/feedback"),
+	},
+	{
 		href: "/admin/settings",
 		label: "Settings",
 		match: (p: string) => p.startsWith("/admin/settings"),
@@ -138,16 +143,21 @@ export function AdminHeader({
 }
 
 export function AdminCard({
+	id,
 	title,
 	children,
 	className,
 }: {
+	/** Only where something links to this card: the settings page is long. */
+	id?: string;
 	title?: string;
 	children: React.ReactNode;
 	className?: string;
 }) {
 	return (
-		<section className={cn("border-line rounded-lg border p-4 sm:p-6", className)}>
+		<section
+			id={id}
+			className={cn("border-line rounded-lg border p-4 sm:p-6", className)}>
 			{title ? <h2 className="font-display mb-4 text-lg">{title}</h2> : null}
 			{children}
 		</section>

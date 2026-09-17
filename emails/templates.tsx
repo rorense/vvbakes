@@ -26,6 +26,9 @@ export interface EmailContext {
 /** Where the customer can always look their order up. */
 const statusUrl = (ctx: EmailContext) => `${ctx.siteUrl}/order/${ctx.order.token}`;
 
+/** The form under the same token, which is the only way to reach it. */
+const feedbackUrl = (ctx: EmailContext) => `${statusUrl(ctx)}/feedback`;
+
 /**
  * True while the customer is still waiting to be told what this costs.
  *
@@ -317,12 +320,55 @@ function OrderCancelledEmail(ctx: EmailContext) {
 	);
 }
 
+// ---------------------------------------------------------------------------
+// To the customer, a day after they collected. The only email here that asks
+// for something rather than telling them something, which is why it is the
+// shortest: one link, one sentence about what happens to the answer.
+//
+// It goes out once per order, from the nightly cron. See lib/feedback.ts.
+// ---------------------------------------------------------------------------
+function FeedbackRequestEmail(ctx: EmailContext) {
+	const { order, settings } = ctx;
+
+	return (
+		<EmailLayout
+			siteUrl={ctx.siteUrl}
+			preview={`A quick word about ${order.reference}`}
+			heading="How was it?"
+			footerNote={
+				settings.contactEmail
+					? `Questions? Reply to this email or write to ${settings.contactEmail}.`
+					: undefined
+			}>
+			<Paragraph>
+				Hi {firstName(order.customerName)}, thank you for your order on{" "}
+				{formatDateLong(order.pickupDate)}. If you have a minute, I&rsquo;d love to know how it
+				went.
+			</Paragraph>
+
+			<Paragraph>
+				There are two boxes: your name, and whatever you&rsquo;d like to say. Underneath them is a
+				tick box asking whether I may put it on the website, with the name you give. It stays
+				between us unless you tick it.
+			</Paragraph>
+
+			<ActionLink href={feedbackUrl(ctx)}>Tell me how it went</ActionLink>
+
+			<Paragraph>
+				And if something wasn&rsquo;t right, please tell me that too. Replying to this email reaches
+				me just the same.
+			</Paragraph>
+		</EmailLayout>
+	);
+}
+
 export const TEMPLATES = {
 	"new-order-owner": NewOrderOwnerEmail,
 	"order-received": OrderReceivedEmail,
 	"order-confirmed": OrderConfirmedEmail,
 	"order-ready": OrderReadyEmail,
 	"order-cancelled": OrderCancelledEmail,
+	"feedback-request": FeedbackRequestEmail,
 } as const;
 
 export type TemplateName = keyof typeof TEMPLATES;
@@ -337,4 +383,8 @@ export const SUBJECTS: Record<TemplateName, (ctx: EmailContext) => string> = {
 			? `${order.reference} is ready for delivery`
 			: `${order.reference} is ready to collect`,
 	"order-cancelled": ({ order }) => `Order ${order.reference} has been cancelled`,
+	// No reference in this one. Every other subject here is a receipt and reads
+	// like one; this is her asking a favour, and it should look like it in a
+	// crowded inbox.
+	"feedback-request": ({ settings }) => `How was your ${settings.businessName} order?`,
 };

@@ -95,6 +95,7 @@ function parseMaxQty(maxQty: unknown) {
 		unitLabel: "each",
 		qtyStep: "1",
 		minPerOrder: "",
+		extraUnitPriceCents: "",
 		imagePath: "",
 		imageAlt: "",
 		isAvailable: true,

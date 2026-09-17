@@ -58,22 +58,43 @@ export function formatPrice(cents: number): string {
 }
 
 /**
+ * A cheaper rate that starts once the first few are paid for.
+ *
+ * "The first two boxes are $17.50 each and every box after that is $15." See
+ * `Product.extraUnitPriceCents` for why this is not a bundle tier.
+ */
+export interface AfterMinimum {
+	/** How many are charged the unit price before the cheaper rate begins. */
+	minimum: number;
+	/** What each one after those costs. */
+	unitPriceCents: number;
+}
+
+/**
  * The cheapest way to buy `qty` units, plus how that total breaks down.
  *
  * Exact, not greedy: with tiers of "4 for $12" and "3 for $8", six units cost
  * $16 as two threes, and taking the biggest bundle first would overcharge by $2.
  * Ties prefer the larger bundle so the note names what the customer picked off
  * the menu.
+ *
+ * `afterMinimum` is the other kind of price list and replaces the tiers rather
+ * than joining them: a product priced "the first two, then the rest" has no
+ * bundles to search through, and the admin refuses both at once because they
+ * are two answers to the same question.
  */
 export function priceForQty(
 	unitPriceCents: number,
 	tiers: readonly PriceTier[],
 	qty: number,
 	unitLabel = "each",
+	afterMinimum: AfterMinimum | null = null,
 ): PricedQuantity {
 	if (!Number.isInteger(qty) || qty < 1) {
 		throw new RangeError(`quantity must be a positive integer, received ${qty}`);
 	}
+
+	if (afterMinimum) return priceAfterMinimum(unitPriceCents, qty, unitLabel, afterMinimum);
 
 	const sorted = [...tiers].sort((a, b) => a.qty - b.qty);
 
@@ -115,6 +136,45 @@ export function priceForQty(
 		});
 
 	return { totalCents: best[qty]!, note: parts.join(" + "), onRequest: false };
+}
+
+/**
+ * "The first two at $17.50, everything after at $15", priced and written out.
+ *
+ * No search to do: which units are the dear ones is decided by counting, not by
+ * looking for the cheapest arrangement. A quantity that has not reached the
+ * minimum is simply that many at the unit price, which is what a basket split
+ * across two flavours is made of, and why two boxes in two flavours comes to
+ * the same $35 as two of one.
+ *
+ * The note is built to read like the bundle notes beside it: the dearer part
+ * first, the same " + " between them, the same "N x $X" for singles.
+ */
+function priceAfterMinimum(
+	unitPriceCents: number,
+	qty: number,
+	unitLabel: string,
+	{ minimum, unitPriceCents: extraCents }: AfterMinimum,
+): PricedQuantity {
+	const atFullPrice = Math.min(qty, Math.max(1, minimum));
+	const extra = qty - atFullPrice;
+
+	const parts = [
+		// One bundle of them where there are several, because "the first two" is
+		// one price off the menu and "2 x $17.50 each" invites the reader to check
+		// the arithmetic on a number they were given whole.
+		atFullPrice > 1
+			? `1 x ${atFullPrice} for ${formatMoney(unitPriceCents * atFullPrice)}`
+			: `1 x ${formatMoney(unitPriceCents)} ${unitLabel}`,
+	];
+
+	if (extra > 0) parts.push(`${extra} x ${formatMoney(extraCents)} ${unitLabel}`);
+
+	return {
+		totalCents: unitPriceCents * atFullPrice + extraCents * extra,
+		note: parts.join(" + "),
+		onRequest: false,
+	};
 }
 
 /** True when the product is sold as flavours, sizes or some other named choice. */
@@ -335,7 +395,29 @@ export function priceProduct(
 	if (product.priceOnRequest) {
 		return { totalCents: 0, note: PRICE_ON_REQUEST_NOTE, onRequest: true };
 	}
-	return priceForQty(unitPriceOf(product, variant), product.tiers, qty, product.unitLabel);
+	return priceForQty(
+		unitPriceOf(product, variant),
+		product.tiers,
+		qty,
+		product.unitLabel,
+		afterMinimumOf(product),
+	);
+}
+
+/**
+ * The product's "and the rest at" rate, ready to price with, or null.
+ *
+ * The threshold is `minOrderQty` rather than `minPerOrder` itself, so a product
+ * with no minimum still has an answer (its step size), and a minimum that was
+ * rounded up to a whole step is the same number here as everywhere else.
+ *
+ * The rate is the product's even where a flavour is priced away from it, the
+ * way a bundle tier is. The admin's price preview shows her what each flavour
+ * comes to before she saves.
+ */
+export function afterMinimumOf(product: Product): AfterMinimum | null {
+	if (product.extraUnitPriceCents === null) return null;
+	return { minimum: minOrderQty(product), unitPriceCents: product.extraUnitPriceCents };
 }
 
 // --- what a placed order comes to -------------------------------------------
@@ -550,6 +632,13 @@ export function priceRule(
 
 	const base = priceRange(product);
 
+	// Said before the bundles because a product has one or the other, never both,
+	// and this is the one that has no row of its own in the price table on the
+	// product page when the product is sold by the flavour.
+	if (bundles && product.extraUnitPriceCents !== null) {
+		return `${base} · ${formatPrice(product.extraUnitPriceCents)} each after ${minOrderQty(product)}`;
+	}
+
 	if (bundles && product.tiers.length > 0) {
 		const tiers = [...product.tiers]
 			.sort((a, b) => a.qty - b.qty)
@@ -577,19 +666,25 @@ export function priceRange(product: Product): string {
 	if (product.priceOnRequest) return PRICE_ON_REQUEST_LABEL;
 
 	const suffix = product.unitLabel === "each" ? "each" : `/ ${product.unitLabel}`;
+	return `${unitPriceRange(product)} ${suffix}`;
+}
 
-	if (!hasVariants(product)) {
-		return `${formatPrice(product.unitPriceCents)} ${suffix}`;
-	}
+/**
+ * What one costs, as money and nothing else: "$17.50", or "$45 – $55".
+ *
+ * `priceRange` with the unit left off, for the places that have already said
+ * what is being counted: a price table whose rows name the quantity, where
+ * "$17.50 / box of 12" in the price column would say "box of 12" twice.
+ */
+export function unitPriceRange(product: Product): string {
+	if (!hasVariants(product)) return formatPrice(product.unitPriceCents);
 
 	const choices = availableVariants(product);
 	const prices = (choices.length > 0 ? choices : product.variants).map((v) => v.unitPriceCents);
 	const low = Math.min(...prices);
 	const high = Math.max(...prices);
 
-	return low === high
-		? `${formatPrice(low)} ${suffix}`
-		: `${formatPrice(low)} – ${formatPrice(high)} ${suffix}`;
+	return low === high ? formatPrice(low) : `${formatPrice(low)} – ${formatPrice(high)}`;
 }
 
 /**

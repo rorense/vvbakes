@@ -36,7 +36,11 @@ export const TRANSITION_EFFECTS: Partial<Record<OrderStatus, string>> = {
 	confirmed: "Emails the customer with bank details, the reference and the pickup address.",
 	ready: "Emails the customer to say it's ready to collect.",
 	cancelled: "Emails the customer to say the order is cancelled.",
-	collected: "Closes the order. No email is sent.",
+	// Not "no email is sent" any more. Nothing goes out when the button is
+	// pressed, but the nightly job asks this customer how it went the day after
+	// their pickup date, and she should not be surprised by that. See
+	// lib/feedback.ts.
+	collected: "Closes the order. A day after the pickup date, they're asked how it went.",
 };
 
 export const STATUS_TONES: Record<OrderStatus, string> = {

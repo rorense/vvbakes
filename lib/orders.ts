@@ -2,10 +2,10 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { cache } from "react";
-import { ORDER_SELECT, toOrder, toPrivateSettings } from "./mappers";
+import { ORDER_SELECT, toFeedback, toOrder, toPrivateSettings } from "./mappers";
 import { createAdminClient } from "./supabase/admin";
 import { hasSupabaseConfig } from "./supabase/env";
-import type { Order, PrivateSettings } from "./types";
+import type { Feedback, Order, PrivateSettings } from "./types";
 
 /**
  * Order reads that need to bypass row level security.
@@ -35,6 +35,29 @@ export async function getOrderByToken(token: string): Promise<Order | null> {
 
 	if (error || !data) return null;
 	return toOrder(data);
+}
+
+/**
+ * What this customer already said, if they have said anything.
+ *
+ * `feedback` has no anon policy either, so this goes through the service role
+ * for the same reason the read above does. It is only ever asked on the
+ * feedback page, after the token has already been matched to an order, and it
+ * is what lets that page show someone their own words back rather than an empty
+ * form they have already filled in once.
+ */
+export async function feedbackForOrder(orderId: string): Promise<Feedback | null> {
+	if (!hasSupabaseConfig()) return null;
+
+	const supabase = createAdminClient();
+	const { data, error } = await supabase
+		.from("feedback")
+		.select("*")
+		.eq("order_id", orderId)
+		.maybeSingle();
+
+	if (error || !data) return null;
+	return toFeedback(data);
 }
 
 /**

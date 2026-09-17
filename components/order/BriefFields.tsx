@@ -234,6 +234,7 @@ export function BriefFields({
 					<InspirationPicker
 						photos={value.photos}
 						onChange={(photos) => patch({ photos })}
+						hint={product.inspirationHint}
 					/>
 
 					<div className="flex flex-col gap-2">

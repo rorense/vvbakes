@@ -37,6 +37,7 @@ function product(overrides: Partial<Product> = {}): Product {
 		unitLabel: "each",
 		qtyStep: 1,
 		minPerOrder: null,
+		extraUnitPriceCents: null,
 		tiers: [],
 		priceGuide: [],
 		priceGuideNote: null,
@@ -57,6 +58,7 @@ function product(overrides: Partial<Product> = {}): Product {
 		wantsNote: true,
 		noteHint: null,
 		notePlaceholder: null,
+		inspirationHint: null,
 		...overrides,
 	};
 }
@@ -172,6 +174,82 @@ describe("minOrderQty", () => {
 		// The database refuses to store this, but a rounded answer is still
 		// better than offering a quantity nothing will accept.
 		expect(minOrderQty(product({ qtyStep: 4, minPerOrder: 6 }))).toBe(8);
+	});
+});
+
+/**
+ * The mini cupcakes, in the numbers she gave: $17.50 a box of twelve for the
+ * first two, two boxes the smallest order, $15 a box after that.
+ */
+const MINIS = { unitPriceCents: 1750, minPerOrder: 2, extraUnitPriceCents: 1500 } as const;
+
+describe("a price after the minimum", () => {
+	it("charges the unit price up to the minimum and the lower one after", () => {
+		const p = product({ ...MINIS, unitLabel: "box of 12" });
+
+		expect(priceProduct(p, 2).totalCents).toBe(3500);
+		expect(priceProduct(p, 3).totalCents).toBe(5000);
+		expect(priceProduct(p, 4).totalCents).toBe(6500);
+		expect(priceProduct(p, 5).totalCents).toBe(8000);
+		expect(priceProduct(p, 6).totalCents).toBe(9500);
+	});
+
+	it("keeps going past the last rung the old bundle list had", () => {
+		// The whole point: the tier table stopped at six boxes and somebody
+		// eventually wants twelve.
+		const p = product(MINIS);
+		expect(priceProduct(p, 12).totalCents).toBe(3500 + 1500 * 10);
+		expect(priceProduct(p, 40).totalCents).toBe(3500 + 1500 * 38);
+	});
+
+	it("charges the unit price for a line that has not reached the minimum", () => {
+		// What one line of a split basket is. Two boxes in two flavours is two of
+		// these, so twenty-four minis comes to the same $35 either way, which is
+		// the promise the minimum makes by counting across the flavours.
+		const p = product(MINIS);
+		expect(priceProduct(p, 1).totalCents).toBe(1750);
+		expect(priceProduct(p, 1).totalCents * 2).toBe(priceProduct(p, 2).totalCents);
+	});
+
+	it("names the first few as one price and the rest as singles", () => {
+		const p = product({ ...MINIS, unitLabel: "box of 12" });
+
+		expect(priceProduct(p, 1).note).toBe("1 x $17.50 box of 12");
+		expect(priceProduct(p, 2).note).toBe("1 x 2 for $35.00");
+		expect(priceProduct(p, 4).note).toBe("1 x 2 for $35.00 + 2 x $15.00 box of 12");
+	});
+
+	it("counts from the step size when the product has no minimum", () => {
+		// `minOrderQty` is the threshold, not `minPerOrder` itself, so this is
+		// "the first one at full price" rather than a crash or a free box.
+		const p = product({ unitPriceCents: 1750, extraUnitPriceCents: 1500 });
+		expect(priceProduct(p, 1).totalCents).toBe(1750);
+		expect(priceProduct(p, 3).totalCents).toBe(1750 + 1500 * 2);
+	});
+
+	it("applies the product's rate to a flavour priced away from it", () => {
+		// The lower rate belongs to the product, the way a bundle does. Only the
+		// first few follow the flavour's own price.
+		const p = product({
+			...MINIS,
+			variants: [variant({ name: "Red velvet", unitPriceCents: 2000 })],
+		});
+		expect(priceProduct(p, 3, p.variants[0]!).totalCents).toBe(2000 * 2 + 1500);
+	});
+
+	it("says so on the menu line instead of listing every quantity", () => {
+		expect(priceRule(product({ ...MINIS, unitLabel: "box of 12" }))).toBe(
+			"$17.50 / box of 12 · $15 each after 2",
+		);
+		// The card has room for one price only, and it is still the first one.
+		expect(priceRule(product({ ...MINIS, unitLabel: "box of 12" }), { bundles: false })).toBe(
+			"$17.50 / box of 12",
+		);
+	});
+
+	it("leaves a product without one priced exactly as before", () => {
+		const p = product({ tiers: FOUR_FOR_TWELVE });
+		expect(priceProduct(p, 5)).toEqual(priceForQty(300, FOUR_FOR_TWELVE, 5));
 	});
 });
 

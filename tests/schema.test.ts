@@ -156,7 +156,53 @@ describe("seed data", () => {
 				unit_label: "slice",
 				qty_step: 1,
 			},
+			// Last, and the only one not priced by the unit alone: $17.50 a box of
+			// twelve for the first two, $15 a box after that. The two columns that
+			// say so are checked in their own test below rather than widened into
+			// this one, which is about the transcription.
+			{
+				slug: "cupcakes-mini-sized",
+				unit_price_cents: 1750,
+				unit_label: "box of 12",
+				qty_step: 1,
+			},
 		]);
+	});
+
+	it("seeds the minis with a minimum and a lower rate past it", async () => {
+		const result = await db.query<{
+			min_per_order: number | null;
+			extra_unit_price_cents: number | null;
+			inspiration_hint: string | null;
+		}>(
+			`select min_per_order, extra_unit_price_cents, inspiration_hint
+			 from products where slug = 'cupcakes-mini-sized'`,
+		);
+		expect(result.rows[0]!.min_per_order).toBe(2);
+		expect(result.rows[0]!.extra_unit_price_cents).toBe(1500);
+		// Not the default wording, which talks about a cake.
+		expect(result.rows[0]!.inspiration_hint).toContain("Cupcakes");
+
+		// The numbers off her menu, priced by the database rather than asserted
+		// against the row: two boxes $35, then $15 a box, and no rung it stops at.
+		const ids = await db.query<{ id: string }>(
+			"select id from products where slug = 'cupcakes-mini-sized'",
+		);
+		const productId = ids.rows[0]!.id;
+		for (const [qty, cents] of [
+			[2, 3500],
+			[3, 5000],
+			[4, 6500],
+			[5, 8000],
+			[6, 9500],
+			[20, 3500 + 1500 * 18],
+		] as const) {
+			const priced = await db.query<{ total_cents: number }>(
+				"select total_cents from price_for_qty($1, $2)",
+				[productId, qty],
+			);
+			expect([qty, priced.rows[0]!.total_cents]).toEqual([qty, cents]);
+		}
 	});
 
 	it("creates exactly seven weekday rules", async () => {
@@ -218,15 +264,32 @@ describe("seed data", () => {
 		]);
 	});
 
-	it("leaves the note's wording to the code until she types her own", async () => {
-		// Null means "say what BriefFields says". Seeding either column would be
-		// a second copy of that wording, in a place nobody rewording it would
+	it("leaves the note's wording to the code, bar the examples she asked for", async () => {
+		const result = await db.query<{
+			slug: string;
+			note_hint: string | null;
+			note_placeholder: string | null;
+		}>("select slug, note_hint, note_placeholder from products order by slug");
+
+		// Null means "say what BriefFields says". Seeding a hint would be a
+		// second copy of that wording, in a place nobody rewording it would
 		// think to look, so a later "helpful" seed has to argue with this line.
-		const result = await db.query<{ count: number }>(
-			`select count(*)::int as count from products
-			 where note_hint is not null or note_placeholder is not null`,
-		);
-		expect(result.rows[0]!.count).toBe(0);
+		expect(result.rows.filter((row) => row.note_hint !== null).map((row) => row.slug)).toEqual([]);
+
+		// The example is the one piece of wording seeded, and only where she
+		// asked for it: the two sold by the slice and the cookies, which is what
+		// 20260918000002 and 20260918000004 put on an install that already has
+		// them. A fourth slug here is a copy of the default in a place it should
+		// not be.
+		expect(
+			result.rows
+				.filter((row) => row.note_placeholder !== null)
+				.map((row) => [row.slug, row.note_placeholder]),
+		).toEqual([
+			["brochi", "E.g. Can each slice be cut in half?"],
+			["cookies", "E.g. Please don't add any flaky salt"],
+			["wingko", "E.g. Can each slice be cut in half?"],
+		]);
 	});
 
 	it("is idempotent", async () => {
@@ -236,8 +299,9 @@ describe("seed data", () => {
 		await db.exec(seed);
 		const result = await db.query<{ count: number }>("select count(*)::int as count from products");
 		// The five off the market menu, plus the custom cake that a later
-		// migration adds. Re-running the seed must not duplicate either set.
-		expect(result.rows[0]!.count).toBe(6);
+		// migration adds and the minis the seed adds in a second insert.
+		// Re-running the seed must not duplicate any of the three sets.
+		expect(result.rows[0]!.count).toBe(7);
 	});
 });
 
@@ -1046,6 +1110,60 @@ describe("variants", () => {
 		expect(order.reference).toMatch(/^VV/);
 
 		await db.query("update products set min_per_order = null where id = $1", [cakeId]);
+	});
+
+	it("charges the lower rate past the minimum, and charges a split basket right", async () => {
+		// The mini cupcake arrangement on the cake fixture: two at the flavour's
+		// own price, everything after at the product's lower rate.
+		await db.query(
+			"update products set min_per_order = 2, extra_unit_price_cents = 1500 where id = $1",
+			[cakeId],
+		);
+
+		const three = await placeOrder({
+			items: [{ product_id: cakeId, variant_id: chocolate, qty: 3 }],
+			pickupDate: await dateIn(7),
+		});
+		const threeLines = await db.query<{ line_total_cents: number; pricing_note: string }>(
+			"select line_total_cents, pricing_note from order_items where order_id = $1",
+			[three.id],
+		);
+		expect(threeLines.rows).toEqual([
+			{ line_total_cents: 4500 * 2 + 1500, pricing_note: "1 x 2 for $90.00 + 1 x $15.00 cake" },
+		]);
+
+		// The reason the rate is counted per line rather than across the basket:
+		// two flavours, one of each, is the minimum met across them, and both are
+		// charged the first-one price. Splitting does not cost more than not
+		// splitting: two of one flavour is $90 and one of each is $95 only
+		// because the carrot is the dearer cake, not because it was split.
+		const split = await placeOrder({
+			items: [
+				{ product_id: cakeId, variant_id: chocolate, qty: 1 },
+				{ product_id: cakeId, variant_id: carrot, qty: 1 },
+			],
+			pickupDate: await dateIn(7),
+		});
+		const splitLines = await db.query<{ variant_name: string; line_total_cents: number }>(
+			`select variant_name, line_total_cents from order_items
+			 where order_id = $1 order by variant_name`,
+			[split.id],
+		);
+		expect(splitLines.rows).toEqual([
+			{ variant_name: "Carrot & walnut", line_total_cents: 5000 },
+			{ variant_name: "Chocolate", line_total_cents: 4500 },
+		]);
+
+		const subtotal = await db.query<{ subtotal_cents: number }>(
+			"select subtotal_cents from orders where id = $1",
+			[split.id],
+		);
+		expect(subtotal.rows[0]!.subtotal_cents).toBe(9500);
+
+		await db.query(
+			"update products set min_per_order = null, extra_unit_price_cents = null where id = $1",
+			[cakeId],
+		);
 	});
 
 	it("refuses a flavoured product ordered without a flavour", async () => {

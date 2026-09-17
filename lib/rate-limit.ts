@@ -4,7 +4,7 @@ import { createAdminClient } from "./supabase/admin";
 import { hasSupabaseConfig } from "./supabase/env";
 
 /**
- * Attempt counting, for the two places anonymous traffic can reach.
+ * Attempt counting, for the places anonymous traffic can reach.
  *
  * The database already refuses a fourth *order* from one address in a quarter
  * of an hour, but that counts rows in `orders`, so it only ever sees
@@ -24,7 +24,7 @@ import { hasSupabaseConfig } from "./supabase/env";
  */
 
 /** Which counter a call belongs to. */
-export type RateLimitBucket = "order" | "login";
+export type RateLimitBucket = "order" | "login" | "feedback";
 
 interface Rule {
 	/** Attempts allowed inside the window. The one that trips it is refused. */
@@ -34,7 +34,7 @@ interface Rule {
 }
 
 /**
- * The two rules.
+ * The rules.
  *
  * `order` is set well above what a real customer does. Someone correcting a
  * typo, then a date that filled up, then their phone number, is three or four
@@ -49,6 +49,11 @@ interface Rule {
 const RULES: Record<RateLimitBucket, Rule> = {
 	order: { limit: 10, window: "15 minutes" },
 	login: { limit: 10, window: "15 minutes" },
+	// The feedback form is behind an order's own token, so this is not really
+	// keeping anyone out. It is a ceiling on what one machine can cost if a
+	// token ever leaks. The row is overwritten rather than added to, so a
+	// customer who rewrites their answer twice is well inside it.
+	feedback: { limit: 10, window: "15 minutes" },
 };
 
 /**

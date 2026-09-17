@@ -13,6 +13,8 @@ import {
 	type Category,
 	type Extra,
 	type Faq,
+	type Feedback,
+	type FeedbackWithOrder,
 	type InstagramPost,
 	type Order,
 	type OrderEvent,
@@ -34,6 +36,7 @@ type Tables = Database["public"]["Tables"];
 type CategoryRow = Tables["categories"]["Row"];
 type FaqRow = Tables["faqs"]["Row"];
 type ReviewRow = Tables["reviews"]["Row"];
+type FeedbackRow = Tables["feedback"]["Row"];
 type InstagramPostRow = Tables["instagram_posts"]["Row"];
 type ExtraRow = Tables["product_extras"]["Row"];
 type ProductRow = Tables["products"]["Row"];
@@ -89,6 +92,52 @@ export function toReview(row: ReviewRow): Review {
 		body: row.body,
 		detail: row.detail,
 		sortOrder: row.sort_order,
+	};
+}
+
+export function toFeedback(row: FeedbackRow): Feedback {
+	return {
+		id: row.id,
+		orderId: row.order_id,
+		author: row.author,
+		body: row.body,
+		consented: row.consented,
+		publishedAt: row.published_at,
+		createdAt: row.created_at,
+	};
+}
+
+/**
+ * Feedback plus the three things about its order the admin list shows.
+ *
+ * Narrow on purpose. The list is a page of other people's words about her
+ * cakes; it has no business also carrying their phone numbers.
+ */
+export const FEEDBACK_SELECT = "*, orders (reference, pickup_date, customer_name)";
+
+/** The three columns `FEEDBACK_SELECT` embeds from the order it belongs to. */
+type FeedbackOrderColumns = {
+	reference: string;
+	pickup_date: string;
+	customer_name: string;
+};
+
+/**
+ * Feedback with enough of its order to be recognised in a list.
+ *
+ * The embed is declared one-to-one in database.types, so it arrives as a single
+ * object rather than an array. A null is only possible in the moment between a
+ * cascade deleting the order and this row going with it, and is filled in
+ * rather than thrown: an admin list is not the place to crash over it.
+ */
+export function toFeedbackWithOrder(
+	row: FeedbackRow & { orders: FeedbackOrderColumns | null },
+): FeedbackWithOrder {
+	return {
+		...toFeedback(row),
+		reference: row.orders?.reference ?? "(no order)",
+		pickupDate: row.orders?.pickup_date ?? "",
+		customerName: row.orders?.customer_name ?? "",
 	};
 }
 
@@ -221,6 +270,11 @@ export function toProduct(
 		unitLabel: row.unit_label,
 		qtyStep: row.qty_step,
 		minPerOrder: row.min_per_order,
+		// `?? null` rather than taken at face value, for the reason the switches
+		// below are defaulted: for the few minutes between the deploy and the
+		// migration the row comes back without this column, and `undefined` would
+		// walk into `priceForQty` as a rate rather than as "there isn't one".
+		extraUnitPriceCents: row.extra_unit_price_cents ?? null,
 		tiers: (row.product_price_tiers ?? []).map(toPriceTier).sort((a, b) => a.qty - b.qty),
 		// Sorted here because `sort_order` does not survive the mapping. The order
 		// she put these in is the order they read in: sizes counting up, add-ons last.
@@ -253,6 +307,7 @@ export function toProduct(
 		wantsNote: row.wants_note ?? true,
 		noteHint: row.note_hint ?? null,
 		notePlaceholder: row.note_placeholder ?? null,
+		inspirationHint: row.inspiration_hint ?? null,
 		priceGuideNote: row.price_guide_note ?? null,
 	};
 }
@@ -392,6 +447,11 @@ export function toOrder(row: OrderRow & { order_items?: OrderItemColumns[] | nul
 		readyAt: row.ready_at,
 		collectedAt: row.collected_at,
 		cancelledAt: row.cancelled_at,
+		// Read with the same tolerance as `wants_note`: the app is deployed
+		// before the migration is applied, and for those few minutes the row
+		// comes back without the column. Undefined has to read as "not asked",
+		// or the cron would skip every order it cannot see a stamp on.
+		feedbackRequestedAt: row.feedback_requested_at ?? null,
 		items: (row.order_items ?? [])
 			.map(toOrderItem)
 			// Flavours of one product sit together, in name order, rather than

@@ -63,6 +63,7 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		unitLabel: "each",
 		qtyStep: 1,
 		minPerOrder: null,
+		extraUnitPriceCents: null,
 		tiers: [],
 		priceGuide: [],
 		priceGuideNote: null,
@@ -83,6 +84,7 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		wantsNote: true,
 		noteHint: null,
 		notePlaceholder: null,
+		inspirationHint: null,
 		...overrides,
 	};
 }
@@ -216,6 +218,42 @@ export const DEMO_PRODUCTS: Product[] = [
 		wantsCustomFlavour: true,
 		wantsBrief: true,
 	}),
+	// The worked example for the price that is not a bundle. Mirrors the product
+	// seeded by supabase/seed.sql: $17.50 a box of twelve for the first two, $15
+	// a box after that, two boxes the smallest order.
+	//
+	// Two flavours, because the minimum is what makes them interesting: it counts
+	// across both, so one box of each is a legitimate twenty-four minis, and both
+	// boxes are charged the first-box rate. Demo mode is the only place that can
+	// be seen without a database.
+	demoProduct({
+		id: "demo-1b",
+		slug: "cupcakes-mini-sized",
+		name: "Cupcakes - mini sized",
+		categoryId: "demo-cat-1",
+		description:
+			"Freshly baked mini cupcakes in a delicious variety of flavours, topped with a creamy frosting and perfect for any occasion.",
+		unitPriceCents: 1750,
+		unitLabel: "box of 12",
+		minPerOrder: 2,
+		extraUnitPriceCents: 1500,
+		sortOrder: 6,
+		allergens: ["gluten", "dairy", "egg"],
+		variants: ["Vanilla", "Chocolate", "Red velvet"].map((name, index) => ({
+			id: `demo-1b-v${index + 1}`,
+			name,
+			unitPriceCents: 1750,
+			imagePath: null,
+			allergens: [],
+			isAvailable: true,
+			sortOrder: index + 1,
+			optionIds: [],
+		})),
+		wantsCustomFlavour: true,
+		wantsBrief: true,
+		inspirationHint:
+			"Cupcakes you have seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.",
+	}),
 	demoProduct({
 		id: "demo-2",
 		slug: "cookies",
@@ -226,6 +264,11 @@ export const DEMO_PRODUCTS: Product[] = [
 		unitLabel: "pack",
 		isFeatured: true,
 		sortOrder: 2,
+		// Her own example here too, mirroring
+		// supabase/migrations/20260918000004_cookie_note_placeholder.sql. Flaky salt
+		// is what people ask her to leave off a cookie; the celebration cake further
+		// down is what still shows the code's own wording.
+		notePlaceholder: "E.g. Please don't add any flaky salt",
 		allergens: ["gluten", "dairy", "egg"],
 	}),
 	demoProduct({
@@ -236,6 +279,11 @@ export const DEMO_PRODUCTS: Product[] = [
 		unitPriceCents: 500,
 		unitLabel: "slice",
 		sortOrder: 3,
+		// The two sold by the slice carry her own example inside the note box,
+		// mirroring supabase/migrations/20260918000002_slice_note_example.sql.
+		// With the chiffon below, demo mode shows all three answers the box
+		// takes: her wording, the code's, and the question switched off.
+		notePlaceholder: "E.g. Can each slice be cut in half?",
 		allergens: ["gluten", "dairy", "egg"],
 	}),
 	demoProduct({
@@ -246,6 +294,7 @@ export const DEMO_PRODUCTS: Product[] = [
 		unitPriceCents: 500,
 		unitLabel: "slice",
 		sortOrder: 4,
+		notePlaceholder: "E.g. Can each slice be cut in half?",
 		allergens: ["egg"],
 	}),
 	demoProduct({

@@ -204,6 +204,27 @@ export interface Product {
 	 * every variant. Null for no minimum.
 	 */
 	minPerOrder: number | null;
+	/**
+	 * What each one beyond the minimum costs, when that is less than the first
+	 * few. Null is the ordinary state: every one costs `unitPriceCents`.
+	 *
+	 * Mini cupcakes are the reason. They go out in boxes of twelve, two boxes is
+	 * the smallest order at $17.50 a box, and every box after that is $15. Bundle
+	 * tiers cannot say that: the tier table is searched for the *cheapest* way to
+	 * make up a quantity, so a bundle priced above the unit rate is never chosen,
+	 * and "$35 for the first two" is exactly that. Spelling it out instead as
+	 * "3 for $50, 4 for $65, 5 for $80…" works until somebody wants six boxes and
+	 * the row is not there.
+	 *
+	 * Counted from `minOrderQty`, so the first one of these is the first one past
+	 * the minimum, or past the step size where there is no minimum.
+	 *
+	 * Per line, like the tiers and for the same reason: a price for N of this
+	 * product is a price for N of one flavour, and mixing flavours inside it is a
+	 * different promise. Two boxes in two flavours is two lines of one, so both
+	 * are charged the first-box rate and come to the same $35.
+	 */
+	extraUnitPriceCents: number | null;
 	tiers: PriceTier[];
 	/**
 	 * Starting prices, shown only where `priceOnRequest` is on. Everywhere else
@@ -293,6 +314,15 @@ export interface Product {
 	 * about the tiramisu and the thing nobody asks about a cookie.
 	 */
 	notePlaceholder: string | null;
+	/**
+	 * The line under the photo picker, in her words. Null uses the wording in
+	 * components/order/InspirationPicker.tsx.
+	 *
+	 * Only ever read where `wantsBrief` is on, because that is the only place the
+	 * picker is drawn. The default talks about a cake, which is what it is for on
+	 * a custom cake and what it is not on a box of cupcakes.
+	 */
+	inspirationHint: string | null;
 }
 
 /** A category with its products already attached, for the shop page. */
@@ -325,6 +355,35 @@ export interface Review {
 	body: string;
 	detail: string | null;
 	sortOrder: number;
+}
+
+/**
+ * What a customer said when she asked, and whether they agreed to be quoted.
+ *
+ * Not a `Review`, and deliberately not convertible into one by accident. This
+ * is the private thing they typed; a review is the public thing she chose to
+ * put up. `publishedAt` records that she made that choice, and is not a link
+ * to the review it produced. See the migration for why there cannot be one.
+ */
+export interface Feedback {
+	id: string;
+	orderId: string;
+	/** Their name as they gave it on the form, which the form warned may be shown. */
+	author: string;
+	body: string;
+	/** They ticked the box. Without it the admin refuses to publish. */
+	consented: boolean;
+	/** When she copied it onto the website, or null. */
+	publishedAt: string | null;
+	createdAt: string;
+}
+
+/** Feedback with the order it came from, which is all the admin list needs of it. */
+export interface FeedbackWithOrder extends Feedback {
+	reference: string;
+	/** YYYY-MM-DD. */
+	pickupDate: string;
+	customerName: string;
 }
 
 /**
@@ -690,6 +749,8 @@ export interface Order {
 	readyAt: string | null;
 	collectedAt: string | null;
 	cancelledAt: string | null;
+	/** When the feedback request was sent. Null means it has not been asked for. */
+	feedbackRequestedAt: string | null;
 	items: OrderItem[];
 }
 
@@ -705,6 +766,7 @@ export interface OrderEvent {
 		| "email_failed"
 		| "email_bounced"
 		| "email_complained"
+		| "feedback_received"
 		| "note";
 	data: Record<string, unknown>;
 	createdAt: string;

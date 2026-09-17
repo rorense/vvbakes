@@ -52,6 +52,11 @@ export const order: Order = {
 	readyAt: null,
 	collectedAt: null,
 	cancelledAt: null,
+	// Not asked yet, which is what every order looks like until the night after
+	// its pickup date. The feedback-request preview renders the same either way;
+	// this column decides whether the cron picks the order up, not what the
+	// email says.
+	feedbackRequestedAt: null,
 	items: [
 		{
 			id: "item-1",

@@ -206,6 +206,30 @@ export const orderInputSchema = z
 		{ message: "Please add a delivery address", path: ["deliveryAddress"] },
 	);
 
+// --- feedback ---------------------------------------------------------------
+
+/**
+ * What a customer sends from the feedback form, a day after they collected.
+ *
+ * The lengths match the check constraints on `feedback`. The name's ceiling is
+ * `reviews.author`'s rather than `orders.customer_name`'s, because that is the
+ * table it ends up in if she puts it on the website, and a name accepted here
+ * and refused there would fail in the admin with nothing she could do about it.
+ *
+ * `consented` is a plain boolean with no refinement on it. Both answers are
+ * valid and both are kept: a "no" is still something she wants to read, and the
+ * admin is what refuses to publish it.
+ */
+export const feedbackSchema = z.object({
+	author: z.string().trim().min(1, "Please put a name to it").max(80, "That is longer than a name"),
+	body: z
+		.string()
+		.trim()
+		.min(1, "Please write something before sending it")
+		.max(800, "That is a little longer than the box takes. Trim it and send again."),
+	consented: z.boolean(),
+});
+
 // --- admin: products --------------------------------------------------------
 
 const priceTierSchema = z.object({
@@ -336,6 +360,18 @@ export const productSchema = z
 				(value) => value === null || (Number.isInteger(value) && value >= 1),
 				"Leave blank for no minimum",
 			),
+		// Blank is the ordinary answer and means every one costs the same. Checked
+		// like `dollars` rather than with it, because that one insists on a number
+		// and this field has to come back null when it is empty, the way
+		// minPerOrder does.
+		extraUnitPriceCents: z
+			.union([z.string(), z.number()])
+			.transform((value) => (typeof value === "string" ? value.trim() : String(value)))
+			.refine(
+				(value) => value === "" || /^\d+(\.\d{1,2})?$/.test(value),
+				"Use a price like 15 or 12.50, or leave it blank",
+			)
+			.transform((value) => (value === "" ? null : Math.round(Number(value) * 100))),
 		imagePath: optionalText(400),
 		imageAlt: optionalText(200),
 		isAvailable: z.boolean(),
@@ -359,6 +395,9 @@ export const productSchema = z
 		// she should be able to move it in here.
 		noteHint: optionalText(500),
 		notePlaceholder: optionalText(500),
+		// The line under the photo picker. Same rule and same length as the two
+		// above: null means "say what the code says".
+		inspirationHint: optionalText(500),
 		tiers: z.array(priceTierSchema).max(6),
 		// Starting prices for something with no price. Submitted whether or not
 		// the product is priced on request, for the reason the price field above
@@ -392,6 +431,14 @@ export const productSchema = z
 	.refine((value) => new Set(value.tiers.map((tier) => tier.qty)).size === value.tiers.length, {
 		message: "Two bundles have the same quantity",
 		path: ["tiers"],
+	})
+	// Two answers to one question. A bundle is picked only when it is the
+	// *cheapest* way to make up a quantity, so a product with both would quote
+	// whichever of the two happened to win and the other would look ignored. See
+	// `Product.extraUnitPriceCents`.
+	.refine((value) => value.extraUnitPriceCents === null || value.tiers.length === 0, {
+		message: "Either bundle prices or a price after the minimum, not both",
+		path: ["extraUnitPriceCents"],
 	})
 	.refine(
 		(value) =>

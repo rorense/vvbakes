@@ -180,6 +180,33 @@ export default async function PrivacyPage() {
 						</p>
 					</Clause>
 
+					<Clause title="If you leave feedback">
+						<p>
+							A day or so after your pickup date I send one email asking how it went. It links to a
+							short form: your name, whatever you&rsquo;d like to say, and a tick box. Answering is
+							entirely up to you, and nothing happens if you don&rsquo;t.
+						</p>
+						<p>
+							What you write is kept with your order and read by me. Nothing you send goes on the
+							website on its own.
+						</p>
+						<Points>
+							<li>
+								<Term>Leave the box unticked</Term> and it stays between us. I&rsquo;ll still read
+								it, and it will never be quoted anywhere.
+							</li>
+							<li>
+								<Term>Tick it</Term> and I may quote what you wrote on the site, under the name you
+								typed into the form. Never your email address, your phone number, or what you
+								ordered.
+							</li>
+						</Points>
+						<p>
+							I choose which ones go up, and I read them before they do. Changed your mind, either
+							way? Email {contact} and I&rsquo;ll take it down.
+						</p>
+					</Clause>
+
 					<Clause title="How long I keep it">
 						<p>
 							I keep basic order records for seven years, as required for business and tax

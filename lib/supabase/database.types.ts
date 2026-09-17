@@ -39,6 +39,8 @@ type ProductRow = {
 	unit_label: string;
 	qty_step: number;
 	min_per_order: number | null;
+	/** What each one past the minimum costs, when that is less. Null charges the one price. */
+	extra_unit_price_cents: number | null;
 	variant_label: string;
 	image_path: string | null;
 	image_alt: string | null;
@@ -59,6 +61,8 @@ type ProductRow = {
 	note_hint: string | null;
 	/** The example inside the empty note box, in her words. Null uses BriefFields. */
 	note_placeholder: string | null;
+	/** The line under the photo picker, in her words. Null uses InspirationPicker. */
+	inspiration_hint: string | null;
 	/** The line under the price guide, in her own words. Null hides it. */
 	price_guide_note: string | null;
 	created_at: string;
@@ -197,6 +201,8 @@ type OrderRow = {
 	ready_at: string | null;
 	collected_at: string | null;
 	cancelled_at: string | null;
+	/** When the feedback request went out. Null means the cron has not asked yet. */
+	feedback_requested_at: string | null;
 	created_at: string;
 	updated_at: string;
 };
@@ -256,6 +262,17 @@ type ReviewRow = {
 	body: string;
 	detail: string | null;
 	sort_order: number;
+	created_at: string;
+	updated_at: string;
+};
+
+type FeedbackRow = {
+	id: string;
+	order_id: string;
+	author: string;
+	body: string;
+	consented: boolean;
+	published_at: string | null;
 	created_at: string;
 	updated_at: string;
 };
@@ -338,6 +355,23 @@ export type Database = {
 				Insert: Writable<ReviewRow, "author" | "body">;
 				Update: Partial<ReviewRow>;
 				Relationships: [];
+			};
+			// Written only by submitFeedback through the service role, the same
+			// arrangement as orders: the customer's own words are never readable
+			// with the anon key.
+			feedback: {
+				Row: FeedbackRow;
+				Insert: Writable<FeedbackRow, "order_id" | "author" | "body">;
+				Update: Partial<FeedbackRow>;
+				Relationships: [
+					{
+						foreignKeyName: "feedback_order_id_fkey";
+						columns: ["order_id"];
+						isOneToOne: true;
+						referencedRelation: "orders";
+						referencedColumns: ["id"];
+					},
+				];
 			};
 			instagram_posts: {
 				Row: InstagramPostRow;
