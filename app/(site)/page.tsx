@@ -262,15 +262,16 @@ export default async function HomePage() {
 					<div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
 						<div className="flex flex-col gap-4 lg:col-span-5">
 							<SectionLabel>Custom cakes</SectionLabel>
-							<h2 className="font-display text-3xl">The one in your head</h2>
+							<h2 className="font-display text-3xl">A cake made your way</h2>
 							<p className="text-cocoa-soft">
-								Birthdays, engagements, the cake someone has been hinting about for a month. Tell me
-								what it&rsquo;s for and I&rsquo;ll tell you what&rsquo;s possible, what it costs,
-								and whether I can fit it in.
+								Planning a birthday, celebration or something special? Choose your favourite
+								flavour, how many layers you&rsquo;d like, the filling, and the design you have in
+								mind, and I&rsquo;ll bring it together into a cake made just for you.
 							</p>
 							<p className="text-cocoa-soft">
-								No idea where to start? That&rsquo;s fine. &ldquo;Chocolate, for eight, not too
-								sweet&rdquo; is plenty to go on.
+								Not sure exactly what you want? That&rsquo;s okay too. Tell me what you&rsquo;re
+								celebrating, your favourite flavours and any ideas you have, and we can work from
+								there.
 							</p>
 							<div className="mt-2">
 								<ButtonLink href="/shop/custom-cake">Ask about a cake</ButtonLink>
