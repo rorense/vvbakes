@@ -5,6 +5,7 @@ import { Resend } from "resend";
 import { SUBJECTS, TEMPLATES, type EmailContext, type TemplateName } from "@/emails/templates";
 import { siteUrl } from "./constants";
 import { createAdminClient } from "./supabase/admin";
+import { OPTED_OUT, hasOptedOut, unsubscribeHeaders } from "./unsubscribe";
 import type { Order, PrivateSettings, SiteSettings } from "./types";
 
 /**
@@ -49,6 +50,8 @@ async function deliver(options: {
 	html: string;
 	text: string;
 	replyTo?: string | null;
+	/** Extra headers. Only the feedback request sets any; see lib/unsubscribe.ts. */
+	headers?: Record<string, string>;
 }): Promise<SendResult> {
 	const config = mailConfig();
 	if (!config) {
@@ -68,6 +71,7 @@ async function deliver(options: {
 			// the From domain is signed here, so her own mailbox can take the
 			// replies without the shop having to send from it.
 			replyTo: options.replyTo ?? undefined,
+			headers: options.headers,
 		});
 
 		if (error) {
@@ -106,6 +110,28 @@ async function logEmail(
 	}
 }
 
+/**
+ * Something worth seeing on the order that is not a delivery outcome.
+ *
+ * Kept apart from `logEmail` because the two are read differently: the admin
+ * treats `email_failed` as something needing her attention, and an email the
+ * shop chose not to send is the opposite of that.
+ */
+async function logNote(
+	orderId: string,
+	data: Record<string, string | number | boolean>,
+): Promise<void> {
+	try {
+		await createAdminClient().from("order_events").insert({
+			order_id: orderId,
+			type: "note",
+			data,
+		});
+	} catch (error) {
+		console.error("[vvbakes] could not record an email note", error);
+	}
+}
+
 export interface SendOrderEmailOptions {
 	template: TemplateName;
 	order: Order;
@@ -132,7 +158,20 @@ export async function sendOrderEmail(options: SendOrderEmailOptions): Promise<Se
 		return result;
 	}
 
-	const context: EmailContext = { order, settings, privateSettings, siteUrl: siteUrl() };
+	// The one email anybody may refuse, and the check that makes the refusal
+	// mean something. It lives here rather than in the job that sends it so that
+	// no future caller can reach the template without passing it.
+	//
+	// Recorded as a `note`, not an `email_failed`: nothing went wrong, and the
+	// admin's "an email to this customer didn't send" banner keys on the failure
+	// events. See lib/unsubscribe.ts.
+	if (template === "feedback-request" && (await hasOptedOut(to))) {
+		await logNote(order.id, { skipped: template, reason: OPTED_OUT, to });
+		return { sent: false, skipped: OPTED_OUT };
+	}
+
+	const origin = siteUrl();
+	const context: EmailContext = { order, settings, privateSettings, siteUrl: origin };
 
 	try {
 		const element = TEMPLATES[template](context);
@@ -145,6 +184,17 @@ export async function sendOrderEmail(options: SendOrderEmailOptions): Promise<Se
 			subject,
 			html,
 			text,
+			// Only on the one that can be unsubscribed from. An order
+			// confirmation carrying this would offer to stop an email the shop
+			// would go on sending regardless.
+			headers:
+				template === "feedback-request"
+					? unsubscribeHeaders({
+							siteUrl: origin,
+							token: order.token,
+							contactEmail: settings.contactEmail,
+						})
+					: undefined,
 			// Owner notifications should reply to the customer; customer mail
 			// should reply to the bakery.
 			replyTo:

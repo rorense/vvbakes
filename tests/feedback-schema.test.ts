@@ -37,6 +37,7 @@ async function makeOrder(reference: string): Promise<string> {
 
 beforeEach(async () => {
 	await db.query("delete from feedback");
+	await db.query("delete from feedback_optouts");
 	await db.query("delete from orders");
 });
 
@@ -143,6 +144,119 @@ describe("the feedback table", () => {
 			),
 		);
 		expect(message).toBeNull();
+	});
+});
+
+describe("the unsubscribe list", () => {
+	it("refuses an address that was not normalised on the way in", async () => {
+		const orderId = await makeOrder("VV3001");
+
+		for (const bad of ["Alex@Example.com", " alex@example.com ", "ALEX@EXAMPLE.COM"]) {
+			const message = await errorOf(() =>
+				db.query("insert into feedback_optouts (email, order_id) values ($1, $2)", [bad, orderId]),
+			);
+			expect(message).toMatch(/check constraint/i);
+		}
+
+		const ok = await errorOf(() =>
+			db.query("insert into feedback_optouts (email, order_id) values ($1, $2)", [
+				"alex@example.com",
+				orderId,
+			]),
+		);
+		expect(ok).toBeNull();
+	});
+
+	it("holds one row per address however many orders it came from", async () => {
+		const first = await makeOrder("VV3002");
+		const second = await makeOrder("VV3003");
+
+		await db.query("insert into feedback_optouts (email, order_id) values ($1, $2)", [
+			"alex@example.com",
+			first,
+		]);
+
+		const message = await errorOf(() =>
+			db.query("insert into feedback_optouts (email, order_id) values ($1, $2)", [
+				"alex@example.com",
+				second,
+			]),
+		);
+		expect(message).toMatch(/duplicate key|unique/i);
+	});
+
+	// The reason for "on delete set null" rather than a cascade: deleting an old
+	// order must never quietly put somebody back on the list.
+	it("outlives the order it was asked from", async () => {
+		const orderId = await makeOrder("VV3004");
+		await db.query("insert into feedback_optouts (email, order_id) values ($1, $2)", [
+			"alex@example.com",
+			orderId,
+		]);
+
+		await db.query("delete from orders where id = $1", [orderId]);
+
+		const rows = await db.query<{ email: string; order_id: string | null }>(
+			"select email, order_id from feedback_optouts",
+		);
+		expect(rows.rows).toEqual([{ email: "alex@example.com", order_id: null }]);
+	});
+
+	it("only knows two ways of being asked", async () => {
+		const orderId = await makeOrder("VV3005");
+		const message = await errorOf(() =>
+			db.query(
+				"insert into feedback_optouts (email, order_id, source) values ($1, $2, 'guessed')",
+				["alex@example.com", orderId],
+			),
+		);
+		expect(message).toMatch(/check constraint/i);
+	});
+
+	it("is out of reach of anonymous visitors in every direction", async () => {
+		const orderId = await makeOrder("VV3006");
+		await db.query("insert into feedback_optouts (email, order_id) values ($1, $2)", [
+			"alex@example.com",
+			orderId,
+		]);
+
+		await db.as("anon", null, async () => {
+			const rows = await db.query("select email from feedback_optouts");
+			expect(rows.rows).toHaveLength(0);
+
+			// The one that would matter: putting somebody back on the list is
+			// undoing their decision, and no anonymous caller may do it.
+			const deleted = await db.query("delete from feedback_optouts");
+			expect(deleted.affectedRows ?? 0).toBe(0);
+		});
+
+		const message = await db.as("anon", null, () =>
+			errorOf(() =>
+				db.query("insert into feedback_optouts (email) values ('mallory@example.com')"),
+			),
+		);
+		expect(message).toMatch(/row-level security|permission denied/i);
+	});
+
+	it("lets the owner read it and take somebody off, but never rewrite one", async () => {
+		const orderId = await makeOrder("VV3007");
+		await db.query("insert into feedback_optouts (email, order_id) values ($1, $2)", [
+			"alex@example.com",
+			orderId,
+		]);
+
+		await db.as("authenticated", ownerId, async () => {
+			const rows = await db.query("select email from feedback_optouts");
+			expect(rows.rows).toHaveLength(1);
+
+			// No update policy at all: an address is on the list or it is not, and
+			// editing one into another would be putting words in somebody's mouth.
+			const updated = await db.query("update feedback_optouts set email = 'someone@example.com'");
+			expect(updated.affectedRows ?? 0).toBe(0);
+
+			const deleted = await db.query("delete from feedback_optouts");
+			expect(deleted.affectedRows ?? 0).toBe(1);
+		});
 	});
 });
 

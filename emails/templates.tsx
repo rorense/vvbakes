@@ -30,6 +30,18 @@ const statusUrl = (ctx: EmailContext) => `${ctx.siteUrl}/order/${ctx.order.token
 const feedbackUrl = (ctx: EmailContext) => `${statusUrl(ctx)}/feedback`;
 
 /**
+ * The page that offers to stop these, which is not the same address as the one
+ * in the `List-Unsubscribe` header.
+ *
+ * This one is a page with a button on it, and a GET of it changes nothing. That
+ * matters: corporate link scanners open every URL in a message, and a visible
+ * link that unsubscribed on sight would quietly mute customers who never
+ * touched it. The header's address is a POST-only route, which no scanner
+ * calls. See lib/unsubscribe.ts.
+ */
+const unsubscribeUrl = (ctx: EmailContext) => `${ctx.siteUrl}/unsubscribe/${ctx.order.token}`;
+
+/**
  * True while the customer is still waiting to be told what this costs.
  *
  * Asked of the lines rather than of the total. A custom cake alongside $24 of
@@ -339,7 +351,8 @@ function FeedbackRequestEmail(ctx: EmailContext) {
 				settings.contactEmail
 					? `Questions? Reply to this email or write to ${settings.contactEmail}.`
 					: undefined
-			}>
+			}
+			unsubscribeUrl={unsubscribeUrl(ctx)}>
 			<Paragraph>
 				Hi {firstName(order.customerName)}, thank you for your order on{" "}
 				{formatDateLong(order.pickupDate)}. If you have a minute, I&rsquo;d love to know how it

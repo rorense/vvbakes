@@ -378,6 +378,22 @@ export interface Feedback {
 	createdAt: string;
 }
 
+/**
+ * An address that asked not to be sent feedback requests.
+ *
+ * Never suppresses an order email. The address is the key rather than the
+ * order, because somebody who says "stop sending me these" has not said it
+ * about one cake.
+ */
+export interface FeedbackOptOut {
+	email: string;
+	/** The order whose email they pressed it from, or null once that order is gone. */
+	orderId: string | null;
+	/** "link" is the page with a button; "one-click" is their mail client's own. */
+	source: string;
+	createdAt: string;
+}
+
 /** Feedback with the order it came from, which is all the admin list needs of it. */
 export interface FeedbackWithOrder extends Feedback {
 	reference: string;

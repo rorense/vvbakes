@@ -76,7 +76,7 @@ function fakeClient() {
 				},
 			};
 
-			for (const method of ["select", "is", "in", "gte", "lte", "order", "limit", "eq"]) {
+			for (const method of ["select", "is", "in", "gte", "lte", "lt", "order", "limit", "eq"]) {
 				builder[method] = (...args: unknown[]) => {
 					chain.calls.push({ method, args });
 					return builder;
@@ -99,7 +99,7 @@ vi.mock("./supabase/admin", () => ({ createAdminClient: () => fakeClient() }));
 const { askWindow, sendFeedbackRequests } = await import("./feedback");
 
 /** Just enough of an order row for `toOrder` to make an Order out of it. */
-function orderRow(reference: string, pickupDate: string) {
+function orderRow(reference: string, pickupDate: string, collectedAt = "2026-09-16T04:00:00Z") {
 	return {
 		id: `id-${reference}`,
 		order_number: 1,
@@ -125,7 +125,7 @@ function orderRow(reference: string, pickupDate: string) {
 		cancellation_reason: null,
 		confirmed_at: null,
 		ready_at: null,
-		collected_at: null,
+		collected_at: collectedAt,
 		cancelled_at: null,
 		feedback_requested_at: null,
 		created_at: "2026-09-01T00:00:00Z",
@@ -164,15 +164,29 @@ afterEach(() => {
 });
 
 describe("askWindow", () => {
-	it("opens a day after the pickup date and closes a fortnight later", () => {
-		expect(askWindow("2026-09-18")).toEqual({ from: "2026-09-04", to: "2026-09-17" });
+	// Half open, and both ends are midnight in Auckland rather than in UTC. The
+	// twelve hours between the two are the difference between an order collected
+	// on Tuesday evening being asked about on Wednesday and on Thursday.
+	it("closes at the moment today began where the bakery is", () => {
+		expect(askWindow("2026-09-18", "Pacific/Auckland")).toEqual({
+			from: "2026-09-03T12:00:00.000Z",
+			until: "2026-09-17T12:00:00.000Z",
+		});
 	});
 
-	// The guard that matters. Anything older than the window is never asked, so
-	// shipping this feature cannot email years of past customers at once.
-	it("never reaches back further than the window", () => {
-		const { from } = askWindow("2026-09-18");
-		expect(from > "2026-01-01").toBe(true);
+	// Summer time moves the boundary by an hour. Nothing in the job knows that;
+	// the helper does.
+	it("follows the zone through daylight saving", () => {
+		expect(askWindow("2026-12-18", "Pacific/Auckland").until).toBe("2026-12-17T11:00:00.000Z");
+	});
+
+	// The guard that matters. Anything collected longer ago than the window is
+	// never asked about, so shipping this cannot email years of past customers
+	// at once, and neither can a cron that was broken for a month.
+	it("never reaches back further than a fortnight", () => {
+		const { from, until } = askWindow("2026-09-18", "Pacific/Auckland");
+		const days = (Date.parse(until) - Date.parse(from)) / 86_400_000;
+		expect(days).toBe(14);
 	});
 });
 
@@ -189,15 +203,23 @@ describe("sendFeedbackRequests", () => {
 		expect(chains).toHaveLength(0);
 	});
 
-	it("asks only for unstamped, collected or ready orders inside the window", async () => {
+	// The whole rule, in one assertion: collected and nothing else, never asked
+	// before, and collected on an earlier day than today but inside a fortnight.
+	it("asks only about unstamped orders collected inside the window", async () => {
 		await sendFeedbackRequests();
 
 		const chain = readChain();
 		expect(chain.table).toBe("orders");
 		expect(argsOf(chain, "is")).toEqual([["feedback_requested_at", null]]);
-		expect(argsOf(chain, "in")).toEqual([["status", ["collected", "ready"]]]);
-		expect(argsOf(chain, "gte")).toEqual([["pickup_date", "2026-09-04"]]);
-		expect(argsOf(chain, "lte")).toEqual([["pickup_date", "2026-09-17"]]);
+		// Not `in` with a list any more. A `ready` order has no moment to count
+		// from except the pickup date, which is the guess this stopped trusting.
+		expect(argsOf(chain, "eq")).toEqual([["status", "collected"]]);
+		expect(argsOf(chain, "in")).toEqual([]);
+		expect(argsOf(chain, "gte")).toEqual([["collected_at", "2026-09-03T12:00:00.000Z"]]);
+		// Exclusive, so something collected earlier today is not asked about
+		// tonight.
+		expect(argsOf(chain, "lt")).toEqual([["collected_at", "2026-09-17T12:00:00.000Z"]]);
+		expect(argsOf(chain, "lte")).toEqual([]);
 		expect(argsOf(chain, "limit")).toEqual([[25]]);
 	});
 
@@ -246,10 +268,30 @@ describe("sendFeedbackRequests", () => {
 		expect(result.problems?.[0]).toContain("could not be stamped");
 	});
 
+	// An opt-out and a bounce both mean "no email arrived", and they must not be
+	// counted together: one is the system obeying somebody, the other is an
+	// address that needs looking at.
+	it("counts an unsubscribed customer apart from a failure, and still stamps", async () => {
+		dueRows = [orderRow("VV1042", "2026-09-16"), orderRow("VV1043", "2026-09-17")];
+		sendOrderEmail
+			.mockResolvedValueOnce({ sent: false, skipped: "unsubscribed" })
+			.mockResolvedValueOnce({ sent: true, id: "resend-2" });
+
+		const result = await sendFeedbackRequests();
+
+		expect(result).toMatchObject({ ok: true, due: 2, sent: 1, optedOut: 1, failed: 0 });
+		expect(result.problems).toEqual([]);
+
+		// Stamped like any other, so tonight's refusal is not repeated tomorrow.
+		const stamps = chains.filter((chain) => chain.calls.some((call) => call.method === "update"));
+		expect(stamps).toHaveLength(2);
+		expect(argsOf(stamps[0]!, "eq")).toEqual([["id", "id-VV1042"]]);
+	});
+
 	it("does nothing on a night when nobody is due", async () => {
 		const result = await sendFeedbackRequests();
 
-		expect(result).toEqual({ ok: true, due: 0, sent: 0, failed: 0 });
+		expect(result).toEqual({ ok: true, due: 0, sent: 0, optedOut: 0, failed: 0 });
 		expect(sendOrderEmail).not.toHaveBeenCalled();
 	});
 

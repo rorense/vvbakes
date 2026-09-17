@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { normaliseEmail } from "@/lib/unsubscribe";
 
 /**
- * What the owner can do with feedback: put it up, or throw it away.
+ * What the owner can do with feedback: put it up, throw it away, or put
+ * somebody back on the list who asked to come back.
  *
  * Both start with `requireAdmin()` and then write through the request's own
  * session, so row level security is a second, independent check: the same
@@ -101,6 +103,32 @@ export async function deleteFeedback(id: string): Promise<void> {
 
 	const { error } = await supabase.from("feedback").delete().eq("id", id);
 	if (error) throw new Error("That couldn't be deleted.");
+
+	revalidatePath("/admin/feedback");
+}
+
+/**
+ * Puts an address back on the feedback list.
+ *
+ * Only ever because they asked. There is no way for a customer to reach this
+ * themselves, which is the point: an unsubscribe that the shop could undo on
+ * its own would not be an unsubscribe. The row is behind a confirm in the admin
+ * for the same reason.
+ *
+ * Nothing is sent as a result. Their next order is asked about in the ordinary
+ * way, and the orders already stamped stay unasked, because a cake from three
+ * weeks ago is not worth writing to somebody about the day they come back.
+ */
+export async function resubscribe(email: string): Promise<void> {
+	await requireAdmin();
+	const supabase = await createClient();
+
+	const { error } = await supabase
+		.from("feedback_optouts")
+		.delete()
+		.eq("email", normaliseEmail(email));
+
+	if (error) throw new Error("That couldn't be undone.");
 
 	revalidatePath("/admin/feedback");
 }

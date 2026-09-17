@@ -74,8 +74,8 @@ export default async function OrderFeedbackPage({
 				<SectionLabel>Order {order.reference}</SectionLabel>
 				<h1 className="font-display text-4xl">How was it, {firstName(order.customerName)}?</h1>
 				<p className="text-cocoa-soft">
-					You picked this up on {formatDateLong(order.pickupDate)}. Two boxes, a minute of your
-					time, and it genuinely helps a one-person kitchen.
+					Your order from {formatDateLong(order.pickupDate)}. Two boxes, a minute of your time, and
+					it genuinely helps a one-person kitchen.
 				</p>
 			</div>
 

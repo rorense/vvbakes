@@ -83,6 +83,27 @@ export function todayIn(timezone: string, now: Date = new Date()): IsoDate {
 	return `${y}-${m}-${d}`;
 }
 
+/**
+ * The instant a calendar date begins in the given zone, as an ISO timestamp.
+ *
+ * The bridge between the two halves of this file: a date on a wall calendar,
+ * and a moment a database column can be compared against. Used to ask "was this
+ * collected on an earlier day than today, in the bakery's own zone" without
+ * converting timezones inside a query, which PostgREST cannot do.
+ *
+ * Twelve hours matter here. An order collected at 9pm on Tuesday in Auckland is
+ * already Wednesday in UTC, so a naive comparison would decide it was collected
+ * today and wait an extra day to ask about it.
+ */
+export function startOfDayIn(date: IsoDate, timezone: string): string {
+	assertIso(date);
+	const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+	// Handed back in UTC rather than in the zone's own offset form. The same
+	// instant either way, but this one carries no "+12:00" to survive being put
+	// through a URL query string, which is where every caller sends it.
+	return new Date(TZDate.tz(timezone, y, m - 1, d, 0, 0, 0, 0).getTime()).toISOString();
+}
+
 /** The local wall-clock time in the given zone, as "HH:MM:SS". */
 export function localTimeIn(timezone: string, now: Date = new Date()): string {
 	const local = new TZDate(now, timezone);

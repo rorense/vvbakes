@@ -4,10 +4,16 @@
  *
  *   npm run emails:test -- you@example.com
  *
- * The two cover both reply directions, which is the part worth testing:
+ * The three cover both reply directions and the one email anybody may refuse:
  *
  *   order-confirmed   goes to the customer, replies to the shop's contact email
  *   new-order-owner   goes to her, replies to the customer
+ *   feedback-request  goes to the customer, and carries the unsubscribe headers
+ *
+ * That last one is here because there is no other way to check it. Whether Gmail
+ * and Outlook draw their own unsubscribe button is decided by `List-Unsubscribe`
+ * and `List-Unsubscribe-Post`, and a real inbox is the only place the answer is
+ * visible. A preview renders the body and tells you nothing about the headers.
  *
  * It calls Resend with the same arguments lib/email.ts does, against the same
  * templates, but does not go through sendOrderEmail: that records an
@@ -17,6 +23,7 @@ import { render } from "@react-email/render";
 import { readFile } from "node:fs/promises";
 import { Resend } from "resend";
 import { SUBJECTS, TEMPLATES, type EmailContext, type TemplateName } from "../emails/templates";
+import { unsubscribeHeaders } from "../lib/unsubscribe";
 import { order, privateSettings, settings } from "./example-order.mjs";
 
 const to = process.argv[2];
@@ -55,7 +62,12 @@ const context: EmailContext = {
 
 const resend = new Resend(apiKey);
 
-const cases: Array<{ template: TemplateName; replyTo: string; why: string }> = [
+const cases: Array<{
+	template: TemplateName;
+	replyTo: string;
+	why: string;
+	headers?: Record<string, string>;
+}> = [
 	{
 		template: "order-confirmed",
 		replyTo: settings.contactEmail ?? "",
@@ -66,6 +78,20 @@ const cases: Array<{ template: TemplateName; replyTo: string; why: string }> = [
 		replyTo: order.customerEmail,
 		why: "her alert, replies to the customer",
 	},
+	{
+		template: "feedback-request",
+		replyTo: settings.contactEmail ?? "",
+		why: "customer mail, carrying the unsubscribe headers",
+		// The same call lib/email.ts makes. The token is the fixture's, which
+		// matches no real order, so pressing the button in your mail client gets
+		// a 404 and writes nothing. That is the point: it proves the header is
+		// being read without opting a real customer out of anything.
+		headers: unsubscribeHeaders({
+			siteUrl: context.siteUrl,
+			token: order.token,
+			contactEmail: settings.contactEmail,
+		}),
+	},
 ];
 
 console.log(`\nFrom: ${from}`);
@@ -73,7 +99,7 @@ console.log(`To:   ${to}\n`);
 
 let failed = 0;
 
-for (const { template, replyTo, why } of cases) {
+for (const { template, replyTo, why, headers } of cases) {
 	const element = TEMPLATES[template](context);
 	const subject = `[test] ${SUBJECTS[template](context)}`;
 
@@ -84,6 +110,7 @@ for (const { template, replyTo, why } of cases) {
 		html: await render(element),
 		text: await render(element, { plainText: true }),
 		replyTo,
+		headers,
 	});
 
 	if (error) {
@@ -94,12 +121,16 @@ for (const { template, replyTo, why } of cases) {
 		console.log(`  sent    ${template}  (${why})`);
 		console.log(`          reply-to ${replyTo}`);
 		console.log(`          id ${data?.id}`);
+		if (headers) {
+			console.log(`          ${headers["List-Unsubscribe"]}`);
+			console.log("          look for your mail client's own unsubscribe button on this one");
+		}
 	}
 }
 
 console.log(
 	failed === 0
-		? "\nBoth accepted by Resend. Acceptance is not delivery: check the inbox, check spam,\nand hit Reply on each to confirm where it goes.\n"
+		? "\nAll three accepted by Resend. Acceptance is not delivery: check the inbox, check spam,\nand hit Reply on each to confirm where it goes.\n"
 		: `\n${failed} of ${cases.length} refused. Nothing was delivered for those.\n`,
 );
 process.exit(failed === 0 ? 0 : 1);

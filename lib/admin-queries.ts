@@ -8,6 +8,7 @@ import {
 	ORDER_SELECT,
 	PRODUCT_SELECT,
 	toCategory,
+	toFeedbackOptOut,
 	toFeedbackWithOrder,
 	toOrder,
 	toOrderEvent,
@@ -22,6 +23,7 @@ import type {
 	AvailabilityOverride,
 	AvailabilityRule,
 	Category,
+	FeedbackOptOut,
 	FeedbackWithOrder,
 	Order,
 	OrderEvent,
@@ -290,6 +292,23 @@ export const adminFeedback = cache(async (): Promise<FeedbackWithOrder[]> => {
 		.select(FEEDBACK_SELECT)
 		.order("created_at", { ascending: false });
 	return (data ?? []).map(toFeedbackWithOrder);
+});
+
+/**
+ * Who has asked not to be sent feedback requests.
+ *
+ * Shown so that a customer who writes saying "I asked you to stop" can be
+ * answered from the admin rather than taken on trust. Unpaged, for the same
+ * reason the feedback list is: a shop this size will not fill a page of these
+ * in years, and the ones worth finding are the oldest.
+ */
+export const adminFeedbackOptOuts = cache(async (): Promise<FeedbackOptOut[]> => {
+	const supabase = await createClient();
+	const { data } = await supabase
+		.from("feedback_optouts")
+		.select("*")
+		.order("created_at", { ascending: false });
+	return (data ?? []).map(toFeedbackOptOut);
 });
 
 /** Counts for the dashboard tiles. */

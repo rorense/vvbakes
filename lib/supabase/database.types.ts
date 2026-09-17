@@ -277,6 +277,13 @@ type FeedbackRow = {
 	updated_at: string;
 };
 
+type FeedbackOptOutRow = {
+	email: string;
+	order_id: string | null;
+	source: string;
+	created_at: string;
+};
+
 type InstagramPostRow = {
 	id: string;
 	permalink: string;
@@ -368,6 +375,23 @@ export type Database = {
 						foreignKeyName: "feedback_order_id_fkey";
 						columns: ["order_id"];
 						isOneToOne: true;
+						referencedRelation: "orders";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			// Written only by the unsubscribe route through the service role, and
+			// never updated: see the migration for why an address is added or
+			// removed but never edited.
+			feedback_optouts: {
+				Row: FeedbackOptOutRow;
+				Insert: Writable<FeedbackOptOutRow, "email">;
+				Update: never;
+				Relationships: [
+					{
+						foreignKeyName: "feedback_optouts_order_id_fkey";
+						columns: ["order_id"];
+						isOneToOne: false;
 						referencedRelation: "orders";
 						referencedColumns: ["id"];
 					},

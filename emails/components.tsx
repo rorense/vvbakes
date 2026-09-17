@@ -60,12 +60,24 @@ export function EmailLayout({
 	heading,
 	children,
 	footerNote,
+	unsubscribeUrl,
 }: {
 	siteUrl: string;
 	preview: string;
 	heading: string;
 	children: React.ReactNode;
 	footerNote?: string;
+	/**
+	 * Draws the visible way out, under the footer note.
+	 *
+	 * Set by the feedback request and by nothing else. Every other email here is
+	 * the order itself, and offering to stop those would be offering something
+	 * the shop would not honour. The same address goes into the
+	 * `List-Unsubscribe` header, which is what a mail client's own button uses;
+	 * this line is for the clients that draw no button, which is most of them on
+	 * a phone.
+	 */
+	unsubscribeUrl?: string;
 }) {
 	return (
 		<Html lang="en">
@@ -135,6 +147,18 @@ export function EmailLayout({
 					<Text style={{ fontSize: "12px", color: COCOA_SOFT, margin: 0 }}>
 						{footerNote ?? "Reply to this email if anything needs changing."}
 					</Text>
+
+					{unsubscribeUrl ? (
+						<Text style={{ fontSize: "12px", color: COCOA_SOFT, margin: "8px 0 0" }}>
+							Would rather not be asked?{" "}
+							<Link
+								href={unsubscribeUrl}
+								style={{ color: COCOA_SOFT, textDecoration: "underline" }}>
+								Stop these emails
+							</Link>
+							. You&rsquo;ll still get emails about any order you place.
+						</Text>
+					) : null}
 				</Container>
 			</Body>
 		</Html>

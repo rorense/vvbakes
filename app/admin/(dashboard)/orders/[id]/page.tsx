@@ -244,6 +244,19 @@ function describeEvent(type: string, data: Record<string, unknown>): string {
 			return data.consented
 				? "Left feedback, and said it may go on the website"
 				: "Left feedback, just for you";
+		// `note` carries several unrelated things, so it is read by its contents.
+		// Anything unrecognised keeps the old behaviour of printing the type,
+		// which is what the quote notes have always shown.
+		case "note":
+			if (data.unsubscribed) {
+				return data.source === "one-click"
+					? "Asked not to be sent feedback requests, using their mail app's own button"
+					: "Asked not to be sent feedback requests";
+			}
+			if (data.reason === "unsubscribed") {
+				return "No feedback request sent: this address asked not to be";
+			}
+			return type;
 		default:
 			return type;
 	}

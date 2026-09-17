@@ -182,7 +182,7 @@ export default async function PrivacyPage() {
 
 					<Clause title="If you leave feedback">
 						<p>
-							A day or so after your pickup date I send one email asking how it went. It links to a
+							The day after you collect an order I send one email asking how it went. It links to a
 							short form: your name, whatever you&rsquo;d like to say, and a tick box. Answering is
 							entirely up to you, and nothing happens if you don&rsquo;t.
 						</p>
@@ -204,6 +204,13 @@ export default async function PrivacyPage() {
 						<p>
 							I choose which ones go up, and I read them before they do. Changed your mind, either
 							way? Email {contact} and I&rsquo;ll take it down.
+						</p>
+						<p>
+							That email has a link at the bottom that stops me asking again, and your own mail
+							app&rsquo;s unsubscribe button works too. Either one is enough: I keep the address on
+							a short list of people not to ask, and nothing else about you goes on it. Emails about
+							an order you place keep coming, because those are how you find out it&rsquo;s
+							confirmed and when to collect it.
 						</p>
 					</Clause>
 

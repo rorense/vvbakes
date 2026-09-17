@@ -34,6 +34,7 @@ export const TABLES = [
 	"faqs",
 	"reviews",
 	"feedback",
+	"feedback_optouts",
 	"instagram_posts",
 	"instagram_sync",
 	"site_settings",

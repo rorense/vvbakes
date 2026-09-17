@@ -14,6 +14,7 @@ import {
 	type Extra,
 	type Faq,
 	type Feedback,
+	type FeedbackOptOut,
 	type FeedbackWithOrder,
 	type InstagramPost,
 	type Order,
@@ -37,6 +38,7 @@ type CategoryRow = Tables["categories"]["Row"];
 type FaqRow = Tables["faqs"]["Row"];
 type ReviewRow = Tables["reviews"]["Row"];
 type FeedbackRow = Tables["feedback"]["Row"];
+type FeedbackOptOutRow = Tables["feedback_optouts"]["Row"];
 type InstagramPostRow = Tables["instagram_posts"]["Row"];
 type ExtraRow = Tables["product_extras"]["Row"];
 type ProductRow = Tables["products"]["Row"];
@@ -138,6 +140,15 @@ export function toFeedbackWithOrder(
 		reference: row.orders?.reference ?? "(no order)",
 		pickupDate: row.orders?.pickup_date ?? "",
 		customerName: row.orders?.customer_name ?? "",
+	};
+}
+
+export function toFeedbackOptOut(row: FeedbackOptOutRow): FeedbackOptOut {
+	return {
+		email: row.email,
+		orderId: row.order_id,
+		source: row.source,
+		createdAt: row.created_at,
 	};
 }
 
