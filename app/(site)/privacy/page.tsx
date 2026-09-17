@@ -22,7 +22,7 @@ export const metadata: Metadata = {
  * When the wording below last changed. Bump it whenever a clause changes in a
  * way a customer would care about — not for a typo.
  */
-const LAST_UPDATED = "15 September 2026";
+const LAST_UPDATED = "18 September 2026";
 
 export default async function PrivacyPage() {
 	const settings = await getSettings();
@@ -67,27 +67,42 @@ export default async function PrivacyPage() {
 							<li>An order needs a name, an email address and a phone number.</li>
 							<li>There are no accounts and no passwords, so there is nothing to sign up for.</li>
 							<li>Card details are never asked for, because payment is by bank transfer.</li>
-							<li>Nothing is sold, rented, or used to advertise to you anywhere.</li>
 						</Points>
 					</Clause>
 
 					<Clause title="What you give me when you order">
-						<p>The order form asks for:</p>
+						<p>The order form asks for a few details to help me get everything just right:</p>
 						<Points>
-							<li>your name, so I know whose box it is;</li>
-							<li>your email address, which is where the confirmation and the order link go;</li>
-							<li>your phone number, for the day itself if something changes;</li>
-							<li>a delivery address, only if you choose delivery;</li>
 							<li>
-								anything you type into the notes or the custom request — allergies, an occasion, how
-								you want it to look;
+								<Term>Your name</Term> — so I know who your order is for.
 							</li>
-							<li>any inspiration photos or link you attach;</li>
-							<li>what you ordered, and the date you picked.</li>
+							<li>
+								<Term>Your email address</Term> — this is where I&rsquo;ll send your order
+								confirmation and any updates.
+							</li>
+							<li>
+								<Term>Your phone number</Term> — just in case I need to reach you on the day.
+							</li>
+							<li>
+								<Term>Your delivery address</Term> — only if you choose delivery.
+							</li>
+							<li>
+								<Term>Your notes or custom request</Term> — tell me anything that will help, such as
+								allergies, the occasion, or how you&rsquo;d like your bake to look.
+							</li>
+							<li>
+								<Term>Inspiration photos or links</Term> — always welcome if you have something in
+								mind.
+							</li>
+							<li>
+								<Term>Your order and preferred date</Term> — so I know exactly what you&rsquo;d like
+								and when you need it.
+							</li>
 						</Points>
 						<p>
-							Only the first three are required. The rest is there because it is useful to you, so
-							leave out whatever you would rather not send.
+							Only your name, email address and phone number are required. Everything else is there
+							to help me make your order just the way you&rsquo;d like it, so only share what feels
+							useful.
 						</p>
 					</Clause>
 
@@ -155,18 +170,24 @@ export default async function PrivacyPage() {
 
 					<Clause title="The link to your order">
 						<p>
-							The link in your confirmation email is the key to that order — anyone holding it can
-							see the order, so it is worth keeping to yourself. It is not listed on the site, and
-							search engines are told to stay out of it. If you would rather it stopped working, say
-							so and I will cancel it.
+							Your confirmation email includes a private link to your order, which makes it easy to
+							come back and check your order details. Because anyone with the link can view the
+							order, please keep it somewhere safe and avoid sharing it.
+						</p>
+						<p>
+							The link isn&rsquo;t listed publicly on the website, and search engines are asked not
+							to include it in their results.
 						</p>
 					</Clause>
 
 					<Clause title="How long I keep it">
 						<p>
-							Order records are kept for seven years, which is how long New Zealand tax law asks a
-							business to hold its sales records. Inspiration photos and the notes on an order are
-							not part of that, so I will delete those sooner if you ask.
+							I keep basic order records for seven years, as required for business and tax
+							record-keeping in New Zealand.
+						</p>
+						<p>
+							Your inspiration photos and personal notes are treated separately and aren&rsquo;t
+							kept as part of those long-term sales records.
 						</p>
 					</Clause>
 

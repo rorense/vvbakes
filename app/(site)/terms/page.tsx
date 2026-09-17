@@ -23,7 +23,7 @@ export const metadata: Metadata = {
  * When the wording below last changed. Bump it whenever a clause changes in a
  * way a customer would care about — not for a typo.
  */
-const LAST_UPDATED = "17 September 2026";
+const LAST_UPDATED = "18 September 2026";
 
 /**
  * The two numbers the cancellation clause turns on.
@@ -33,7 +33,7 @@ const LAST_UPDATED = "17 September 2026";
  * the site already does. Change them here and the sentences follow.
  */
 const FULL_REFUND_DAYS = 7;
-const NO_REFUND_HOURS = 48;
+const NO_REFUND_HOURS = 72;
 
 export default async function TermsPage() {
 	const settings = await getSettings();
@@ -140,7 +140,7 @@ export default async function TermsPage() {
 						<p>
 							Payment is by bank transfer. The account and the reference are on your order page and
 							in the email confirming it. Please use that reference — it is how a payment is matched
-							to a cake.
+							to an order.
 						</p>
 						<p>
 							Card details are never asked for, by me or by this site. Nobody from{" "}
@@ -154,30 +154,36 @@ export default async function TermsPage() {
 						</p>
 					</Clause>
 
-					<Clause title="Changing or cancelling">
+					<Clause title="Changes &amp; cancellations">
 						<p>
-							Plans change, and the earlier you tell me the easier it is. Email {contact} as soon as
-							you know.
+							I understand that plans can change. If you need to cancel or change your order, just
+							let me know as soon as you can by responding to the order email ({contact}).
 						</p>
 						<Points>
 							<li>
-								<Term>More than {FULL_REFUND_DAYS} days before your date:</Term> cancel for any
-								reason and anything you have paid comes back in full.
+								<Term>More than {FULL_REFUND_DAYS} days before your collection date:</Term>{" "}
+								you&rsquo;ll receive a full refund of anything you&rsquo;ve paid, unless I&rsquo;ve
+								already purchased items specifically for your order, such as personalised cake
+								toppers or decorations. In this case, I&rsquo;ll refund the amount that hasn&rsquo;t
+								already been spent.
 							</li>
 							<li>
-								<Term>Inside {FULL_REFUND_DAYS} days:</Term> the shopping is usually done, so I
-								refund what I have not already spent on your order, and tell you plainly what that
-								came to.
+								<Term>Within {FULL_REFUND_DAYS} days:</Term> I may have already purchased items for
+								your order. I&rsquo;ll refund what hasn&rsquo;t already been spent and let you know
+								exactly what has been deducted.
 							</li>
 							<li>
-								<Term>Inside {NO_REFUND_HOURS} hours:</Term> your cake is already being made, and I
-								cannot refund it. A cake with somebody else&rsquo;s name piped across it cannot be
-								sold to anyone else.
+								<Term>Within {NO_REFUND_HOURS} hours:</Term> your order may already be in
+								preparation or production, so unfortunately I&rsquo;m unable to offer a refund.
 							</li>
 						</Points>
 						<p>
-							Moving to another date is not a cancellation. If the new day is free I will simply
-							move you, as often as I can manage it.
+							<Term>Need to change your date?</Term>
+						</p>
+						<p>
+							Moving your order to another date isn&rsquo;t a cancellation. If your new date is
+							available, I&rsquo;ll happily move your order across for you. I&rsquo;ll always do my
+							best to accommodate a new date where I can.
 						</p>
 					</Clause>
 
@@ -220,121 +226,99 @@ export default async function TermsPage() {
 
 					{settings.deliveryEnabled ? (
 						<Clause title="Delivery">
+							{/* The order form charges exactly this, so the sentence has to follow
+							    the setting rather than describe a fee I quote by hand. */}
 							<p>
 								Delivery is available
 								{settings.deliveryFeeCents > 0
-									? ` for ${formatMoney(settings.deliveryFeeCents)}`
+									? ` for ${formatMoney(settings.deliveryFeeCents)}, added to your order when you choose it`
 									: ", free of charge"}
 								. Please check the address on your order carefully, because I deliver to the address
 								you give me.
 							</p>
-							{/* Free text again, and the shop currently answers it with a whole
-							    sentence rather than a place name. */}
+							{/* Free text, so it gets a line of its own rather than being spliced
+								into a sentence: the shop answers this with a whole sentence
+								rather than a place name. */}
 							{settings.deliveryAreaText ? (
 								<p>
 									<Term>Where I deliver:</Term> {settings.deliveryAreaText}
 								</p>
 							) : null}
 							<p>
-								Somebody needs to be there to take it. A cake cannot be left on a doorstep in the
-								sun, and if nobody answers I will have to bring it home again — a second run, if
-								there is time for one, is chargeable.
-							</p>
-							<p>
-								Once a cake is handed over it is in your care. What happens to it in a hot car or on
-								a back seat is beyond what I can stand behind, which is also why I would rather hand
-								it to you myself than send it with a courier.
+								Someone will need to be available to receive your order. Cakes and other delicate
+								bakes can&rsquo;t safely be left outside, especially in warm weather. If nobody is
+								available, I may need to take your order back with me, and you will then need to
+								organise someone to pick up.
 							</p>
 						</Clause>
 					) : null}
 
-					<Clause title="Allergies, and what is in the food">
+					<Clause title="Allergies &amp; ingredients">
 						<p>
-							This is a <Term>home kitchen</Term>, not a factory with separate lines. The same
-							bowls, benches and oven handle nuts, peanuts, wheat and gluten, dairy, eggs, soy and
-							sesame, often on the same day.
+							As a <Term>home bakery</Term>, I work with a range of ingredients including nuts,
+							gluten, dairy, eggs, soy and sesame. I use the same kitchen, equipment and workspace
+							for different bakes, so I&rsquo;m <Term>unable to guarantee</Term> that any product is
+							completely free from allergens or traces of allergens.
 						</p>
 						<p>
-							So I <Term>cannot guarantee</Term> that anything I make is free of an allergen,
-							however carefully I work, and I will not pretend otherwise. Traces are possible in
-							everything that leaves here.
+							If you have an allergy, please let me know when you place your order. I&rsquo;ll do my
+							best to take extra care, including thoroughly cleaning my workspace and equipment
+							between bakes where possible, and I&rsquo;ll always be honest about any potential
+							cross-contact.
 						</p>
 						<p>
-							Tell me about an allergy before you order — in the notes, or by email — and I will
-							tell you honestly whether I can make something for you. If the answer is that the risk
-							is too high, that is the answer. I would rather lose the order.
-						</p>
-						<p>
-							If you want to know exactly what is in something, ask and I will list the ingredients.
+							For serious allergies, please get in touch before ordering so I can let you know
+							whether I feel I can safely accommodate your request. If I don&rsquo;t think I can,
+							I&rsquo;ll always let you know rather than take a risk.
 						</p>
 					</Clause>
 
 					<Clause title="Once it is yours">
 						<p>
-							Everything is baked fresh, without the preservatives that keep a supermarket cake
-							going for a fortnight. It is at its best on the day. I will tell you how to keep
-							whatever you have ordered — what needs the fridge, what hates it, and how long you
-							really have.
+							Everything is baked fresh, without the preservatives used to give supermarket desserts
+							a longer shelf life.
 						</p>
 						<p>
-							After it is handed over, how it is stored, carried and served is up to you, and that
-							part I cannot stand behind.
+							Your bake will always be at its best when it&rsquo;s fresh, so I&rsquo;ll let you know
+							how to store it properly — whether it needs to be kept in the fridge, what&rsquo;s
+							best at room temperature, and how long it will stay fresh.
 						</p>
 					</Clause>
 
 					<Clause title="Photos you send me">
 						<p>
-							Inspiration photos are genuinely useful, which is why the order form takes them. Two
-							things come with them.
+							Inspiration photos are always welcome! They&rsquo;re a great way to show me the
+							colours, style or little details you have in mind, which is why you can add them to
+							your order.
 						</p>
-						<Points>
-							<li>
-								Send only photos you are free to send. If it is another baker&rsquo;s work I will
-								take it as a starting point rather than copy it — their design is theirs.
-							</li>
-							<li>
-								What you get is my hands making something in that spirit, not a reproduction. If an
-								exact copy is what you are after, I am probably the wrong baker.
-							</li>
-						</Points>
 						<p>
-							Your photos are used for your order and nothing else. I do like to photograph my own
-							finished bakes and put them on Instagram — if you would rather I did not post yours,
-							say so and I will not.
+							I&rsquo;ll use your inspiration as a guide and create something in that style, rather
+							than making an exact copy. Every bake is made by hand, so there may be little
+							differences along the way.
 						</p>
 					</Clause>
 
 					<Clause title="Everything is made by hand">
 						<p>
-							The photos on this site show what I have made before, not the thing you will receive.
-							Colours mix slightly differently every time, fruit is whatever is good that week, and
-							no two cakes are identical. That variation is the point of buying from a person.
-						</p>
-					</Clause>
-
-					<Clause title="If something is not right">
-						<p>
-							Tell me — quickly, and with a photo if you can. The same day is ideal, because a
-							problem with food is hard to look into a week later.
-						</p>
-						<p>
-							If I have got something wrong I will put it right: a repair, a remake, or your money
-							back, whichever fits what happened. I would far rather hear it from you than read it
-							somewhere else.
+							The photos on this site are examples of bakes I&rsquo;ve made before and are here to
+							give you an idea of what I can create. Your bake will be made especially for you, so
+							small details may vary.
 						</p>
 					</Clause>
 
 					<Clause title="Your rights under New Zealand law">
 						<p>
 							What I bake for you is covered by the <Term>Consumer Guarantees Act 1993</Term> and
-							the <Term>Fair Trading Act 1986</Term>. Food has to be safe, fit to eat and as
-							described, and nothing on this page limits any of that. Where a clause here and the
-							law disagree, the law wins.
+							the <Term>Fair Trading Act 1986</Term>, where those laws apply. This includes
+							requirements around things such as safety, quality and products being as described.
+							Nothing in these terms is intended to take away any rights you have under New Zealand
+							law. Where these terms and the law differ, the law takes priority.
 						</p>
 						<p>
-							Those guarantees are for people buying for themselves. If you are ordering for a
-							business — a café counter, a staff function billed to the company — they do not apply
-							to that order, and the terms above stand on their own.
+							If you are ordering for a business rather than for personal or household use,
+							different rules can apply. In some business-to-business transactions, the parties can
+							agree in writing to contract out of the Consumer Guarantees Act, provided the legal
+							requirements for doing so are met.
 						</p>
 					</Clause>
 
