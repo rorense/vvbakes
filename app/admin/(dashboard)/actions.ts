@@ -237,6 +237,7 @@ async function saveExtras(
 		name: string;
 		description: string | null;
 		priceCents: number;
+		maxQty: number;
 		isAvailable: boolean;
 	}>,
 ): Promise<string | null> {
@@ -256,6 +257,7 @@ async function saveExtras(
 			name: extra.name,
 			description: extra.description,
 			price_cents: extra.priceCents,
+			max_qty: extra.maxQty,
 			is_available: extra.isAvailable,
 			sort_order: index + 1,
 		})),

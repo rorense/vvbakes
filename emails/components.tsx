@@ -15,7 +15,13 @@ import {
 import type { Order, OrderItem } from "@/lib/types";
 import { frostingLabel } from "@/lib/brief";
 import { inspirationImageUrl } from "@/lib/images";
-import { couldCostMore, formatMoney, hasUnpricedWork, lineTotalWithExtras } from "@/lib/pricing";
+import {
+	couldCostMore,
+	extraLabel,
+	formatMoney,
+	hasUnpricedWork,
+	lineTotalWithExtras,
+} from "@/lib/pricing";
 import { formatDateLongWithTime } from "@/lib/dates";
 import { isHttpUrl } from "@/lib/validation";
 
@@ -257,7 +263,7 @@ export function OrderItemsTable({
 								<Text
 									key={extra.id}
 									style={{ fontSize: "12px", color: COCOA_SOFT, margin: "2px 0 0" }}>
-									+ {extra.name}{" "}
+									+ {extraLabel(extra.name, extra.unitQty)}{" "}
 									{extra.lineTotalCents === 0 ? "(free)" : formatMoney(extra.lineTotalCents)}
 								</Text>
 							))}

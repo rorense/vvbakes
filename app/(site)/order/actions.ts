@@ -131,9 +131,11 @@ export async function placeOrder(
 		p_items: input.items.map((item, index) => ({
 			product_id: item.productId,
 			variant_id: item.variantId ?? null,
-			// Sorted and de-duplicated again inside `place_order`, so whatever order
-			// the picker handed these over in reaches the same line either way.
-			extra_ids: item.extraIds ?? [],
+			// Sorted and rolled up again inside `place_order`, so whatever order the
+			// picker handed these over in reaches the same line either way. Each
+			// carries how many of it, which is per unit of the line: six candles on
+			// each of two cakes is `{ qty: 6 }` on a line of two.
+			extras: item.extras ?? [],
 			qty: item.qty,
 			// The brief. `place_order` groups by these as well as by the flavour, so
 			// two cakes described differently stay two lines.

@@ -47,6 +47,8 @@ interface ExtraDraft {
 	name: string;
 	description: string;
 	price: string;
+	/** How many of it one item may carry, as the string in the box. Blank is 1. */
+	maxQty: string;
 	isAvailable: boolean;
 }
 
@@ -57,6 +59,7 @@ function toExtraDrafts(extras: Extra[]): ExtraDraft[] {
 		name: extra.name,
 		description: extra.description ?? "",
 		price: (extra.priceCents / 100).toString(),
+		maxQty: String(extra.maxQty),
 		isAvailable: extra.isAvailable,
 	}));
 }
@@ -357,6 +360,7 @@ export function ProductForm({
 				name: row.name.trim(),
 				description: row.description.trim(),
 				priceCents: row.price.trim(),
+				maxQty: row.maxQty.trim(),
 				isAvailable: row.isAvailable,
 			}))
 			.filter((row) => row.name !== "" || row.description !== "" || row.priceCents !== ""),
@@ -832,8 +836,9 @@ export function ProductForm({
 				<p className="text-cocoa-soft mb-5 text-sm">
 					Things a customer can add to this one: candles, a gift box, a card. The price is per item
 					ordered, so two of these with candles is two sets of candles. Each product has its own
-					list, so candles here can cost something different from candles on another cake. No
-					extras, nothing shown on the page.
+					list, so candles here can cost something different from candles on another cake. Set
+					&ldquo;most they can add&rdquo; above 1 for anything sold by the number, like candles, and
+					they get a picker instead of a tick. No extras, nothing shown on the page.
 				</p>
 
 				<DraftList
@@ -847,6 +852,7 @@ export function ProductForm({
 						name: "",
 						description: "",
 						price: "",
+						maxQty: "1",
 						isAvailable: true,
 					})}
 					labelOf={(extra, index) => extra.name || `extra ${index + 1}`}
@@ -881,6 +887,26 @@ export function ProductForm({
 									placeholder="Six, in whatever colour goes with the icing"
 									onChange={(event) => update({ description: event.target.value })}
 								/>
+							</label>
+
+							{/* Above 1, the product page puts a number picker beside the tick
+							    and the price above is what *one* of them costs. Candles are
+							    the reason this exists: "candles" on its own is really "how
+							    many candles", and a sixth birthday wants six. Leave it at 1
+							    for anything that is one or none, like a gift box. */}
+							<label className="flex flex-col gap-1">
+								<span className="text-cocoa-soft text-xs">Most they can add</span>
+								<Input
+									value={extra.maxQty}
+									inputMode="numeric"
+									className="sm:w-28"
+									placeholder="1"
+									onChange={(event) => update({ maxQty: event.target.value })}
+								/>
+								<span className="text-cocoa-soft text-xs">
+									1 is a plain tick box. Higher gives them a number picker, and the price above is
+									what one costs.
+								</span>
 							</label>
 
 							{/* Off is how something comes back later without being retyped.

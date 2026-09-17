@@ -141,11 +141,15 @@ const orderItemSchema = z.object({
 	// Absent for a product sold as one thing. Which flavours exist, and whether
 	// this one is still on sale, is the database's call inside place_order.
 	variantId: z.string().uuid().nullable().optional(),
-	// The extras added to this line. Absent means none, which is what most lines
-	// are. Whether each one still exists and is still on sale is again the
-	// database's call; the cap is here because a line with twenty things added to
-	// it is a caller doing something other than ordering a cake.
-	extraIds: z.array(z.string().uuid()).max(10).optional(),
+	// The extras added to this line, each with how many of it. Absent means none,
+	// which is what most lines are. Whether each one still exists, is still on
+	// sale and still allows that many is again the database's call; the caps here
+	// are because a line with twenty things added to it, or a hundred of one of
+	// them, is a caller doing something other than ordering a cake.
+	extras: z
+		.array(z.object({ id: z.string().uuid(), qty: z.number().int().min(1).max(99) }))
+		.max(10)
+		.optional(),
 	// What the customer said about this line: offered on every product, filled in
 	// on very few. Matches the check constraint on `order_items.note`.
 	note: z.string().trim().max(MAX_BRIEF_NOTE, "That note is longer than I can read").optional(),
@@ -276,6 +280,17 @@ const extraSchema = z.object({
 		.max(60, "That name is longer than a name"),
 	description: optionalText(200),
 	priceCents: dollars,
+	// How many of it one item may carry. Blank is 1, which is the tick box this
+	// shipped with and is what she means by leaving the field alone. The ceiling
+	// matches the check constraint on the column; past 99 of anything the picker
+	// stops being a picker.
+	maxQty: z
+		.union([z.string(), z.number()])
+		.transform((value) => (String(value).trim() === "" ? 1 : Number(value)))
+		.refine(
+			(value) => Number.isInteger(value) && value >= 1 && value <= 99,
+			"How many they can add has to be a whole number from 1 to 99",
+		),
 	isAvailable: z.boolean(),
 });
 

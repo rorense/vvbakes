@@ -37,10 +37,14 @@ export const order: Order = {
 	customRequest: "Could you write 'Happy 30th Sam' on one of them?",
 	inspirationImagePaths: [],
 	inspirationUrl: null,
-	subtotalCents: 2000,
+	// The menu lines plus the extras, which is how `place_order` adds it up:
+	// $15.00 of cupcakes + $30.00 of candles on them + $5.00 of cookies. The
+	// figure here was $20.00 — the two menu lines with the extras left out — so
+	// the preview's total never matched the lines it was printed under.
+	subtotalCents: 5000,
 	deliveryFeeCents: 0,
 	quoteCents: 0,
-	totalCents: 2000,
+	totalCents: 5000,
 	internalNotes: null,
 	cancellationReason: "I'm unwell and can't bake that weekend. So sorry.",
 	createdAt: "2026-09-11T02:00:00Z",
@@ -65,8 +69,11 @@ export const order: Order = {
 					extraId: "e1",
 					name: "Candles",
 					qty: 5,
+					// Six candles on each of five cupcakes: the case the "x 6" in every
+					// rendering of this is here to prove. 100c x 6 x 5.
+					unitQty: 6,
 					unitPriceCents: 100,
-					lineTotalCents: 500,
+					lineTotalCents: 3000,
 					sortOrder: 1,
 				},
 			],
@@ -160,6 +167,9 @@ export const customCakeOrder: Order = {
 					extraId: "e2",
 					name: "Cake box and board",
 					qty: 1,
+					// One or none, which is what nearly every extra is and what every
+					// order placed before the picker existed says.
+					unitQty: 1,
 					unitPriceCents: 1500,
 					lineTotalCents: 1500,
 					sortOrder: 2,

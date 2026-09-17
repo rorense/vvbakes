@@ -166,6 +166,15 @@ export interface Extra {
 	description: string | null;
 	/** Per unit of the line. Zero is allowed and still worth offering. */
 	priceCents: number;
+	/**
+	 * How many of this one a customer may add to an item.
+	 *
+	 * 1 is a plain tick box and is what nearly everything is: a gift box is one
+	 * or none. Above 1 the product page puts a quantity picker beside the tick,
+	 * because "candles" is really "however many candles", and the number is the
+	 * whole question on a sixth birthday.
+	 */
+	maxQty: number;
 	/** Off takes it off every product at once. */
 	isAvailable: boolean;
 	sortOrder: number;
@@ -478,6 +487,19 @@ export interface CartBrief {
 	frostingMatchesFlavour?: boolean;
 }
 
+/**
+ * One extra on a basket line, and how many of it.
+ *
+ * `qty` is per unit of the line, not for the line as a whole: two cakes each
+ * carrying six candles is this at six, on a line of two. Anything the product
+ * sells one of at a time is here at one, which is where every extra sat before
+ * quantities existed.
+ */
+export interface CartExtra {
+	id: string;
+	qty: number;
+}
+
 export interface CartLine {
 	productId: string;
 	/**
@@ -487,11 +509,23 @@ export interface CartLine {
 	 */
 	variantId?: string | null;
 	/**
-	 * The extras chosen for this line. Absent is the same as none, which is what
-	 * a cart saved before extras existed looks like.
+	 * The extras chosen for this line, each with how many of it.
+	 *
+	 * Absent is the same as none, which is what a cart saved before extras
+	 * existed looks like.
 	 *
 	 * Part of what makes a line its own line: the same cake with candles and
-	 * without are two lines at two prices. See `cartLineKey` in lib/cart.ts.
+	 * without are two lines at two prices, and so are six candles and one. See
+	 * `cartLineKey` in lib/cart.ts.
+	 */
+	extras?: CartExtra[];
+	/**
+	 * What a cart saved before quantities existed holds instead: bare ids, each
+	 * meaning one.
+	 *
+	 * Read on the way in and turned into `extras`, never written. It is here so
+	 * that a basket someone filled last week still resolves rather than quietly
+	 * losing its candles.
 	 */
 	extraIds?: string[];
 	/**
@@ -525,6 +559,13 @@ export interface OrderItemExtra {
 	name: string;
 	/** The line's quantity: two cakes with candles is two sets. */
 	qty: number;
+	/**
+	 * How many of the extra rode on each unit of the line: six candles on each
+	 * of two cakes is 6 here and 2 above. 1 on everything ordered before the
+	 * owner could offer more than one, which is most of them.
+	 */
+	unitQty: number;
+	/** What one of them cost, not what the line's worth of them came to. */
 	unitPriceCents: number;
 	lineTotalCents: number;
 	sortOrder: number;

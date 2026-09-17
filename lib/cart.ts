@@ -4,8 +4,8 @@ import { useCallback, useSyncExternalStore } from "react";
 import { briefKey, briefPhotoIds, normaliseBrief } from "./brief";
 import { CART_STORAGE_KEY } from "./constants";
 import { deletePhotos } from "./photo-store";
-import { normaliseExtraIds } from "./pricing";
-import type { Cart, CartBrief, CartLine } from "./types";
+import { extrasFromIds, normaliseExtras } from "./pricing";
+import type { Cart, CartBrief, CartExtra, CartLine } from "./types";
 
 /**
  * The cart lives in localStorage, not on the server.
@@ -34,23 +34,38 @@ const EMPTY: Cart = { v: 1, lines: [] };
  * has one line, as it always did: the three extra parts of the key are empty.
  *
  * The extras are sorted and de-duplicated first, so picking candles then a gift
- * box lands on the same line as picking them the other way round. `place_order`
- * reduces them the same way and groups by the brief the same way, which is what
- * keeps the browser's idea of the lines and the database's the same.
+ * box lands on the same line as picking them the other way round. Their counts
+ * are part of the key too, so six candles and one candle are two lines the way
+ * candles and no candles already were. `place_order` reduces them the same way
+ * and groups by the brief the same way, which is what keeps the browser's idea
+ * of the lines and the database's the same.
  */
 export function cartLineKey(
 	productId: string,
 	variantId?: string | null,
-	extraIds?: readonly string[] | null,
+	extras?: readonly CartExtra[] | null,
 	brief?: CartBrief | null,
 ): string {
-	return [productId, variantId ?? "", normaliseExtraIds(extraIds).join(","), briefKey(brief)].join(
-		":",
-	);
+	const picked = normaliseExtras(extras)
+		.map((pick) => (pick.qty > 1 ? `${pick.id}*${pick.qty}` : pick.id))
+		.join(",");
+
+	return [productId, variantId ?? "", picked, briefKey(brief)].join(":");
+}
+
+/**
+ * What this saved line's extras are, whichever way it was written down.
+ *
+ * A line saved before quantities existed holds bare ids, each meaning one of
+ * that extra. Read here rather than rewritten in storage: a cart is not worth
+ * migrating, and a line only has to survive long enough to be ordered.
+ */
+export function lineExtras(line: CartLine): CartExtra[] {
+	return line.extras ?? extrasFromIds(line.extraIds);
 }
 
 function keyOf(line: CartLine): string {
-	return cartLineKey(line.productId, line.variantId, line.extraIds, line.brief);
+	return cartLineKey(line.productId, line.variantId, lineExtras(line), line.brief);
 }
 
 /** Notifies other hooks in this tab; `storage` only fires in *other* tabs. */
@@ -80,6 +95,20 @@ function isBriefShaped(value: unknown): value is CartBrief | undefined {
 	);
 }
 
+/**
+ * True when `value` is one extra and a count.
+ *
+ * Only the shape is checked, like `isBriefShaped`. Whether the count is one the
+ * product still allows is decided against the live catalogue by `findExtras`,
+ * because the cap can move after the basket was filled.
+ */
+function isExtraShaped(value: unknown): value is CartExtra {
+	if (typeof value !== "object" || value === null) return false;
+
+	const pick = value as CartExtra;
+	return typeof pick.id === "string" && Number.isInteger(pick.qty) && pick.qty > 0;
+}
+
 function parse(raw: string | null): Cart {
 	if (!raw) return EMPTY;
 	try {
@@ -92,7 +121,7 @@ function parse(raw: string | null): Cart {
 		) {
 			return EMPTY;
 		}
-		// `variantId`, `extraIds` and `brief` are left exactly as found, including
+		// `variantId`, the extras and `brief` are left exactly as found, including
 		// absent, which is what a cart saved before any of them existed looks
 		// like. Whether they still name things that exist is decided against the
 		// live catalogue and the photo store, not here.
@@ -102,6 +131,8 @@ function parse(raw: string | null): Cart {
 				(line.variantId === undefined ||
 					line.variantId === null ||
 					typeof line.variantId === "string") &&
+				(line.extras === undefined ||
+					(Array.isArray(line.extras) && line.extras.every(isExtraShaped))) &&
 				(line.extraIds === undefined ||
 					(Array.isArray(line.extraIds) && line.extraIds.every((id) => typeof id === "string"))) &&
 				isBriefShaped(line.brief) &&
@@ -155,12 +186,12 @@ function addToCart(
 	productId: string,
 	qty: number,
 	variantId: string | null,
-	extraIds: string[],
+	extras: CartExtra[],
 	brief: CartBrief | undefined,
 ): Cart {
 	const cart = readCart();
 	const clean = normaliseBrief(brief);
-	const key = cartLineKey(productId, variantId, extraIds, clean);
+	const key = cartLineKey(productId, variantId, extras, clean);
 	const existing = cart.lines.find((line) => keyOf(line) === key);
 	const next: Cart = existing
 		? {
@@ -179,7 +210,7 @@ function addToCart(
 					{
 						productId,
 						variantId,
-						extraIds: normaliseExtraIds(extraIds),
+						extras: normaliseExtras(extras),
 						...(clean ? { brief: clean } : {}),
 						qty,
 					},
@@ -194,11 +225,11 @@ function setCartQty(
 	productId: string,
 	qty: number,
 	variantId: string | null,
-	extraIds: string[],
+	extras: CartExtra[],
 	brief: CartBrief | undefined,
 ): Cart {
 	const cart = readCart();
-	const key = cartLineKey(productId, variantId, extraIds, brief);
+	const key = cartLineKey(productId, variantId, extras, brief);
 	const next: Cart = {
 		v: 1,
 		lines:
@@ -220,10 +251,10 @@ function setCartQty(
 function removeFromCart(
 	productId: string,
 	variantId: string | null,
-	extraIds: string[],
+	extras: CartExtra[],
 	brief: CartBrief | undefined,
 ): Cart {
-	const next = setCartQty(productId, 0, variantId, extraIds, brief);
+	const next = setCartQty(productId, 0, variantId, extras, brief);
 	void deletePhotos(briefPhotoIds(brief));
 	return next;
 }
@@ -286,20 +317,20 @@ export function useCart(): {
 		productId: string,
 		qty: number,
 		variantId?: string | null,
-		extraIds?: string[],
+		extras?: CartExtra[],
 		brief?: CartBrief,
 	) => void;
 	add: (
 		productId: string,
 		qty: number,
 		variantId?: string | null,
-		extraIds?: string[],
+		extras?: CartExtra[],
 		brief?: CartBrief,
 	) => void;
 	remove: (
 		productId: string,
 		variantId?: string | null,
-		extraIds?: string[],
+		extras?: CartExtra[],
 		brief?: CartBrief,
 	) => void;
 	clear: () => void;
@@ -315,10 +346,10 @@ export function useCart(): {
 				productId: string,
 				qty: number,
 				variantId: string | null = null,
-				extraIds: string[] = [],
+				extras: CartExtra[] = [],
 				brief?: CartBrief,
 			) => {
-				setCartQty(productId, qty, variantId, extraIds, brief);
+				setCartQty(productId, qty, variantId, extras, brief);
 			},
 			[],
 		),
@@ -327,10 +358,10 @@ export function useCart(): {
 				productId: string,
 				qty: number,
 				variantId: string | null = null,
-				extraIds: string[] = [],
+				extras: CartExtra[] = [],
 				brief?: CartBrief,
 			) => {
-				addToCart(productId, qty, variantId, extraIds, brief);
+				addToCart(productId, qty, variantId, extras, brief);
 			},
 			[],
 		),
@@ -338,10 +369,10 @@ export function useCart(): {
 			(
 				productId: string,
 				variantId: string | null = null,
-				extraIds: string[] = [],
+				extras: CartExtra[] = [],
 				brief?: CartBrief,
 			) => {
-				removeFromCart(productId, variantId, extraIds, brief);
+				removeFromCart(productId, variantId, extras, brief);
 			},
 			[],
 		),

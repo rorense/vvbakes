@@ -9,6 +9,8 @@ import { productImageUrl } from "@/lib/images";
 import { savePhotos } from "@/lib/photo-store";
 import {
 	availableExtras,
+	clampExtraQty,
+	extraLabel,
 	extraPriceLabel,
 	extrasTotalCents,
 	formatMoney,
@@ -19,7 +21,7 @@ import {
 	optionGroups,
 	priceProduct,
 } from "@/lib/pricing";
-import type { Product } from "@/lib/types";
+import type { CartExtra, Product } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Stepper } from "@/components/ui/Stepper";
 import { BriefFields, EMPTY_BRIEF, isDraftEmpty, type DraftBrief } from "./BriefFields";
@@ -44,6 +46,12 @@ import { useVariantChoice } from "./VariantChoice";
  * what makes a basket line its own line, so the same cake with candles and
  * without are two lines at two prices.
  *
+ * An extra the owner sells several of — candles, a sparkler, a topper — gets a
+ * stepper beside its tick, capped at the number she set. Ticking it starts at
+ * one, which is the answer for most people, and the picker is there for the
+ * sixth birthday. Everything else stays a plain tick: "how many gift boxes" is
+ * a question nobody was asking.
+ *
  * The brief comes after all of it, and is the reason a custom cake can be a
  * product at all: it is where someone says what they actually want. It is part
  * of the line too, and more strongly than the extras are — two cakes described
@@ -56,10 +64,11 @@ export function AddToOrder({ product }: { product: Product }) {
 	const [qty, setQty] = useState(() => minOrderQty(product));
 	const [added, setAdded] = useState(false);
 	const [saving, setSaving] = useState(false);
-	// Held as a list rather than a set so the order it is written to the cart in
+	// Held as a list rather than a map so the order it is written to the cart in
 	// is stable; `add` sorts it anyway, which is what makes two customers picking
-	// the same two extras land on the same line.
-	const [chosenExtraIds, setChosenExtraIds] = useState<string[]>([]);
+	// the same two extras land on the same line. Each entry carries how many of
+	// that extra were asked for, which is 1 for everything she sells one of.
+	const [chosenExtras, setChosenExtras] = useState<CartExtra[]>([]);
 	// The photos here are still files. They are handed to the browser's own photo
 	// store on the way into the basket and only leave the browser attached to the
 	// order itself. See lib/photo-store.ts.
@@ -69,7 +78,30 @@ export function AddToOrder({ product }: { product: Product }) {
 	// filling the basket and submitting is refused by `place_order` rather than
 	// quietly dropped, which is the same promise the flavours make.
 	const offered = availableExtras(product.extras);
-	const chosen = offered.filter((extra) => chosenExtraIds.includes(extra.id));
+	// Resolved against the offered list rather than read straight out of state,
+	// so the extras come out in her order and each one is paired with the row it
+	// was ticked from. `findExtras` is not used here: nothing has been saved yet,
+	// so there is no stale id to be tolerant of.
+	const chosen = offered
+		.map((extra) => ({ extra, qty: chosenExtras.find((pick) => pick.id === extra.id)?.qty }))
+		.filter(
+			(pick): pick is { extra: (typeof offered)[number]; qty: number } => pick.qty !== undefined,
+		);
+
+	/** Ticks an extra on at one, or off; the stepper moves it from there. */
+	function toggleExtra(id: string) {
+		setChosenExtras((current) =>
+			current.some((pick) => pick.id === id)
+				? current.filter((pick) => pick.id !== id)
+				: [...current, { id, qty: 1 }],
+		);
+		setAdded(false);
+	}
+
+	function setExtraQty(id: string, qty: number) {
+		setChosenExtras((current) => current.map((pick) => (pick.id === id ? { ...pick, qty } : pick)));
+		setAdded(false);
+	}
 
 	if (!isOrderable(product)) {
 		return (
@@ -120,7 +152,7 @@ export function AddToOrder({ product }: { product: Product }) {
 				product.id,
 				qty,
 				variant?.id ?? null,
-				chosen.map((extra) => extra.id),
+				chosen.map(({ extra, qty: count }) => ({ id: extra.id, qty: count })),
 				isDraftEmpty(brief)
 					? undefined
 					: {
@@ -220,43 +252,74 @@ export function AddToOrder({ product }: { product: Product }) {
 					</legend>
 					<div className="flex flex-col gap-2">
 						{offered.map((extra) => {
-							const ticked = chosenExtraIds.includes(extra.id);
+							const picked = chosenExtras.find((pick) => pick.id === extra.id);
+							const ticked = picked !== undefined;
+							// She sells more than one of this, so the number is part of the
+							// answer and the tick alone cannot give it.
+							const countable = extra.maxQty > 1;
 
 							return (
-								<label
+								<div
 									key={extra.id}
 									className={cn(
-										"flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors",
+										"flex flex-col gap-3 rounded-md border p-3 transition-colors",
 										ticked ? "border-cocoa bg-paper-deep" : "border-line hover:border-cocoa",
 									)}>
-									<input
-										type="checkbox"
-										checked={ticked}
-										className="mt-0.5 size-4 shrink-0 accent-[var(--color-rose-deep)]"
-										onChange={() => {
-											setChosenExtraIds((current) =>
-												current.includes(extra.id)
-													? current.filter((id) => id !== extra.id)
-													: [...current, extra.id],
-											);
-											setAdded(false);
-										}}
-									/>
-									<span className="flex flex-1 flex-col gap-0.5">
-										<span className="flex items-baseline justify-between gap-3">
-											<span className="text-sm font-medium">{extra.name}</span>
-											<span className="text-cocoa-soft shrink-0 text-sm">
-												{/* "each" is only true when there is more than one to
-												    be each of, and a stepped product's floor is never
-												    one, so the label follows the quantity. */}
-												{extraPriceLabel(extra, { perUnit: qty > 1 })}
+									{/* The label wraps the tick and its text and nothing else.
+									    A stepper inside it would toggle the checkbox on every
+									    press, because that is what clicking a label does. */}
+									<label className="flex cursor-pointer items-start gap-3">
+										<input
+											type="checkbox"
+											checked={ticked}
+											className="mt-0.5 size-4 shrink-0 accent-[var(--color-rose-deep)]"
+											onChange={() => {
+												toggleExtra(extra.id);
+											}}
+										/>
+										<span className="flex flex-1 flex-col gap-0.5">
+											<span className="flex items-baseline justify-between gap-3">
+												<span className="text-sm font-medium">{extra.name}</span>
+												<span className="text-cocoa-soft shrink-0 text-sm">
+													{/* "each" is only true when there is more than one to
+													    be each of, and a stepped product's floor is never
+													    one, so the label follows the quantity. */}
+													{extraPriceLabel(extra, { perUnit: qty > 1 })}
+												</span>
 											</span>
+											{extra.description ? (
+												<span className="text-cocoa-soft text-xs">{extra.description}</span>
+											) : null}
 										</span>
-										{extra.description ? (
-											<span className="text-cocoa-soft text-xs">{extra.description}</span>
-										) : null}
-									</span>
-								</label>
+									</label>
+
+									{/* Only once it is ticked: an untouched product page is a list
+									    of things to tick, not a wall of zeroes to read past. */}
+									{countable && picked ? (
+										<div className="flex flex-wrap items-center gap-3 pl-7">
+											<Stepper
+												value={picked.qty}
+												min={1}
+												max={extra.maxQty}
+												size="sm"
+												label={extra.name}
+												onChange={(next) => {
+													setExtraQty(extra.id, clampExtraQty(extra, next));
+												}}
+											/>
+											<span className="text-cocoa-soft text-xs">
+												{picked.qty === extra.maxQty
+													? `${extra.maxQty} is the most I can do`
+													: `Up to ${extra.maxQty}`}
+												{extra.priceCents > 0
+													? `, ${formatMoney(extra.priceCents * picked.qty)}${
+															qty > 1 ? " each" : ""
+														}`
+													: ""}
+											</span>
+										</div>
+									) : null}
+								</div>
 							);
 						})}
 					</div>
@@ -306,7 +369,10 @@ export function AddToOrder({ product }: { product: Product }) {
 						// menu note, which explains the menu price and nothing else.
 						[
 							menu.onRequest ? "I'll come back to you with a price" : menu.note,
-							...chosen.map((extra) => `${extra.name} ${formatMoney(extra.priceCents * qty)}`),
+							...chosen.map(
+								({ extra, qty: count }) =>
+									`${extraLabel(extra.name, count)} ${formatMoney(extra.priceCents * count * qty)}`,
+							),
 						].join(" + ")
 					: "That combination isn't one I make at the moment."}
 			</p>

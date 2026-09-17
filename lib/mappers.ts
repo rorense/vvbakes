@@ -112,6 +112,7 @@ function toExtra(row: ExtraColumns): Extra {
 		name: row.name,
 		description: row.description,
 		priceCents: row.price_cents,
+		maxQty: row.max_qty,
 		isAvailable: row.is_available,
 		sortOrder: row.sort_order,
 	};
@@ -199,7 +200,7 @@ function toProductOptionGroup(row: OptionGroupColumns): ProductOptionGroup {
  * it degrades to `GenericStringError` with no explanation worth reading.
  */
 export const PRODUCT_SELECT =
-	"*, product_price_tiers (qty, price_cents), product_price_guide (label, price_cents, is_addition, sort_order), product_extras (id, name, description, price_cents, is_available, sort_order), product_variants (id, name, unit_price_cents, image_path, allergens, is_available, sort_order, product_variant_options (option_id)), product_option_groups (id, name, sort_order, product_options (id, name, image_path, allergens, is_available, sort_order))";
+	"*, product_price_tiers (qty, price_cents), product_price_guide (label, price_cents, is_addition, sort_order), product_extras (id, name, description, price_cents, max_qty, is_available, sort_order), product_variants (id, name, unit_price_cents, image_path, allergens, is_available, sort_order, product_variant_options (option_id)), product_option_groups (id, name, sort_order, product_options (id, name, image_path, allergens, is_available, sort_order))";
 
 export function toProduct(
 	row: ProductRow & {
@@ -304,6 +305,7 @@ function toOrderItemExtra(row: OrderItemExtraRow): OrderItemExtra {
 		extraId: row.extra_id,
 		name: row.name,
 		qty: row.qty,
+		unitQty: row.unit_qty,
 		unitPriceCents: row.unit_price_cents,
 		lineTotalCents: row.line_total_cents,
 		sortOrder: row.sort_order,

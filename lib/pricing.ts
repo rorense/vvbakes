@@ -9,6 +9,7 @@
  */
 import { hasCustomFlavour } from "./brief";
 import type {
+	CartExtra,
 	Extra,
 	OrderItem,
 	PriceTier,
@@ -407,33 +408,81 @@ export function availableExtras(extras: readonly Extra[]): Extra[] {
 }
 
 /**
- * The same ids, de-duplicated and sorted.
+ * One extra a customer has picked, resolved against the product's own list.
  *
- * Two extras picked in one order and the same two picked in the other are one
- * choice, so the cart has to write them down the same way or it ends up with
- * two lines of the same thing. `place_order` reduces them the same way inside
- * the transaction, which is what makes the two agree.
+ * `qty` is how many of it per unit of the line, already clamped to what the
+ * product allows. Kept beside the extra rather than folded into it because the
+ * extra is the owner's row and the count is the customer's answer.
  */
-export function normaliseExtraIds(ids: readonly string[] | null | undefined): string[] {
-	return [...new Set(ids ?? [])].sort();
+export interface ChosenExtra {
+	extra: Extra;
+	qty: number;
 }
 
 /**
- * The extras these ids name, in the owner's order.
+ * The same picks, de-duplicated and sorted by id.
+ *
+ * Two extras picked in one order and the same two picked in the other are one
+ * choice, so the cart has to write them down the same way or it ends up with
+ * two lines of the same thing. An id given twice is one pick at the larger
+ * count, and a count below one is one. `place_order` reduces them exactly the
+ * same way inside the transaction, which is what makes the two agree.
+ */
+export function normaliseExtras(chosen: readonly CartExtra[] | null | undefined): CartExtra[] {
+	const counts = new Map<string, number>();
+
+	for (const pick of chosen ?? []) {
+		const qty = Number.isInteger(pick.qty) ? Math.max(1, pick.qty) : 1;
+		counts.set(pick.id, Math.max(counts.get(pick.id) ?? 0, qty));
+	}
+
+	return [...counts]
+		.map(([id, qty]) => ({ id, qty }))
+		.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/**
+ * One of each of these ids, which is what a basket saved before quantities
+ * existed means by naming them.
+ */
+export function extrasFromIds(ids: readonly string[] | null | undefined): CartExtra[] {
+	return (ids ?? []).map((id) => ({ id, qty: 1 }));
+}
+
+/**
+ * The extras these picks name, in the owner's order, with their counts.
  *
  * Deliberately tolerant of an id that no longer matches anything, for the same
  * reason `findVariant` is: the cart is localStorage and can still be holding a
  * candle she stopped selling last week. What comes back is what is still real,
  * and the caller decides whether a line that lost one is worth keeping.
+ *
+ * A count above what the product now allows is clamped rather than dropped.
+ * The cap is hers to lower after a basket was filled, and six candles instead
+ * of ten is much closer to what was asked for than no candles — and closer
+ * still than a basket that cannot be submitted, which is what sending the ten
+ * on to `place_order` would produce.
  */
-export function findExtras(extras: readonly Extra[], ids: readonly string[] | null | undefined) {
-	const wanted = new Set(ids ?? []);
-	return extras.filter((extra) => wanted.has(extra.id));
+export function findExtras(
+	extras: readonly Extra[],
+	chosen: readonly CartExtra[] | null | undefined,
+): ChosenExtra[] {
+	const wanted = new Map((chosen ?? []).map((pick) => [pick.id, pick.qty]));
+
+	return extras
+		.filter((extra) => wanted.has(extra.id))
+		.map((extra) => ({ extra, qty: clampExtraQty(extra, wanted.get(extra.id) ?? 1) }));
 }
 
-/** What one unit's worth of these extras costs. */
-export function extrasUnitCents(chosen: readonly Extra[]): number {
-	return chosen.reduce((total, extra) => total + extra.priceCents, 0);
+/** How many of this extra a customer may add, between one and the cap. */
+export function clampExtraQty(extra: Extra, qty: number): number {
+	if (!Number.isInteger(qty)) return 1;
+	return Math.min(Math.max(1, qty), Math.max(1, extra.maxQty));
+}
+
+/** What one unit's worth of these extras costs, counts and all. */
+export function extrasUnitCents(chosen: readonly ChosenExtra[]): number {
+	return chosen.reduce((total, { extra, qty }) => total + extra.priceCents * qty, 0);
 }
 
 /**
@@ -444,7 +493,7 @@ export function extrasUnitCents(chosen: readonly Extra[]): number {
  * apply — a bundle is the owner's price for several of one product, and she has
  * not been asked for a price on four sets of candles.
  */
-export function extrasTotalCents(chosen: readonly Extra[], qty: number): number {
+export function extrasTotalCents(chosen: readonly ChosenExtra[], qty: number): number {
 	return extrasUnitCents(chosen) * qty;
 }
 
@@ -453,6 +502,11 @@ export function extrasTotalCents(chosen: readonly Extra[], qty: number): number 
  *
  * "each" is left off when there is nothing to distinguish it from, so a picker
  * on a product ordered one at a time does not imply a second price.
+ *
+ * Always the price of *one* of them, even where several can be added: the
+ * number beside the picker is the count, and multiplying the two in the label
+ * as well would say the same thing twice and disagree with it the moment the
+ * count changed.
  */
 export function extraPriceLabel(
 	extra: Extra,
@@ -460,6 +514,18 @@ export function extraPriceLabel(
 ): string {
 	if (extra.priceCents === 0) return "Free";
 	return perUnit ? `+${formatPrice(extra.priceCents)} each` : `+${formatPrice(extra.priceCents)}`;
+}
+
+/**
+ * How an extra is named wherever it is listed: "Candles", or "Candles × 6".
+ *
+ * The count is left off at one rather than written out, because "Gift box × 1"
+ * is noise on the thing it describes. Said the same way in the basket, on the
+ * order page, in the admin and in all five emails, which is why it is here and
+ * not in any one of them.
+ */
+export function extraLabel(name: string, qty: number): string {
+	return qty > 1 ? `${name} × ${qty}` : name;
 }
 
 /**

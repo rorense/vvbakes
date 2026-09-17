@@ -270,6 +270,11 @@ export function orderErrorMessage(raw: string): string {
 		VARIANT_NOT_FOUND: "One of the flavours you chose is no longer on the menu. Please review it.",
 		EXTRA_UNAVAILABLE:
 			"One of the extras you added is no longer available. Please review your order.",
+		// Ahead of QTY_INVALID deliberately: the codes are matched with `includes`
+		// in insertion order, and "EXTRA_QTY_INVALID" contains "QTY_INVALID". Put
+		// after it, this would never be reached and the wrong sentence would go out.
+		EXTRA_QTY_INVALID:
+			"One of the extras you added is more than I can do. Please review your order.",
 		QTY_BELOW_MINIMUM:
 			"Something in your order is under its minimum quantity. Please review your order.",
 		QTY_INVALID: "One of the quantities isn't available. Please review your order.",

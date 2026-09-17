@@ -20,6 +20,10 @@ import { cartLineKey } from "./cart";
 
 const PRODUCT = "11111111-1111-4111-8111-111111111111";
 
+/** Two extras whose ids sort the other way round from the order they are in. */
+const BOX = { id: "b", qty: 1 };
+const CANDLES = { id: "a", qty: 1 };
+
 describe("normaliseBrief", () => {
 	it("treats absent, empty and whitespace-only as no brief at all", () => {
 		expect(normaliseBrief(undefined)).toBeUndefined();
@@ -158,14 +162,14 @@ describe("cartLineKey", () => {
 	});
 
 	it("keeps two identical lines together, brief and all", () => {
-		expect(cartLineKey(PRODUCT, "v1", ["e1"], { note: "No sprinkles" })).toBe(
-			cartLineKey(PRODUCT, "v1", ["e1"], { note: "No sprinkles" }),
+		expect(cartLineKey(PRODUCT, "v1", [{ id: "e1", qty: 1 }], { note: "No sprinkles" })).toBe(
+			cartLineKey(PRODUCT, "v1", [{ id: "e1", qty: 1 }], { note: "No sprinkles" }),
 		);
 	});
 
 	it("still sorts the extras, so the picking order cannot split a line", () => {
-		expect(cartLineKey(PRODUCT, null, ["b", "a"], { note: "x" })).toBe(
-			cartLineKey(PRODUCT, null, ["a", "b"], { note: "x" }),
+		expect(cartLineKey(PRODUCT, null, [BOX, CANDLES], { note: "x" })).toBe(
+			cartLineKey(PRODUCT, null, [CANDLES, BOX], { note: "x" }),
 		);
 	});
 

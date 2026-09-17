@@ -6,12 +6,13 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { placeOrder } from "@/app/(site)/order/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
 import { briefPhotoIds, frostingLabel, hasCustomFlavour } from "@/lib/brief";
-import { cartLineKey, clearCart, useCart } from "@/lib/cart";
+import { cartLineKey, clearCart, lineExtras, useCart } from "@/lib/cart";
 import { cn } from "@/lib/cn";
 import { MAX_ORDER_INSPIRATION_PHOTOS } from "@/lib/constants";
 import { formatDateShort, type IsoDate } from "@/lib/dates";
 import { loadPhotos, sweepPhotos } from "@/lib/photo-store";
 import {
+	extraLabel,
 	extrasTotalCents,
 	findExtras,
 	findVariant,
@@ -20,7 +21,7 @@ import {
 	isValidQty,
 	isVariantAvailable,
 	minOrderQty,
-	normaliseExtraIds,
+	normaliseExtras,
 	priceProduct,
 } from "@/lib/pricing";
 import type {
@@ -136,15 +137,17 @@ export function OrderForm({
 					// product page offered them in and the order the confirmation email
 					// and the order page list them in, so the basket now agrees with
 					// all three instead of being the one place they came out shuffled.
-					const wanted = normaliseExtraIds(line.extraIds);
-					const chosen = findExtras(product.extras, wanted).filter((extra) => extra.isAvailable);
+					const wanted = normaliseExtras(lineExtras(line));
+					const chosen = findExtras(product.extras, wanted).filter(
+						({ extra }) => extra.isAvailable,
+					);
 
 					return {
 						// What the cart itself holds, stale ids and all. Removing or
 						// re-counting a line has to match on this, not on what survived.
 						source: {
 							variantId: line.variantId ?? null,
-							extraIds: line.extraIds ?? [],
+							extras: lineExtras(line),
 							brief: line.brief,
 						},
 						product,
@@ -183,7 +186,7 @@ export function OrderForm({
 			const key = cartLineKey(
 				entry.product.id,
 				entry.variant?.id,
-				entry.extras.map((extra) => extra.id),
+				entry.extras.map(({ extra, qty }) => ({ id: extra.id, qty })),
 				entry.brief,
 			);
 			const found = merged.get(key);
@@ -250,7 +253,7 @@ export function OrderForm({
 	/** Empties every saved line that fed this one, merged or not. */
 	const removeLine = (line: (typeof lines)[number]) => {
 		for (const source of line.sources) {
-			remove(line.product.id, source.variantId, source.extraIds, source.brief);
+			remove(line.product.id, source.variantId, source.extras, source.brief);
 		}
 	};
 
@@ -258,9 +261,9 @@ export function OrderForm({
 	const setLineQty = (line: (typeof lines)[number], next: number) => {
 		const [first, ...rest] = line.sources;
 		if (!first) return;
-		setQty(line.product.id, next, first.variantId, first.extraIds, first.brief);
+		setQty(line.product.id, next, first.variantId, first.extras, first.brief);
 		for (const source of rest) {
-			remove(line.product.id, source.variantId, source.extraIds, source.brief);
+			remove(line.product.id, source.variantId, source.extras, source.brief);
 		}
 	};
 
@@ -393,10 +396,11 @@ export function OrderForm({
 					lines.map((line) => ({
 						productId: line.product.id,
 						variantId: line.variant?.id ?? null,
-						// Only what survived. Sending an id the owner has deleted would
-						// have the database refuse the whole order over a packet of
-						// candles this page has already said is gone.
-						extraIds: line.extras.map((extra) => extra.id),
+						// Only what survived, at the counts this page has been showing.
+						// Sending an id the owner has deleted — or more of one than she
+						// now allows — would have the database refuse the whole order
+						// over a packet of candles this page has already dealt with.
+						extras: line.extras.map(({ extra, qty }) => ({ id: extra.id, qty })),
 						note: line.brief?.note ?? "",
 						inspirationUrl: line.brief?.inspirationUrl ?? "",
 						customFlavour: line.brief?.customFlavour ?? "",
@@ -492,12 +496,14 @@ export function OrderForm({
 									{/* Named with their own totals rather than folded into the
 									    line's, so the price beside the line goes on meaning what
 									    the menu charged. */}
-									{line.extras.map((extra) => (
+									{line.extras.map(({ extra, qty }) => (
 										<p
 											key={extra.id}
 											className="text-cocoa-soft text-xs">
-											+ {extra.name}{" "}
-											{extra.priceCents === 0 ? "(free)" : formatMoney(extra.priceCents * line.qty)}
+											+ {extraLabel(extra.name, qty)}{" "}
+											{extra.priceCents === 0
+												? "(free)"
+												: formatMoney(extra.priceCents * qty * line.qty)}
 										</p>
 									))}
 

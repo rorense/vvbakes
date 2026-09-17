@@ -55,7 +55,10 @@ type PlaceArgs = {
 		product_id: string;
 		variant_id?: string;
 		qty: number;
+		/** The shape sent before an extra could be had more than once. */
 		extra_ids?: string[];
+		/** And the shape sent now: each extra with how many of it. */
+		extras?: Array<{ id: string; qty?: number | string }>;
 		/** The brief this line carries, since the custom cake became a product. */
 		note?: string;
 		inspiration_url?: string;
@@ -390,7 +393,7 @@ describe("place_order", () => {
 		await db.query("update products set min_per_order = 6 where id = $1", [cupcakes]);
 
 		const date = await dateIn(7);
-		const message = await errorOf(() =>
+		const message = await errorOf(async () =>
 			placeOrder({
 				items: [
 					{ product_id: cupcakes, qty: 2 },
@@ -1990,6 +1993,314 @@ describe("extras", () => {
 			),
 		);
 		expect(message).toMatch(/row-level security|permission denied/i);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+});
+
+/**
+ * Extras you can have more than one of.
+ *
+ * Candles are the case the tick box could not answer: "candles" is really "how
+ * many candles", and the number is the whole question on a sixth birthday. The
+ * rules worth holding down are that the count multiplies the price *as well as*
+ * the line's own quantity, that two counts of one extra are two lines, that a
+ * count past the product's cap is refused rather than quietly cut down, and
+ * that a caller written before any of this still means one of each.
+ */
+describe("extras by the number", () => {
+	let cupcakes: string;
+	/** Up to a dozen, which is what makes the picker a picker. */
+	let candles: string;
+	/** One or none, like every extra that shipped before this. */
+	let giftBox: string;
+
+	async function makeExtra(
+		name: string,
+		priceCents: number,
+		maxQty: number,
+		sortOrder: number,
+	): Promise<string> {
+		const result = await db.query<{ id: string }>(
+			`insert into product_extras (product_id, name, price_cents, max_qty, sort_order)
+			 values ($1, $2, $3, $4, $5) returning id`,
+			[cupcakes, name, priceCents, maxQty, sortOrder],
+		);
+		return result.rows[0]!.id;
+	}
+
+	/** Like `extrasOf` above, and also asking how many of each were carried. */
+	async function countedExtrasOf(orderId: string) {
+		const result = await db.query<{
+			name: string;
+			qty: number;
+			unit_qty: number;
+			unit_price_cents: number;
+			line_total_cents: number;
+		}>(
+			`select x.name, x.qty, x.unit_qty, x.unit_price_cents, x.line_total_cents
+			 from order_item_extras x
+			 join order_items i on i.id = x.order_item_id
+			 where i.order_id = $1
+			 order by x.sort_order, x.name`,
+			[orderId],
+		);
+		return result.rows;
+	}
+
+	beforeAll(async () => {
+		await openEveryDay(50);
+		cupcakes = await productId("cupcakes");
+		candles = await makeExtra("Candles by the number", 300, 12, 1);
+		giftBox = await makeExtra("Boxed by the number", 800, 1, 2);
+	});
+
+	afterAll(async () => {
+		await db.query("delete from product_extras where id = any($1)", [[candles, giftBox]]);
+	});
+
+	it("defaults every extra to one, so nothing that shipped before changes", async () => {
+		const rows = await db.query<{ n: number }>(
+			"select count(*)::int as n from product_extras where max_qty <> 1 and id <> $1",
+			[candles],
+		);
+		expect(rows.rows[0]!.n).toBe(0);
+	});
+
+	it("charges the count as well as the line's own quantity", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 2, extras: [{ id: candles, qty: 6 }] }],
+			pickupDate: await dateIn(7),
+		});
+
+		// Two cupcakes at $3 is $6, plus six candles at $3 on each of the two.
+		expect(order.total_cents).toBe(600 + 300 * 6 * 2);
+		expect(await countedExtrasOf(order.id)).toEqual([
+			{
+				name: "Candles by the number",
+				qty: 2,
+				unit_qty: 6,
+				unit_price_cents: 300,
+				line_total_cents: 3600,
+			},
+		]);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("leaves the menu line alone, the way one of an extra always did", async () => {
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 4, extras: [{ id: candles, qty: 12 }] }],
+			pickupDate: await dateIn(7),
+		});
+
+		// The bundle price still decides the cupcakes and `pricing_note` still
+		// explains only that. Folding a dozen candles into it would make one of
+		// the two a lie.
+		const line = await db.query<{ line_total_cents: number; pricing_note: string }>(
+			"select line_total_cents, pricing_note from order_items where order_id = $1",
+			[order.id],
+		);
+		expect(line.rows[0]!.line_total_cents).toBe(1200);
+		expect(line.rows[0]!.pricing_note).toBe("1 x 4 for $12.00");
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("makes two counts of one extra two lines", async () => {
+		const order = await placeOrder({
+			items: [
+				{ product_id: cupcakes, qty: 1, extras: [{ id: candles, qty: 6 }] },
+				{ product_id: cupcakes, qty: 1, extras: [{ id: candles, qty: 1 }] },
+			],
+			pickupDate: await dateIn(7),
+		});
+
+		const lines = await db.query("select id from order_items where order_id = $1", [order.id]);
+		expect(lines.rows).toHaveLength(2);
+		expect(await countedExtrasOf(order.id)).toEqual([
+			{
+				name: "Candles by the number",
+				qty: 1,
+				unit_qty: 1,
+				unit_price_cents: 300,
+				line_total_cents: 300,
+			},
+			{
+				name: "Candles by the number",
+				qty: 1,
+				unit_qty: 6,
+				unit_price_cents: 300,
+				line_total_cents: 1800,
+			},
+		]);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("treats the same count picked in either order as one line", async () => {
+		const order = await placeOrder({
+			items: [
+				{
+					product_id: cupcakes,
+					qty: 1,
+					extras: [
+						{ id: candles, qty: 6 },
+						{ id: giftBox, qty: 1 },
+					],
+				},
+				{
+					product_id: cupcakes,
+					qty: 1,
+					extras: [
+						{ id: giftBox, qty: 1 },
+						{ id: candles, qty: 6 },
+					],
+				},
+			],
+			pickupDate: await dateIn(7),
+		});
+
+		const lines = await db.query("select id from order_items where order_id = $1", [order.id]);
+		expect(lines.rows).toHaveLength(1);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("keeps the larger count when one extra is named twice on a line", async () => {
+		const order = await placeOrder({
+			items: [
+				{
+					product_id: cupcakes,
+					qty: 1,
+					extras: [
+						{ id: candles, qty: 1 },
+						{ id: candles, qty: 6 },
+					],
+				},
+			],
+			pickupDate: await dateIn(7),
+		});
+
+		// One row, charged once, at the number they asked for rather than at the
+		// sum of the two. `normaliseExtras` in lib/pricing.ts does the same.
+		expect(await countedExtrasOf(order.id)).toEqual([
+			{
+				name: "Candles by the number",
+				qty: 1,
+				unit_qty: 6,
+				unit_price_cents: 300,
+				line_total_cents: 1800,
+			},
+		]);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("refuses more of an extra than the product allows", async () => {
+		// A basket filled while the cap was higher. Refused rather than cut down
+		// to twelve, for the same reason a sold-out extra is refused rather than
+		// dropped: what arrives has to be what was agreed to.
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: cupcakes, qty: 1, extras: [{ id: candles, qty: 13 }] }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("EXTRA_QTY_INVALID");
+	});
+
+	it("refuses two of something sold one at a time", async () => {
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: cupcakes, qty: 1, extras: [{ id: giftBox, qty: 2 }] }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("EXTRA_QTY_INVALID");
+	});
+
+	it("still says EXTRA_UNAVAILABLE for an id that names nothing", async () => {
+		// Checked before the cap is, so an id with no row behind it comes back as
+		// the answer it always did rather than falling through the cap's join.
+		const gone = await makeExtra("Gone by the number", 500, 6, 9);
+		await db.query("delete from product_extras where id = $1", [gone]);
+
+		const message = await errorOf(async () =>
+			placeOrder({
+				items: [{ product_id: cupcakes, qty: 1, extras: [{ id: gone, qty: 4 }] }],
+				pickupDate: await dateIn(7),
+			}),
+		);
+		expect(message).toContain("EXTRA_UNAVAILABLE");
+	});
+
+	it("reads a caller that sends no count, or a nonsense one, as one", async () => {
+		// Neither is something the order form sends. A cast error here would take
+		// down the whole order rather than the one field, so anything that is not
+		// a plain number counts as one.
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 1, extras: [{ id: candles, qty: "lots" }] }],
+			pickupDate: await dateIn(7),
+		});
+
+		expect(await countedExtrasOf(order.id)).toEqual([
+			{
+				name: "Candles by the number",
+				qty: 1,
+				unit_qty: 1,
+				unit_price_cents: 300,
+				line_total_cents: 300,
+			},
+		]);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("still takes extra_ids, and still means one of each", async () => {
+		// The signature did not change, so a caller written before quantities
+		// existed — and every order already placed — goes on meaning what it meant.
+		const order = await placeOrder({
+			items: [{ product_id: cupcakes, qty: 1, extra_ids: [candles] }],
+			pickupDate: await dateIn(7),
+		});
+
+		expect(order.total_cents).toBe(300 + 300);
+		expect(await countedExtrasOf(order.id)).toEqual([
+			{
+				name: "Candles by the number",
+				qty: 1,
+				unit_qty: 1,
+				unit_price_cents: 300,
+				line_total_cents: 300,
+			},
+		]);
+
+		await db.query("delete from orders where id = $1", [order.id]);
+	});
+
+	it("lands a line sent both ways on one row, at the larger count", async () => {
+		const order = await placeOrder({
+			items: [
+				{
+					product_id: cupcakes,
+					qty: 1,
+					extra_ids: [candles],
+					extras: [{ id: candles, qty: 4 }],
+				},
+			],
+			pickupDate: await dateIn(7),
+		});
+
+		expect(await countedExtrasOf(order.id)).toEqual([
+			{
+				name: "Candles by the number",
+				qty: 1,
+				unit_qty: 4,
+				unit_price_cents: 300,
+				line_total_cents: 1200,
+			},
+		]);
 
 		await db.query("delete from orders where id = $1", [order.id]);
 	});

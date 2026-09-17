@@ -1,5 +1,11 @@
 import { frostingLabel } from "@/lib/brief";
-import { couldCostMore, formatMoney, hasUnpricedWork, lineTotalWithExtras } from "@/lib/pricing";
+import {
+	couldCostMore,
+	extraLabel,
+	formatMoney,
+	hasUnpricedWork,
+	lineTotalWithExtras,
+} from "@/lib/pricing";
 import type { Order } from "@/lib/types";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { Inspiration } from "./Inspiration";
@@ -104,7 +110,7 @@ export function OrderLines({
 									<span
 										key={extra.id}
 										className="text-cocoa-soft text-xs">
-										+ {extra.name}{" "}
+										+ {extraLabel(extra.name, extra.unitQty)}{" "}
 										{extra.lineTotalCents === 0 ? "(free)" : formatMoney(extra.lineTotalCents)}
 									</span>
 								))}

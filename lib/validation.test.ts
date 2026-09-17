@@ -3,7 +3,7 @@
  * that ends up inside an href. Everything else they send is rendered as text.
  */
 import { describe, expect, it } from "vitest";
-import { isHttpUrl, orderInputSchema } from "./validation";
+import { isHttpUrl, orderInputSchema, productSchema } from "./validation";
 
 /**
  * The link belongs to the line it describes, not to the order: a basket with
@@ -74,5 +74,66 @@ describe("the inspiration link on an order line", () => {
 	it("refuses a link long enough to overflow the column once a scheme is added", () => {
 		const parsed = parseLink(`example.com/${"a".repeat(500)}`);
 		expect(parsed.success).toBe(false);
+	});
+});
+
+/**
+ * How many of an extra a customer may add, as the product form submits it.
+ *
+ * Everything in that form arrives as the string in the box, so the box is what
+ * has to be parsed. Blank matters most: it is what a row typed before this
+ * field existed sends, and it has to mean the tick box the extra already was
+ * rather than a save the admin refuses.
+ */
+function parseMaxQty(maxQty: unknown) {
+	return productSchema.safeParse({
+		name: "Cupcakes",
+		slug: "cupcakes",
+		categoryId: "",
+		description: "",
+		unitPriceCents: "3",
+		unitLabel: "each",
+		qtyStep: "1",
+		minPerOrder: "",
+		imagePath: "",
+		imageAlt: "",
+		isAvailable: true,
+		isFeatured: false,
+		availabilityNote: "",
+		allergens: [],
+		sortOrder: "1",
+		priceOnRequest: false,
+		wantsBrief: false,
+		wantsCustomFlavour: false,
+		tiers: [],
+		priceGuide: [],
+		priceGuideNote: "",
+		variantLabel: "Flavour",
+		removedVariants: [],
+		removeVariants: false,
+		optionGroups: [],
+		variants: [],
+		extras: [{ name: "Candles", description: "", priceCents: "3", maxQty, isAvailable: true }],
+	});
+}
+
+describe("how many of an extra one item may carry", () => {
+	it("takes the number as the string the box holds", () => {
+		const parsed = parseMaxQty("24");
+		expect(parsed.success && parsed.data.extras[0]?.maxQty).toBe(24);
+	});
+
+	it("reads a blank box as one, which is the tick box it already was", () => {
+		const parsed = parseMaxQty("");
+		expect(parsed.success && parsed.data.extras[0]?.maxQty).toBe(1);
+	});
+
+	it("refuses anything that is not a whole number from 1 to 99", () => {
+		// The ceiling matches the check constraint on the column, so a save the
+		// admin accepts is one the database accepts.
+		expect(parseMaxQty("lots").success).toBe(false);
+		expect(parseMaxQty("100").success).toBe(false);
+		expect(parseMaxQty("0").success).toBe(false);
+		expect(parseMaxQty("2.5").success).toBe(false);
 	});
 });

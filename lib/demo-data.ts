@@ -122,6 +122,9 @@ export const DEMO_PRODUCTS: Product[] = [
 				name: "Candles and a sparkler",
 				description: "Numbers or plain, and one sparkler for the top.",
 				priceCents: 900,
+				// Sold by the number, so the product page offers a picker rather than a
+				// tick. The other two extras here are one or none and stay at 1.
+				maxQty: 12,
 				isAvailable: true,
 				sortOrder: 1,
 			},
@@ -130,6 +133,7 @@ export const DEMO_PRODUCTS: Product[] = [
 				name: "Cake box and board",
 				description: "Sturdy enough for a car boot.",
 				priceCents: 1500,
+				maxQty: 1,
 				isAvailable: true,
 				sortOrder: 2,
 			},
@@ -175,8 +179,11 @@ export const DEMO_PRODUCTS: Product[] = [
 			{
 				id: "demo-extra-1",
 				name: "Birthday candles",
-				description: "Six, in whatever colour goes with the icing.",
+				description: "In whatever colour goes with the icing.",
 				priceCents: 300,
+				// The case the picker was built for: a first birthday wants one and a
+				// sixth wants six, and the tick box could only ever say "candles".
+				maxQty: 24,
 				isAvailable: true,
 				sortOrder: 1,
 			},
@@ -185,6 +192,7 @@ export const DEMO_PRODUCTS: Product[] = [
 				name: "Gift box",
 				description: "Ribbon and all, ready to hand over.",
 				priceCents: 800,
+				maxQty: 1,
 				isAvailable: true,
 				sortOrder: 2,
 			},
@@ -193,6 +201,7 @@ export const DEMO_PRODUCTS: Product[] = [
 				name: "Handwritten card",
 				description: "Tell me what to write in the notes.",
 				priceCents: 0,
+				maxQty: 1,
 				isAvailable: true,
 				sortOrder: 3,
 			},

@@ -281,6 +281,7 @@ type ExtraRow = {
 	name: string;
 	description: string | null;
 	price_cents: number;
+	max_qty: number;
 	is_available: boolean;
 	sort_order: number;
 	created_at: string;
@@ -293,6 +294,7 @@ type OrderItemExtraRow = {
 	extra_id: string | null;
 	name: string;
 	qty: number;
+	unit_qty: number;
 	unit_price_cents: number;
 	line_total_cents: number;
 	sort_order: number;
