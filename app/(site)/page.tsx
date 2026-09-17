@@ -149,6 +149,26 @@ export default async function HomePage() {
 								between.
 							</p>
 
+							{/* Her own voice, moved up out of the pickup band at the client's ask. It is
+							    what makes a home kitchen worth trusting, and almost nobody scrolled far
+							    enough to find it. Set in the display face against a rose rule so it reads
+							    as an aside rather than a second tagline. */}
+							{settings.aboutText ? (
+								<div className="border-rose flex max-w-lg flex-col gap-2 border-l-2 pl-5">
+									<SectionLabel as="h2">A note from the baker</SectionLabel>
+									<p className="font-display text-base leading-relaxed sm:text-lg">
+										{settings.aboutText}
+									</p>
+									<a
+										href={instagramUrl(settings.instagramHandle)}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="w-fit text-sm font-medium underline underline-offset-4">
+										Follow @{settings.instagramHandle}
+									</a>
+								</div>
+							) : null}
+
 							<div className="mt-2 flex flex-wrap gap-3">
 								<ButtonLink
 									href="/order"
@@ -403,73 +423,59 @@ export default async function HomePage() {
 				</Container>
 			</Section>
 
-			{/* The baker's note and the practical pickup details, side by side. */}
+			{/* Pickup. The baker's note used to sit beside this in a two-column row;
+			    it opens the page now, so what is left is one column and takes the narrow
+			    measure rather than stretching a hairline list across the wide one. */}
 			<Section
 				tone="paper"
 				id="pickup">
-				<Container width="wide">
-					<div className="grid gap-12 sm:grid-cols-2 sm:gap-16">
-						{settings.aboutText ? (
-							<div className="flex flex-col gap-4">
-								<SectionLabel as="h2">A note from the baker</SectionLabel>
-								<p className="font-display text-xl leading-relaxed">{settings.aboutText}</p>
-								<a
-									href={instagramUrl(settings.instagramHandle)}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="w-fit text-sm font-medium underline underline-offset-4">
-									Follow @{settings.instagramHandle}
-								</a>
-							</div>
-						) : null}
-
-						<div className="flex flex-col gap-4">
-							<SectionLabel as="h2">Pickup</SectionLabel>
-							<HairlineList as="dl">
-								{settings.pickupSuburb ? (
-									<HairlineRow as="div">
-										<dt className="text-cocoa-soft text-sm">Where</dt>
-										<dd className="text-right text-sm font-medium">{settings.pickupSuburb}</dd>
-									</HairlineRow>
-								) : null}
-								{settings.pickupWindowText ? (
-									<HairlineRow as="div">
-										<dt className="text-cocoa-soft text-sm">When</dt>
-										<dd className="text-right text-sm font-medium">{settings.pickupWindowText}</dd>
-									</HairlineRow>
-								) : null}
+				<Container width="narrow">
+					<div className="flex flex-col gap-4">
+						<SectionLabel as="h2">Pickup</SectionLabel>
+						<HairlineList as="dl">
+							{settings.pickupSuburb ? (
 								<HairlineRow as="div">
-									<dt className="text-cocoa-soft text-sm">Notice needed</dt>
+									<dt className="text-cocoa-soft text-sm">Where</dt>
+									<dd className="text-right text-sm font-medium">{settings.pickupSuburb}</dd>
+								</HairlineRow>
+							) : null}
+							{settings.pickupWindowText ? (
+								<HairlineRow as="div">
+									<dt className="text-cocoa-soft text-sm">When</dt>
+									<dd className="text-right text-sm font-medium">{settings.pickupWindowText}</dd>
+								</HairlineRow>
+							) : null}
+							<HairlineRow as="div">
+								<dt className="text-cocoa-soft text-sm">Notice needed</dt>
+								<dd className="text-right text-sm font-medium">
+									{settings.leadTimeDays === 0
+										? "Same day"
+										: `${settings.leadTimeDays} day${settings.leadTimeDays === 1 ? "" : "s"}`}
+								</dd>
+							</HairlineRow>
+							{settings.deliveryEnabled ? (
+								<HairlineRow as="div">
+									<dt className="text-cocoa-soft text-sm">Delivery</dt>
 									<dd className="text-right text-sm font-medium">
-										{settings.leadTimeDays === 0
-											? "Same day"
-											: `${settings.leadTimeDays} day${settings.leadTimeDays === 1 ? "" : "s"}`}
+										{settings.deliveryAreaText ?? "Available"}
 									</dd>
 								</HairlineRow>
-								{settings.deliveryEnabled ? (
-									<HairlineRow as="div">
-										<dt className="text-cocoa-soft text-sm">Delivery</dt>
-										<dd className="text-right text-sm font-medium">
-											{settings.deliveryAreaText ?? "Available"}
-										</dd>
-									</HairlineRow>
-								) : null}
-								<HairlineRow as="div">
-									<dt className="text-cocoa-soft text-sm">Payment</dt>
-									<dd className="text-right text-sm font-medium">Bank transfer once confirmed</dd>
-								</HairlineRow>
-							</HairlineList>
-
-							{settings.pickupInstructions ? (
-								<p className="text-cocoa-soft text-sm">{settings.pickupInstructions}</p>
 							) : null}
+							<HairlineRow as="div">
+								<dt className="text-cocoa-soft text-sm">Payment</dt>
+								<dd className="text-right text-sm font-medium">Bank transfer once confirmed</dd>
+							</HairlineRow>
+						</HairlineList>
 
-							{categories.length > 0 ? (
-								<p className="text-cocoa-soft mt-2 text-sm">
-									We bake {categories.map((c) => c.name.toLowerCase()).join(", ")}.
-								</p>
-							) : null}
-						</div>
+						{settings.pickupInstructions ? (
+							<p className="text-cocoa-soft text-sm">{settings.pickupInstructions}</p>
+						) : null}
+
+						{categories.length > 0 ? (
+							<p className="text-cocoa-soft mt-2 text-sm">
+								We bake {categories.map((c) => c.name.toLowerCase()).join(", ")}.
+							</p>
+						) : null}
 					</div>
 				</Container>
 			</Section>
