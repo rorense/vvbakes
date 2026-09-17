@@ -55,40 +55,49 @@ on conflict (slug) do nothing;
 -- the whole cupcakes category, which is what a project seeded before that
 -- migration existed needs; this is what a project seeded after it needs, since
 -- migrations run before the seed and that update has no rows to find.
+--
+-- `wants_note` is here for exactly that reason and no other. It defaults true,
+-- so four of the five could leave it out; the chiffon could not, because
+-- 20260918000001_product_note.sql turns it off with an update that runs before
+-- this insert creates the row it is looking for. Written out on all five rather
+-- than only on the one, so the column reads as a decision made per product
+-- instead of as one row with something odd about it.
 insert into products (
 	name, slug, category_id, description,
 	unit_price_cents, unit_label, qty_step, is_featured, sort_order,
-	wants_custom_flavour, wants_brief
+	wants_custom_flavour, wants_brief, wants_note
 ) values
 	(
 		'Cupcakes', 'cupcakes',
 		(select id from categories where slug = 'cupcakes'),
 		null, 300, 'each', 1, true, 1,
-		true, true
+		true, true, true
 	),
 	(
 		'Cookies', 'cookies',
 		(select id from categories where slug = 'cookies'),
 		'Each pack comes with two cookies.', 500, 'pack', 1, true, 2,
-		false, false
+		false, false, true
 	),
 	(
 		'Brochi', 'brochi',
 		(select id from categories where slug = 'cakes-and-kue'),
 		null, 500, 'slice', 1, false, 3,
-		false, false
+		false, false, true
 	),
 	(
 		'Wingko', 'wingko',
 		(select id from categories where slug = 'cakes-and-kue'),
 		null, 500, 'slice', 1, false, 4,
-		false, false
+		false, false, true
 	),
 	(
+		-- It comes how it comes. A box inviting writing on top only invites a
+		-- request she then has to turn down.
 		'Pandan Chiffon Cake', 'pandan-chiffon-cake',
 		(select id from categories where slug = 'cakes-and-kue'),
 		null, 300, 'slice', 1, true, 5,
-		false, false
+		false, false, false
 	)
 on conflict (slug) do nothing;
 

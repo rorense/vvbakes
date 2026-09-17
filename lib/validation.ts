@@ -350,6 +350,15 @@ export const productSchema = z
 		priceOnRequest: z.boolean(),
 		wantsBrief: z.boolean(),
 		wantsCustomFlavour: z.boolean(),
+		// Unlike the two above, this one is on by default, so an absent field and
+		// an unticked box have to mean different things. saveProduct sorts that
+		// out before it gets here; see the marker it reads.
+		wantsNote: z.boolean(),
+		// Null means "say what BriefFields says". 500 because the longest wording
+		// in the code today, the custom cake's example, is a little over 370 and
+		// she should be able to move it in here.
+		noteHint: optionalText(500),
+		notePlaceholder: optionalText(500),
 		tiers: z.array(priceTierSchema).max(6),
 		// Starting prices for something with no price. Submitted whether or not
 		// the product is priced on request, for the reason the price field above

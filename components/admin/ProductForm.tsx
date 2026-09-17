@@ -309,6 +309,14 @@ export function ProductForm({
 	// only worth showing her on a product this is on for. Still submitted either
 	// way; see the hidden fields.
 	const [priceOnRequest, setPriceOnRequest] = useState(product?.priceOnRequest ?? false);
+	// Controlled for the same reason the price guide is: the two wording boxes
+	// are only worth putting in front of her on a product that asks the question
+	// at all. Still submitted either way, so switching it off and on again brings
+	// back what she typed rather than an empty pair. A new product starts on,
+	// which is how every product has always behaved.
+	const [wantsNote, setWantsNote] = useState(product?.wantsNote ?? true);
+	const [noteHint, setNoteHint] = useState(product?.noteHint ?? "");
+	const [notePlaceholder, setNotePlaceholder] = useState(product?.notePlaceholder ?? "");
 	const [extraRows, setExtraRows] = useState<ExtraDraft[]>(() =>
 		toExtraDrafts(product?.extras ?? []),
 	);
@@ -539,6 +547,28 @@ export function ProductForm({
 				type="hidden"
 				name="priceGuideNote"
 				value={priceGuideNote}
+			/>
+			{/* A marker rather than an answer. saveProduct reads it to tell an
+			    unticked box apart from a form rendered before this field existed:
+			    the question is on by default, so the two would otherwise look
+			    identical and a save from a stale tab would quietly take the note
+			    box off the product. The wording below goes up whether or not the
+			    question is being asked, so switching it off and on again brings
+			    back what she wrote. */}
+			<input
+				type="hidden"
+				name="wantsNoteAsked"
+				value="on"
+			/>
+			<input
+				type="hidden"
+				name="noteHint"
+				value={noteHint}
+			/>
+			<input
+				type="hidden"
+				name="notePlaceholder"
+				value={notePlaceholder}
 			/>
 			<input
 				type="hidden"
@@ -994,7 +1024,7 @@ export function ProductForm({
 					<Switch
 						name="wantsBrief"
 						label="Ask for photos and a link"
-						description="Adds an inspiration photo upload and a link field to this product's page. Every product already asks for a note; this is for the ones a picture is the brief for."
+						description="Adds an inspiration photo upload and a link field to this product's page. It also turns the note below into the brief itself, which asks for a paragraph rather than a line — so the note stays on whatever the switch under it says."
 						defaultChecked={product?.wantsBrief ?? false}
 					/>
 					<Switch
@@ -1003,6 +1033,49 @@ export function ProductForm({
 						description="Adds a custom flavour box, and a question about the frosting, to this product's page. For the things you'll make in a flavour that isn't on the menu — not for the ones that come how they come."
 						defaultChecked={product?.wantsCustomFlavour ?? false}
 					/>
+					{/* The odd one out, and the reason it is controlled rather than
+					    defaulted: this one starts on. Every product has asked for a
+					    note since the shop opened, so the switch is here to take the
+					    question away rather than to add it. */}
+					<Switch
+						name="wantsNote"
+						label={'Ask "Anything to add?"'}
+						description="The note box at the bottom of the product page. On for almost everything — turn it off for the things that come how they come, where inviting writing on top only invites a request you have to turn down."
+						checked={wantsNote}
+						onChange={(event) => setWantsNote(event.target.checked)}
+					/>
+					{wantsNote ? (
+						<div className="grid gap-5 sm:grid-cols-2">
+							<Field
+								label="What the note box asks"
+								hint="The grey line under the label. Leave blank for the usual wording."
+								error={errors.noteHint}>
+								{(props) => (
+									<Input
+										{...props}
+										value={noteHint}
+										onChange={(event) => setNoteHint(event.target.value)}
+										placeholder="Anything I should know about this one."
+										invalid={Boolean(errors.noteHint)}
+									/>
+								)}
+							</Field>
+							<Field
+								label="The example inside it"
+								hint="The greyed-out example in the empty box. Leave blank for the usual one."
+								error={errors.notePlaceholder}>
+								{(props) => (
+									<Input
+										{...props}
+										value={notePlaceholder}
+										onChange={(event) => setNotePlaceholder(event.target.value)}
+										placeholder="e.g. no sprinkles on the pink ones"
+										invalid={Boolean(errors.notePlaceholder)}
+									/>
+								)}
+							</Field>
+						</div>
+					) : null}
 					<Field
 						label="Note when unavailable"
 						hint='Shown on the card instead of "Sold out", e.g. "Back in December".'

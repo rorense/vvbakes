@@ -80,6 +80,9 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		priceOnRequest: false,
 		wantsBrief: false,
 		wantsCustomFlavour: false,
+		wantsNote: true,
+		noteHint: null,
+		notePlaceholder: null,
 		...overrides,
 	};
 }
@@ -254,6 +257,10 @@ export const DEMO_PRODUCTS: Product[] = [
 		unitLabel: "slice",
 		isFeatured: true,
 		sortOrder: 5,
+		// The one product here that does not ask for a note, mirroring
+		// supabase/migrations/20260918000001_product_note.sql. It comes how it
+		// comes, and it is the only thing in demo mode that shows the switch off.
+		wantsNote: false,
 		allergens: ["gluten", "dairy", "egg"],
 	}),
 	// The only product here with two option groups, and the only reason it

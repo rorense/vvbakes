@@ -246,6 +246,13 @@ export function toProduct(
 		priceOnRequest: row.price_on_request ?? false,
 		wantsBrief: row.wants_brief ?? false,
 		wantsCustomFlavour: row.wants_custom_flavour ?? false,
+		// True rather than false when the column is missing, which is the one of
+		// these that inverts: the note has been asked for on every product since
+		// the shop opened, and the minutes between the deploy and the migration
+		// must not be the thing that stops asking for it.
+		wantsNote: row.wants_note ?? true,
+		noteHint: row.note_hint ?? null,
+		notePlaceholder: row.note_placeholder ?? null,
 		priceGuideNote: row.price_guide_note ?? null,
 	};
 }

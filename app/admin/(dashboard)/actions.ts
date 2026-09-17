@@ -150,6 +150,14 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		priceOnRequest: checkbox(formData, "priceOnRequest"),
 		wantsBrief: checkbox(formData, "wantsBrief"),
 		wantsCustomFlavour: checkbox(formData, "wantsCustomFlavour"),
+		// The marker is what tells an unticked box apart from a form rendered
+		// before this field existed. The question is on by default, so an absent
+		// checkbox would otherwise read as "off" and saving a product from a stale
+		// tab would quietly take its note box away. Same trick as removeVariants,
+		// for the same reason.
+		wantsNote: checkbox(formData, "wantsNoteAsked") ? checkbox(formData, "wantsNote") : true,
+		noteHint: formData.get("noteHint") ?? "",
+		notePlaceholder: formData.get("notePlaceholder") ?? "",
 		availabilityNote: formData.get("availabilityNote") ?? "",
 		allergens: formData.getAll("allergens").map(String),
 		sortOrder: formData.get("sortOrder") ?? 0,
@@ -193,6 +201,9 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		price_guide_note: input.priceGuideNote,
 		wants_brief: input.wantsBrief,
 		wants_custom_flavour: input.wantsCustomFlavour,
+		wants_note: input.wantsNote,
+		note_hint: input.noteHint,
+		note_placeholder: input.notePlaceholder,
 	};
 
 	let productId = input.id;

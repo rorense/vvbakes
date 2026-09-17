@@ -53,6 +53,12 @@ type ProductRow = {
 	wants_brief: boolean;
 	/** The product page asks for a flavour of their own, and for what the frosting should be. */
 	wants_custom_flavour: boolean;
+	/** The product page asks "Anything to add?" at all. */
+	wants_note: boolean;
+	/** The line under the note box, in her words. Null uses the wording in BriefFields. */
+	note_hint: string | null;
+	/** The example inside the empty note box, in her words. Null uses BriefFields. */
+	note_placeholder: string | null;
 	/** The line under the price guide, in her own words. Null hides it. */
 	price_guide_note: string | null;
 	created_at: string;

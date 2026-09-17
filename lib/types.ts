@@ -267,6 +267,32 @@ export interface Product {
 	 * one what flavour it should be is a question with no answer.
 	 */
 	wantsCustomFlavour: boolean;
+	/**
+	 * The product page asks "Anything to add?" at all.
+	 *
+	 * On for everything unless she turns it off. Some things come how they
+	 * come, and a box inviting "writing on top, a colour" on a chiffon cake
+	 * only invites a request she then has to turn down.
+	 *
+	 * Ignored where `wantsBrief` is on, because there the same box *is* the
+	 * brief, and turning it off would leave a custom cake with nowhere to say
+	 * what it should be.
+	 */
+	wantsNote: boolean;
+	/**
+	 * The grey line under the note box, in her words. Null uses the wording in
+	 * components/order/BriefFields.tsx, which is the right answer for almost
+	 * every product and the reason this is null rather than a copy of it.
+	 */
+	noteHint: string | null;
+	/**
+	 * The example inside the empty note box, in her words. Null falls back the
+	 * same way `noteHint` does.
+	 *
+	 * What it is for: "No chocolate ganache please" is the thing people ask
+	 * about the tiramisu and the thing nobody asks about a cookie.
+	 */
+	notePlaceholder: string | null;
 }
 
 /** A category with its products already attached, for the shop page. */

@@ -204,6 +204,31 @@ describe("seed data", () => {
 		expect(result.rows[0]!.count).toBe(0);
 	});
 
+	it("asks for a note on everything except the chiffon, which comes how it comes", async () => {
+		const result = await db.query<{ slug: string; wants_note: boolean }>(
+			"select slug, wants_note from products order by slug",
+		);
+
+		// The column defaults true and 20260918000001 turns exactly one row off,
+		// which is the whole of what that migration does to seeded data. A second
+		// product going quiet is a migration that matched more slugs than it meant
+		// to, and this is where that shows up.
+		expect(result.rows.filter((row) => !row.wants_note).map((row) => row.slug)).toEqual([
+			"pandan-chiffon-cake",
+		]);
+	});
+
+	it("leaves the note's wording to the code until she types her own", async () => {
+		// Null means "say what BriefFields says". Seeding either column would be
+		// a second copy of that wording, in a place nobody rewording it would
+		// think to look, so a later "helpful" seed has to argue with this line.
+		const result = await db.query<{ count: number }>(
+			`select count(*)::int as count from products
+			 where note_hint is not null or note_placeholder is not null`,
+		);
+		expect(result.rows[0]!.count).toBe(0);
+	});
+
 	it("is idempotent", async () => {
 		const seed = await import("node:fs/promises").then((fs) =>
 			fs.readFile("supabase/seed.sql", "utf8"),
