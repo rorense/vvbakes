@@ -16,7 +16,8 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
 				<div className="grid gap-10 sm:grid-cols-3">
 					<div className="flex flex-col gap-3">
 						<Wordmark size="lg" />
-						<p className="text-cocoa-soft text-sm">{settings.tagline}</p>
+						{/* Set in the logo itself, so it is set here too. */}
+						<p className="font-display text-cocoa-soft text-sm">{settings.tagline}</p>
 					</div>
 
 					<nav
@@ -66,7 +67,7 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
 
 				<div className="border-line flex flex-col gap-2 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
 					<p className="text-cocoa-soft text-xs">
-						Custom cakes and small-batch bakes. I confirm by email, then you pay by bank transfer.
+						Custom cakes and small-batch bakes, made fresh for you.
 					</p>
 					<div className="text-cocoa-soft flex items-center gap-4 text-xs">
 						<Link

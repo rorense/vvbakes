@@ -61,11 +61,10 @@ export default async function OrderPage({
 			<Container width="narrow">
 				<div className="mb-10 flex flex-col gap-3">
 					<SectionLabel>Your order</SectionLabel>
-					<h1 className="font-display text-4xl">Right, let&rsquo;s get this booked in</h1>
+					<h1 className="font-display text-4xl">Let&rsquo;s get baking</h1>
 					<p className="text-cocoa-soft">
-						Nothing is charged here. I&rsquo;ll check the day, come back to you with a price, and
-						send bank details then. Anything to say about a particular item goes on its own page in
-						the shop.
+						There&rsquo;s nothing to pay until we&rsquo;ve confirmed everything together. If you
+						have any special requests, just let me know!
 					</p>
 				</div>
 

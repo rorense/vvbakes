@@ -49,41 +49,69 @@ export const metadata: Metadata = {
 const CUSTOM_PROMPTS = [
 	{
 		label: "The occasion",
-		body: "Birthday, wedding, Tuesday. It changes what I'd suggest more than you'd think.",
+		body: "Tell me what you're celebrating - birthdays, weddings, gatherings or just because!",
 	},
 	{
 		label: "How many people",
-		body: "Roughly is fine. I'd rather you had leftovers than ran out.",
+		body: "I'll help you choose a size that gives everyone a good slice.",
 	},
 	{
 		label: "Flavours",
-		body: "Or what to avoid. Allergies especially. Tell me early, not on the day.",
+		body: "Let me know your favourite flavours and anything to avoid. Please include any allergies or dietary requirements when you enquire.",
 	},
 	{
-		label: "How it should look",
-		body: "Colours, writing on top, a photo you've saved. Screenshots are genuinely useful.",
+		label: "How you'd like it to look",
+		body: "Share your ideas, colours and inspiration. Screenshots and photos are always welcome!",
 	},
 	{
 		label: "When you need it",
-		body: "Pick a date from the calendar below. The further ahead, the more I can do.",
+		body: "Choose your preferred date from the calendar below. The more notice you give, the more options we'll have to make your cake just right.",
 	},
 ];
+
+/**
+ * Words in a category name that keep their capital inside a sentence. The names
+ * are typed in admin for a chip, so they arrive titled and want lower case
+ * mid-prose, but "Indonesian" is a country rather than a style choice, and
+ * stays capitalised wherever it lands. Add to this when a category is named
+ * after a place.
+ */
+const CATEGORY_PROPER_NOUNS = ["Indonesian"];
+
+/**
+ * The categories as one readable phrase: lower case apart from the names above,
+ * comma-separated with an ampersand before the last.
+ */
+function listCategories(names: string[]): string {
+	const phrased = names.map((name) =>
+		name
+			.split(" ")
+			.map((word) => (CATEGORY_PROPER_NOUNS.includes(word) ? word : word.toLowerCase()))
+			.join(" "),
+	);
+
+	if (phrased.length < 2) {
+		return phrased.join("");
+	}
+
+	return `${phrased.slice(0, -1).join(", ")} & ${phrased[phrased.length - 1]}`;
+}
 
 const STEPS = [
 	{
 		n: "01",
-		title: "Tell me about it",
-		body: "What you're celebrating, roughly how many people, and any flavour or colour you're set on. Send a photo if you've seen something you like.",
+		title: "Tell me what you're after",
+		body: "Choose from cakes, cupcakes, cookies, brownies and more. Let me know what you'd like, how many you need, and any flavours or special requests.",
 	},
 	{
 		n: "02",
-		title: "Pick a day",
-		body: "Only the days I'm actually baking turn up, so nothing gets promised twice.",
+		title: "Choose your date",
+		body: "Pick a date that works for you from the available dates below. I'll make sure your order is freshly baked and ready for you on the day. If the date is booked out, send a request through anyway and note it down in your request, and I'll see if I can fit it in for your preferred date (no guarantees though!).",
 	},
 	{
 		n: "03",
-		title: "I'll come back to you",
-		body: "An email with the price, where to send it and a reference. Nothing to pay before that.",
+		title: "I'll be in touch",
+		body: "Once I've received your request, I'll get back to you with your order details, pricing and payment information. Nothing to pay until your order is confirmed.",
 	},
 ];
 
@@ -367,7 +395,7 @@ export default async function HomePage() {
 				<Container width="narrow">
 					<div className="mb-8 flex flex-col gap-2">
 						<SectionLabel>How it works</SectionLabel>
-						<h2 className="font-display text-3xl">Three steps, none of them hard</h2>
+						<h2 className="font-display text-3xl">From choosing your treats to enjoying them</h2>
 					</div>
 
 					<HairlineList
@@ -405,8 +433,8 @@ export default async function HomePage() {
 						<h2 className="font-display text-3xl">When the oven&rsquo;s free</h2>
 						{availability.ordersOpen ? (
 							<p className="text-cocoa-soft max-w-xl">
-								Everything is baked for the day you collect it, which is lovely for you and means
-								there are only so many of me to go round.
+								Everything is baked fresh for the day you collect it. I take on a limited number of
+								orders each day, so booking ahead helps make sure I can fit you in.
 							</p>
 						) : (
 							<p className="text-cocoa-soft max-w-xl">
@@ -419,6 +447,7 @@ export default async function HomePage() {
 						<PublicCalendar
 							months={calendarMonths}
 							leadTimeDays={settings.leadTimeDays}
+							bookingWindowDays={settings.bookingWindowDays}
 						/>
 					) : null}
 				</Container>
@@ -452,6 +481,11 @@ export default async function HomePage() {
 									{settings.leadTimeDays === 0
 										? "Same day"
 										: `${settings.leadTimeDays} day${settings.leadTimeDays === 1 ? "" : "s"}`}
+									{/* The lead time is the rule; the fortnight is advice, and a custom
+									    cake is the only thing it applies to. */}
+									<span className="text-cocoa-soft block text-xs font-normal">
+										Ideally 2-3 weeks for custom cakes
+									</span>
 								</dd>
 							</HairlineRow>
 							{settings.deliveryEnabled ? (
@@ -474,7 +508,7 @@ export default async function HomePage() {
 
 						{categories.length > 0 ? (
 							<p className="text-cocoa-soft mt-2 text-sm">
-								We bake {categories.map((c) => c.name.toLowerCase()).join(", ")}.
+								We bake {listCategories(categories.map((c) => c.name))}.
 							</p>
 						) : null}
 					</div>

@@ -4,18 +4,57 @@ import { formatDateLong } from "@/lib/dates";
 import type { PublicCalendarMonth } from "@/lib/types";
 import { CALENDAR_COLUMNS, CalendarLegend, DAY_STATE } from "@/components/ui/calendar-states";
 
+/**
+ * The booking window as she says it rather than as it is stored: "2 months"
+ * instead of "60 days", "4 weeks" instead of "28", and plain days when neither
+ * divides evenly.
+ */
+function describeBookingWindow(days: number): string | null {
+	if (days <= 0) {
+		return null;
+	}
+
+	if (days % 30 === 0) {
+		const months = days / 30;
+		return `${months} month${months === 1 ? "" : "s"}`;
+	}
+
+	if (days % 7 === 0) {
+		const weeks = days / 7;
+		return `${weeks} week${weeks === 1 ? "" : "s"}`;
+	}
+
+	return `${days} day${days === 1 ? "" : "s"}`;
+}
+
 export function PublicCalendar({
 	months,
 	leadTimeDays,
+	bookingWindowDays,
 	className,
 }: {
 	months: PublicCalendarMonth[];
 	leadTimeDays: number;
+	bookingWindowDays: number;
 	className?: string;
 }) {
 	const hasAnyAvailable = months.some((month) =>
 		month.days.some((day) => day.inMonth && day.state === "available"),
 	);
+
+	// Both halves of this are settings, so the sentence is assembled rather than
+	// written: either can be changed in /admin/settings and the page has to go on
+	// telling the truth.
+	const notice =
+		leadTimeDays > 0 ? `${leadTimeDays} day${leadTimeDays === 1 ? "" : "s"} notice` : null;
+	const bookingWindow = describeBookingWindow(bookingWindowDays);
+	const noticeLine = notice
+		? bookingWindow
+			? ` We need ${notice} and open for bookings ${bookingWindow} in advance.`
+			: ` We need ${notice}.`
+		: bookingWindow
+			? ` Bookings open ${bookingWindow} in advance.`
+			: "";
 
 	return (
 		<div className={cn("flex flex-col gap-8", className)}>
@@ -104,10 +143,8 @@ export function PublicCalendar({
 
 				{hasAnyAvailable ? (
 					<p className="text-cocoa-soft text-xs">
-						Pick a green day to start an order.
-						{leadTimeDays > 0
-							? ` We need ${leadTimeDays} day${leadTimeDays === 1 ? "" : "s"} notice, so the next day or two are never open.`
-							: ""}
+						Pick an available green day for your order.
+						{noticeLine}
 					</p>
 				) : (
 					<p className="text-cocoa-soft text-xs">

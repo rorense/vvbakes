@@ -356,11 +356,22 @@ export function OrderForm({
 		return (
 			<div className="border-line bg-paper-deep flex flex-col items-start gap-4 rounded-md border p-8">
 				<h2 className="font-display text-2xl">Nothing in your order yet</h2>
-				<p className="text-cocoa-soft text-sm">
-					{droppedCount > 0
-						? "What you had saved is no longer available. Have another look and I'll see what I can do."
-						: "Pick something from the shop and it'll show up here. A custom cake starts there too — tell me about it on its page and it comes through with everything else."}
-				</p>
+				{droppedCount > 0 ? (
+					<p className="text-cocoa-soft text-sm">
+						What you had saved is no longer available. Have another look and I&rsquo;ll see what I
+						can do.
+					</p>
+				) : (
+					<div className="text-cocoa-soft flex flex-col gap-3 text-sm">
+						<p>
+							Your order is waiting for something sweet! Have a browse through the shop and add what
+							you&rsquo;re wanting :)
+						</p>
+						<p>
+							Planning a custom cake? You can start there too, just tell me what you have in mind.
+						</p>
+					</div>
+				)}
 				<ButtonLink href="/shop">Have a look at the menu</ButtonLink>
 			</div>
 		);

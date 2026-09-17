@@ -12,7 +12,7 @@ export const contentType = OG_CONTENT_TYPE;
 export default function Image() {
 	return shareCard({
 		eyebrow: "Order",
-		title: "Right, let’s get this booked in",
+		title: "Let’s get baking",
 		body: "Pick a day, tell me what you’re after, and I’ll confirm by email. Nothing is charged here.",
 	});
 }

@@ -7,7 +7,7 @@ export const contentType = OG_CONTENT_TYPE;
 export default function Image() {
 	return shareCard({
 		eyebrow: "Shop",
-		title: "The ready-made half",
+		title: "Choose your favourites",
 		body: "Cupcakes, cookies and Indonesian cakes, baked for the day you collect them.",
 	});
 }

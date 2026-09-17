@@ -47,28 +47,29 @@ export default async function ShopPage() {
 					    column: the client wants it across the page, not broken to half of it. */}
 					<div className="flex flex-col gap-4">
 						<SectionLabel>Shop</SectionLabel>
-						<h1 className="font-display text-4xl">The ready-made half</h1>
+						<h1 className="font-display text-4xl">Choose your favourites</h1>
 						<p className="text-cocoa-soft">
-							A selection of our favourite bakes, freshly made for your chosen date. Simply pick
-							your treats, choose your flavours, and leave the baking to us.
+							A selection of our favourite bakes, freshly made for your chosen date. Choose your
+							treats, pick your flavours, and I&rsquo;ll take care of the rest.
 						</p>
 						{/* This used to send people to a panel at the bottom of the order
 						    form. The custom cake is a product now, so it sends them to it. */}
 						<p className="text-cocoa-soft">
-							Looking for something a little more personal? A{" "}
+							Looking for something a little more personal? Our{" "}
 							<Link
 								href="/shop/custom-cake"
 								className="underline underline-offset-4">
-								custom cake
+								custom cakes
 							</Link>{" "}
-							is made to your brief — tell me about it on its page, photos and all, and I&rsquo;ll
-							come back to you with a price.
+							can be made to suit your celebration. Tell me what you have in mind on the custom cake
+							page - photos and inspiration are always welcome, and I&rsquo;ll get back to you with
+							a price.
 						</p>
 						{/* Still the admin's lead time rather than a hardcoded 7, so the promise
 						    on the page moves when the setting does. */}
 						{settings.leadTimeDays > 0 ? (
 							<p className="text-cocoa-soft">
-								{`Please allow at least ${settings.leadTimeDays} day${settings.leadTimeDays === 1 ? "" : "s"} notice for all orders.`}
+								{`Please allow at least ${settings.leadTimeDays} day${settings.leadTimeDays === 1 ? "" : "s"} notice for regular orders. For custom cakes, 2-3 weeks notice is ideal so I have plenty of time to bring your ideas to life.`}
 							</p>
 						) : null}
 					</div>
