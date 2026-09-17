@@ -35,11 +35,18 @@ import { isHttpUrl } from "@/lib/validation";
  * everywhere.
  */
 
-const PAPER = "#FFF8EA";
-const PAPER_DEEP = "#FEF2C5";
+/*
+ * The same paper, deeper band and hairline as app/globals.css, spelled out
+ * because no email client will read a stylesheet. LINE is what the site draws
+ * as a translucent cocoa rule; that composites against the paper in a browser
+ * and cannot here, so the result is baked in and has to be re-derived whenever
+ * PAPER moves.
+ */
+const PAPER = "#FFFBD9";
+const PAPER_DEEP = "#FEF4B4";
 const COCOA = "#442910";
 const COCOA_SOFT = "#6E4B32";
-const LINE = "#E3D5C4";
+const LINE = "#E1D9B9";
 const ROSE = "#F7CCD5";
 
 const SERIF = 'Georgia, "Times New Roman", Times, serif';

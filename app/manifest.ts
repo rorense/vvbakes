@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
 		description: "Small-batch cupcakes, cookies and Indonesian-inspired cakes, baked to order.",
 		start_url: "/",
 		display: "standalone",
-		background_color: "#fff8ea",
-		theme_color: "#fff8ea",
+		background_color: "#fffbd9",
+		theme_color: "#fffbd9",
 		icons: [
 			{ src: "/icon-192.png", sizes: "192x192", type: "image/png" },
 			{ src: "/icon-512.png", sizes: "512x512", type: "image/png" },

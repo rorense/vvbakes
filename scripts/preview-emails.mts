@@ -69,7 +69,7 @@ for (const { suffix, ctx } of scenarios)
 await writeFile(
 	join(outDir, "index.html"),
 	`<!doctype html><meta charset="utf-8"><title>vvbakes email previews</title>
-<body style="font-family:system-ui;background:#FFF8EA;color:#442910;padding:2rem">
+<body style="font-family:system-ui;background:#FFFBD9;color:#442910;padding:2rem">
 <h1>Email previews</h1><ul>${index.join("")}</ul></body>`,
 	"utf8",
 );

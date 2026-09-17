@@ -30,7 +30,7 @@ export const OG_CONTENT_TYPE = "image/png";
  * a stylesheet — it takes inline styles only — so the CSS variables in the theme
  * block are not reachable from here.
  */
-const PAPER = "#fff8ea";
+const PAPER = "#fffbd9";
 const BLUSH = "#fbe4e9";
 const ROSE = "#f7ccd5";
 const COCOA = "#442910";

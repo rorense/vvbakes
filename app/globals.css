@@ -8,6 +8,14 @@
    (#442910), and the cake layers (mint, cream, peach). The old site used a
    slightly different pink and brown; those are retired in favour of these.
 
+   The paper the whole site is printed on is a yellow of its own, a few steps
+   lighter than that disc. The client asked for the ground to read as yellow
+   rather than as the warm cream it was, and specifically for a yellow lighter
+   than the one on her logo. So `--color-butter` stays exactly the disc, which
+   is what keeps the badge's arch and the reviews band agreeing with the badge
+   itself, and `--color-paper-deep` moved with the paper so the marquee, the
+   footer and every hover keep the same step down from it.
+
    There are no shadows anywhere in this design. Depth comes from paper tones
    and hairlines, which is what makes it read as a printed card rather than a
    stack of floating web cards.
@@ -19,8 +27,8 @@
 	--color-transparent: transparent;
 	--color-current: currentColor;
 
-	--color-paper: #fff8ea;
-	--color-paper-deep: #fef2c5;
+	--color-paper: #fffbd9;
+	--color-paper-deep: #fef4b4;
 	--color-butter: #fffdc6;
 	--color-blush: #fbe4e9;
 	--color-rose: #f7ccd5;
@@ -253,17 +261,23 @@
 	 * The pair was 300 and 210. The client asked for the scatter to be sparser
 	 * still after the tile had already been thinned to nine, and past that point
 	 * deleting more starts to make the repeat catchable, so the tile is spread
-	 * instead. Scaling it scales its contents too, so the hearts are half again as
-	 * big as well as half again as far apart; that was visible in what she
-	 * approved.
+	 * instead. Scaling it scales its contents too, so that spread also made the
+	 * hearts half again as big — which she then asked to take back, having only
+	 * ever wanted them further apart. The two sizes stay where they are and the
+	 * marks inside the tile are drawn smaller instead, in
+	 * public/patterns/hearts.svg, because the spacing is the half of it she
+	 * wanted to keep.
 	 *
 	 * It is a mask rather than a picture, so colour is the caller's to choose:
 	 * `currentColor` fills it, and the band sets the hue with a `text-*` utility
 	 * and the strength with an `opacity-*` one. Only the two paper bands wear it
-	 * now, both in peach, but the indirection is what let the shop's five coloured
-	 * grounds carry a cocoa tint while they had it, and it is what any future band
-	 * on a different ground would need. Prefixed as well as not, for the same
-	 * Safari versions `.torn-edge` above is prefixed for.
+	 * now, both in rose, and at far more of it than the peach they briefly wore:
+	 * rose is only a little bluer than the yellow ground, so a faint wash of it
+	 * blends back to tan, and pink is the whole of what the client asked for. The
+	 * indirection is still what let the shop's five coloured grounds carry a cocoa
+	 * tint while they had it, and what any future band on a different ground would
+	 * need. Prefixed as well as not, for the same Safari versions `.torn-edge`
+	 * above is prefixed for.
 	 */
 	.heart-field {
 		background-color: currentColor;
