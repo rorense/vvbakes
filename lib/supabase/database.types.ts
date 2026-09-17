@@ -254,6 +254,27 @@ type ReviewRow = {
 	updated_at: string;
 };
 
+type InstagramPostRow = {
+	id: string;
+	permalink: string;
+	caption: string | null;
+	media_type: string;
+	image_path: string;
+	posted_at: string;
+	created_at: string;
+	updated_at: string;
+};
+
+type InstagramSyncRow = {
+	id: number;
+	access_token: string | null;
+	token_expires_at: string | null;
+	refreshed_at: string | null;
+	synced_at: string | null;
+	last_error: string | null;
+	updated_at: string;
+};
+
 type ExtraRow = {
 	id: string;
 	product_id: string;
@@ -308,6 +329,21 @@ export type Database = {
 				Row: ReviewRow;
 				Insert: Writable<ReviewRow, "author" | "body">;
 				Update: Partial<ReviewRow>;
+				Relationships: [];
+			};
+			instagram_posts: {
+				Row: InstagramPostRow;
+				Insert: Writable<
+					InstagramPostRow,
+					"id" | "permalink" | "media_type" | "image_path" | "posted_at"
+				>;
+				Update: Partial<InstagramPostRow>;
+				Relationships: [];
+			};
+			instagram_sync: {
+				Row: InstagramSyncRow;
+				Insert: Writable<InstagramSyncRow, "id">;
+				Update: Partial<InstagramSyncRow>;
 				Relationships: [];
 			};
 			product_extras: {

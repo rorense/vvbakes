@@ -24,6 +24,7 @@ import type {
 	AvailabilityRule,
 	Category,
 	Faq,
+	InstagramPost,
 	Product,
 	Review,
 	SiteSettings,
@@ -438,6 +439,17 @@ export const DEMO_FAQS: Faq[] = [
  * band is hidden until the owner has a real one.
  */
 export const DEMO_REVIEWS: Review[] = [];
+
+/**
+ * Empty for a duller reason than the reviews above.
+ *
+ * A demo post would need a demo picture, and the pictures for this feed live in
+ * a Supabase bucket that a fresh clone has not got. Pointing these at anything
+ * else would be inventing a second image pipeline to serve a fixture. The home
+ * page drops the band when the feed is empty, which is also what a real site
+ * does before the first sync has run, so demo mode shows the truthful thing.
+ */
+export const DEMO_INSTAGRAM_POSTS: InstagramPost[] = [];
 
 /**
  * Stand-in extras, so a fresh clone shows the picker rather than a product page

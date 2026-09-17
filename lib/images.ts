@@ -1,4 +1,8 @@
-import { INSPIRATION_IMAGE_BUCKET, PRODUCT_IMAGE_BUCKET } from "./constants";
+import {
+	INSPIRATION_IMAGE_BUCKET,
+	INSTAGRAM_IMAGE_BUCKET,
+	PRODUCT_IMAGE_BUCKET,
+} from "./constants";
 import type { Accent, Product, ProductOption, ProductVariant } from "./types";
 
 /**
@@ -29,6 +33,30 @@ export function productImageUrl(path: string | null): string | null {
  */
 export function inspirationImageUrl(path: string | null): string | null {
 	return storageUrl(INSPIRATION_IMAGE_BUCKET, path);
+}
+
+/**
+ * Our copy of one Instagram picture.
+ *
+ * Public, like the others, because the feed is on the home page and next/image
+ * cannot follow a signed URL. Nothing is hidden here anyway: every one of these
+ * is already a public post on Instagram.
+ */
+export function instagramImageUrl(path: string | null): string | null {
+	return storageUrl(INSTAGRAM_IMAGE_BUCKET, path);
+}
+
+/**
+ * Where one Instagram picture lands.
+ *
+ * Named after the media id rather than randomly, so re-syncing a post
+ * overwrites its own file instead of leaving the old one orphaned in the
+ * bucket. The extension follows what Instagram actually served, since their
+ * CDN returns JPEG for photos and for video thumbnails alike but is not
+ * promising to forever.
+ */
+export function instagramImagePath(mediaId: string, extension = "jpg"): string {
+	return `${mediaId.replace(/[^A-Za-z0-9_-]/g, "")}.${extension}`;
 }
 
 /** A stable object path for a newly uploaded image. */

@@ -292,6 +292,27 @@ export interface Review {
 	sortOrder: number;
 }
 
+/**
+ * One post from the Instagram feed, as the site stores it.
+ *
+ * Nothing here points at Instagram's CDN. `imagePath` is an object in our own
+ * bucket, copied down by the cron, because the URLs the API returns stop
+ * resolving after a few days. The only link back to Instagram is `permalink`,
+ * which is the post's own page and is stable.
+ */
+export interface InstagramPost {
+	/** Instagram's media id, kept as the primary key so a sync is an upsert. */
+	id: string;
+	permalink: string;
+	caption: string | null;
+	/** "IMAGE", "VIDEO", "CAROUSEL_ALBUM", or whatever Instagram adds next. */
+	mediaType: string;
+	/** Object path in the instagram bucket, not a URL. See lib/images.ts. */
+	imagePath: string;
+	/** When it was posted. The feed is ordered by this, newest first. */
+	postedAt: string;
+}
+
 export interface SiteSettings {
 	businessName: string;
 	tagline: string;

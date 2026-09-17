@@ -24,6 +24,19 @@ export const PRODUCT_IMAGE_BUCKET = "product-images";
 /** Customer inspiration photos. Public read, written only by the server. */
 export const INSPIRATION_IMAGE_BUCKET = "order-inspiration";
 
+/** Our copy of the Instagram pictures. Public read, written only by the cron. */
+export const INSTAGRAM_IMAGE_BUCKET = "instagram";
+
+/**
+ * How many posts the feed keeps.
+ *
+ * Twelve is three rows of four on a desktop and six rows of two on a phone,
+ * which is enough to read as "she posts regularly" and few enough that the
+ * section does not become the page. Anything older is pruned on the next sync,
+ * pictures included, so the bucket does not grow without end.
+ */
+export const INSTAGRAM_FEED_LIMIT = 12;
+
 /**
  * How many inspiration photos one line of an order may carry.
  *

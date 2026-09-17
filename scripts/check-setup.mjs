@@ -418,6 +418,21 @@ if (inspirationBucket) {
 	);
 }
 
+const instagramBucket = buckets.data?.find((bucket) => bucket.id === "instagram");
+report(
+	Boolean(instagramBucket),
+	"The Instagram bucket exists",
+	"Run `npx supabase db push`, the Instagram storage migration creates it.",
+);
+if (instagramBucket) {
+	report(
+		instagramBucket.public === true,
+		"The Instagram bucket is public",
+		"The feed is on the home page and next/image cannot follow a signed URL.\n" +
+			"        Every picture in it is already a public Instagram post.",
+	);
+}
+
 // --- email ------------------------------------------------------------------
 
 console.log();
@@ -466,7 +481,16 @@ report(
 report(
 	process.env.CRON_SECRET ? true : "warn",
 	"CRON_SECRET is set",
-	"Only needed in production, where it protects the daily keep-alive.",
+	"Only needed in production, where it protects the two daily cron jobs.",
+);
+
+// Only a seed: once a sync has run, the live token lives in instagram_sync and
+// this variable is ignored. See README, "The Instagram feed".
+report(
+	process.env.INSTAGRAM_ACCESS_TOKEN ? true : "warn",
+	"INSTAGRAM_ACCESS_TOKEN is set",
+	"Optional. Without it the home page simply has no Instagram band. Needed\n" +
+		"        only for the first sync; after that the token lives in the database.",
 );
 
 // --- summary ----------------------------------------------------------------

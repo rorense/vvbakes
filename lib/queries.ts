@@ -1,9 +1,11 @@
 import "server-only";
 
 import { cache } from "react";
+import { INSTAGRAM_FEED_LIMIT } from "./constants";
 import {
 	DEMO_CATEGORIES,
 	DEMO_FAQS,
+	DEMO_INSTAGRAM_POSTS,
 	DEMO_OVERRIDES,
 	DEMO_PRODUCTS,
 	DEMO_REVIEWS,
@@ -16,6 +18,7 @@ import {
 	PRODUCT_SELECT,
 	toCategory,
 	toFaq,
+	toInstagramPost,
 	toOverride,
 	toProduct,
 	toReview,
@@ -30,6 +33,7 @@ import type {
 	Category,
 	CategoryWithProducts,
 	Faq,
+	InstagramPost,
 	Product,
 	Review,
 	SiteSettings,
@@ -147,6 +151,32 @@ export const getReviews = cache(async (): Promise<Review[]> => {
 		return [];
 	}
 	return (data ?? []).map(toReview);
+});
+
+/**
+ * The Instagram feed, as the cron last left it.
+ *
+ * A plain table read like any other. Nothing here talks to Instagram: the daily
+ * job in lib/instagram.ts does that, copies the pictures into our own bucket,
+ * and writes these rows. So the feed renders at the same speed as the shop,
+ * keeps working while Instagram is down, and costs a visitor no request to
+ * Meta. See supabase/migrations/20260917000004_instagram.sql.
+ */
+export const getInstagramPosts = cache(async (): Promise<InstagramPost[]> => {
+	if (isDemoMode()) return DEMO_INSTAGRAM_POSTS;
+
+	const supabase = createPublicClient();
+	const { data, error } = await supabase
+		.from("instagram_posts")
+		.select("*")
+		.order("posted_at", { ascending: false })
+		.limit(INSTAGRAM_FEED_LIMIT);
+
+	if (error) {
+		console.error("[vvbakes] could not read the Instagram feed", error);
+		return [];
+	}
+	return (data ?? []).map(toInstagramPost);
 });
 
 // Extras have no query of their own: they belong to a product and ride in on

@@ -33,6 +33,8 @@ export const TABLES = [
 	"product_extras",
 	"faqs",
 	"reviews",
+	"instagram_posts",
+	"instagram_sync",
 	"site_settings",
 	"site_settings_private",
 	"availability_rules",

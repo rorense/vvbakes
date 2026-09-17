@@ -13,6 +13,7 @@ import {
 	type Category,
 	type Extra,
 	type Faq,
+	type InstagramPost,
 	type Order,
 	type OrderEvent,
 	type OrderItem,
@@ -33,6 +34,7 @@ type Tables = Database["public"]["Tables"];
 type CategoryRow = Tables["categories"]["Row"];
 type FaqRow = Tables["faqs"]["Row"];
 type ReviewRow = Tables["reviews"]["Row"];
+type InstagramPostRow = Tables["instagram_posts"]["Row"];
 type ExtraRow = Tables["product_extras"]["Row"];
 type ProductRow = Tables["products"]["Row"];
 type TierRow = Tables["product_price_tiers"]["Row"];
@@ -87,6 +89,17 @@ export function toReview(row: ReviewRow): Review {
 		body: row.body,
 		detail: row.detail,
 		sortOrder: row.sort_order,
+	};
+}
+
+export function toInstagramPost(row: InstagramPostRow): InstagramPost {
+	return {
+		id: row.id,
+		permalink: row.permalink,
+		caption: row.caption,
+		mediaType: row.media_type,
+		imagePath: row.image_path,
+		postedAt: row.posted_at,
 	};
 }
 

@@ -172,9 +172,18 @@ to `p=quarantine` once those look clean.
    redeploy. Until you do, the sitemap and the links in emails point at
    whatever Vercel called the deployment.
 
-`vercel.json` already schedules a daily request to `/api/cron/keepalive`. A free
-Supabase project pauses after seven days without activity, which would take the
-shop offline without warning; one read a day prevents that.
+`vercel.json` already schedules two daily requests, both authorised with
+`CRON_SECRET`:
+
+- `/api/cron/keepalive` at 03:00. A free Supabase project pauses after seven
+  days without activity, which would take the shop offline without warning; one
+  read a day prevents that.
+- `/api/cron/instagram` at 04:00. Pulls the latest posts into our own tables and
+  bucket — see "The Instagram feed" below. Harmless and cheap if no token is
+  set; it reports `skipped` and does nothing.
+
+Two is the ceiling on Vercel's Hobby plan, so a third job means folding it into
+one of these or moving up a plan.
 
 Visitor numbers come from Vercel Web Analytics and real-world load times from
 Speed Insights, each switched on per project from its own tab in the
@@ -574,6 +583,84 @@ is a sentence attributed to somebody who never said it, on a public page under
 a real business's name. The band is hidden while the table is empty, so the site
 is complete without reviews and grows the section the day a real one is added.
 Use the name the customer would be happy to see published.
+
+### The Instagram feed
+
+The band under "Kind words" is the last twelve Instagram posts. It is a **copy**,
+not an embed: a nightly job downloads the pictures into a Supabase bucket and
+writes a row each, and the page reads those rows like any other table.
+
+That shape is not an optimisation, it is the only one that works:
+
+- The `media_url` the API returns is a signed CDN link that stops resolving
+  after a few days. It cannot be stored and handed to a browser later.
+- The access token expires every sixty days and has to be traded for a new one,
+  which is a write. A page render is the wrong place to do a write, and an
+  environment variable cannot be rewritten without a redeploy.
+- An embed script or an iframe would tell Meta who reads the site. Nothing else
+  on these pages does that, so this does not either.
+
+There is no widget, no third-party script, and no cost.
+
+#### Turning it on
+
+1. The account has to be **Professional** (Business or Creator). Free, and it is
+   a toggle in the Instagram app under Settings → Account type.
+2. At [developers.facebook.com](https://developers.facebook.com), create an app
+   and add the **Instagram API with Instagram Login** product. Do *not* reach
+   for the Basic Display API: Meta shut it down on 4 December 2024, and most of
+   the tutorials still online are written against it.
+3. Add the owner's account as a user with a role on the app. While the app stays
+   in Development mode that is enough — App Review is only needed to read *other
+   people's* accounts, which this never does.
+4. Generate a token and exchange it for a **long-lived** one.
+5. Put it in `INSTAGRAM_ACCESS_TOKEN`, locally and in the Vercel project.
+6. Trigger a first sync rather than waiting for 04:00:
+
+   ```
+   curl -H "Authorization: Bearer $CRON_SECRET" https://vvbakes.co.nz/api/cron/instagram
+   ```
+
+   The first run downloads twelve pictures and is the slow one. After that it is
+   usually one. The response says what happened: `stored`, `downloaded`,
+   `pruned`, `refreshed`, and `problems` if anything went wrong.
+
+`INSTAGRAM_ACCESS_TOKEN` is only a **seed**. The first run copies it into
+`instagram_sync` and every run after that refreshes it there, so once the site
+has synced once, editing the environment variable does nothing. To replace a
+token that has genuinely died, clear the stored one first:
+
+```sql
+update instagram_sync set access_token = null, token_expires_at = null where id = 1;
+```
+
+#### When it breaks
+
+It breaks quietly. A dead token does not empty the page — it leaves last
+month's posts sitting there looking fine. So the job writes what went wrong to
+`instagram_sync.last_error` and when it last succeeded to `synced_at`:
+
+```sql
+select synced_at, token_expires_at, refreshed_at, last_error from instagram_sync;
+```
+
+`access_token` is deliberately not in that list. The table has row level
+security on and **no policies at all**, so only the service role can read it;
+there is no path from a signed-in browser session to the credential.
+
+A refresh needs a token at least 24 hours old and not yet expired. The job asks
+for a new one once there are fewer than ten days left, which lands around day
+fifty and leaves a week of nightly retries. Miss that window entirely — the site
+offline for two months, say — and the token is gone for good; generate a new one
+and clear the stored one as above.
+
+Two other things worth knowing:
+
+- Posts are pruned to the latest twelve, pictures and all, so the bucket does
+  not grow forever. Deleting a post on Instagram removes it here on the next run.
+- The API version is pinned in `lib/instagram.ts` (`API_VERSION`). Meta supports
+  each version about two years; bump it deliberately after reading the changelog
+  rather than waiting for calls to start failing.
 
 ---
 
