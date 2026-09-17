@@ -38,11 +38,18 @@ export async function GET(request: Request) {
 
 	const result = await syncInstagram();
 
-	// Only when something actually changed. The home page is on a five minute
-	// timer anyway; this is so a new post is up within a minute of the sync
-	// rather than waiting for the timer to come round.
+	// Only when something actually changed. The home page is on a timer anyway;
+	// this is so a new post is up within a minute of the sync rather than
+	// waiting for the timer to come round.
+	//
+	// No "page" argument. That form purges by a tag built from the route as the
+	// app directory keys it, which for this home page is `/(site)/page` — so
+	// `revalidatePath("/", "page")` asked for a tag nothing carries and did
+	// nothing at all. The plain form matches the URL that was asked for, which
+	// has no route group in it. See the note on `revalidateCatalogue` in
+	// app/admin/(dashboard)/actions.ts, where the same mistake was made.
 	if (result.stored || result.pruned) {
-		revalidatePath("/", "page");
+		revalidatePath("/");
 	}
 
 	if (!result.ok) {
