@@ -92,7 +92,7 @@ export function BriefFields({
 			{product.wantsCustomFlavour ? (
 				<fieldset className="flex flex-col gap-4">
 					<legend className="text-sm font-medium">
-						A flavour of your own
+						Custom cake flavour
 						<span className="text-cocoa-soft text-xs font-normal"> (optional)</span>
 					</legend>
 					<div className="flex flex-col gap-2">
@@ -107,7 +107,7 @@ export function BriefFields({
 							autoComplete="off"
 							value={value.customFlavour}
 							onChange={(event) => patch({ customFlavour: event.target.value })}
-							placeholder="e.g. pandan, salted caramel, Biscoff"
+							placeholder="e.g. salted caramel, biscoff"
 						/>
 					</div>
 
@@ -129,6 +129,18 @@ export function BriefFields({
 						}
 					/>
 
+					{/* The three things she otherwise explains in DMs: a flavour brings its
+					    colour with it, a colour asked for on its own comes out vanilla, and
+					    NZ butter is yellow. All true whichever way the box above is set, so
+					    the note sits under the box rather than inside either branch. */}
+					<p className="text-cocoa-soft text-xs">
+						Please note that flavours will colour the frosting e.g. matcha flavoured frosting will
+						be green. If coloured frosting for decorating the cake is required, then the flavour
+						needs to match the colour, or it will be vanilla flavoured. Due to the yellow colour of
+						NZ butter, it is difficult to achieve a white frosting naturally so please bear in mind
+						plain frosting will have a yellow tinge.
+					</p>
+
 					{value.frostingMatchesFlavour ? null : (
 						<div className="flex flex-col gap-2">
 							<label
@@ -142,7 +154,7 @@ export function BriefFields({
 								autoComplete="off"
 								value={value.frosting}
 								onChange={(event) => patch({ frosting: event.target.value })}
-								placeholder="e.g. pale pink, vanilla buttercream"
+								placeholder="e.g. vanilla buttercream coloured pastel pink"
 							/>
 						</div>
 					)}
@@ -160,18 +172,18 @@ export function BriefFields({
 				</label>
 				<p className="text-cocoa-soft text-xs">
 					{product.wantsBrief
-						? "The occasion, any specific flavour, colour, design requests. The more details you provide, the better I can prepare, price and bring your vision to life."
+						? "The occasion, any specific flavour, colour, design requests. The more details you provide, the better I can prepare, price and bring your vision to life. Please note that I don’t do writing on cakes - please request a personalised cake topper if you want something specific to be written (3 weeks notice required). Thanks!"
 						: "Writing on top, a colour, something to leave out. Anything I should know about this one."}
 				</p>
 				<Textarea
 					id={noteId}
-					rows={product.wantsBrief ? 5 : 2}
+					rows={product.wantsBrief ? 7 : 2}
 					maxLength={MAX_BRIEF_NOTE}
 					value={value.note}
 					onChange={(event) => patch({ note: event.target.value })}
 					placeholder={
 						product.wantsBrief
-							? "e.g. Cake is for a 50th birthday party, is it possible to request a custom “happy 50th birthday topper”, make the cake less sweet."
+							? "e.g. The cake is for my mum’s 50th birthday, the party theme is pink and white so we’d like the frosting colour of the cake to match. The cake needs to feed 20 people. I’d also like to request a custom cake topper to say: “Happy 50th Mum” in pink. Inspiration picture has been attached, something similar would be good but doesn’t need to match 100%. No dietary requirements."
 							: "e.g. no sprinkles on the pink ones"
 					}
 				/>
