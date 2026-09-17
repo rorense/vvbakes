@@ -72,7 +72,7 @@ export default async function NotFound() {
 					size="loose"
 					className="relative overflow-hidden">
 					<div
-						className="heart-field text-rose-deep pointer-events-none absolute inset-0 opacity-20"
+						className="heart-field text-peach pointer-events-none absolute inset-0 opacity-35"
 						aria-hidden="true"
 					/>
 					<Container className="relative">

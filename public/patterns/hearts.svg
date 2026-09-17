@@ -4,15 +4,20 @@
 		four-point sparkles are what stop a field of nothing but hearts reading as
 		clip art.
 
+		Nine elements, down from fifteen, at the client's request. The cut fell
+		hardest on the hearts and sparkles she named — five hearts to three and
+		three sparkles to two — with the dots thinned only enough to keep the mix
+		from tipping back into the plain dot field this replaced.
+
 		Nothing here is on a grid. The positions are hand-placed and deliberately
 		avoid rows, columns and even spacing, because the tile is repeated and any
-		alignment inside it turns into a visible lattice across the band. The tile
-		is laid twice at different sizes (see `.heart-field`), which is what makes
-		the repeat hard to catch at all.
+		alignment inside it turns into a visible lattice across the band. They are
+		also checked as a torus: two elements a comfortable distance apart inside
+		the square can still collide once the tile is laid next to itself.
 
 		This is used as a CSS mask, not as a picture, so the fill here is never
 		seen: the colour is whatever `.heart-field` is told to be, which is how one
-		tile can be rose on the paper bands and a plain tint on the shop's five
+		tile can be warm gold on the paper bands and a plain tint on the shop's five
 		coloured ones. White rather than black because `mask-mode` is left at
 		`match-source` — white shows under either reading of that, where black
 		would vanish entirely if a browser chose luminance.
@@ -27,22 +32,16 @@
 	</defs>
 
 	<g fill="#fff">
-		<use href="#h" transform="translate(34 28) rotate(-14) scale(1.4) translate(-5 -4.5)" />
-		<use href="#h" transform="translate(148 62) rotate(12) scale(1) translate(-5 -4.5)" />
-		<use href="#h" transform="translate(88 132) rotate(-22) scale(1.6) translate(-5 -4.5)" />
-		<use href="#h" transform="translate(192 158) rotate(8) scale(1.1) translate(-5 -4.5)" />
-		<use href="#h" transform="translate(28 190) rotate(18) scale(.9) translate(-5 -4.5)" />
+		<use href="#h" transform="translate(40 34) rotate(-14) scale(1.3) translate(-5 -4.5)" />
+		<use href="#h" transform="translate(158 96) rotate(11) scale(1.5) translate(-5 -4.5)" />
+		<use href="#h" transform="translate(66 150) rotate(-21) scale(1) translate(-5 -4.5)" />
 
-		<use href="#s" transform="translate(70 52) scale(.65) translate(-6 -6)" />
-		<use href="#s" transform="translate(172 128) scale(.8) translate(-6 -6)" />
-		<use href="#s" transform="translate(122 168) scale(.9) translate(-6 -6)" />
+		<use href="#s" transform="translate(120 30) scale(.8) translate(-6 -6)" />
+		<use href="#s" transform="translate(196 172) scale(.7) translate(-6 -6)" />
 
-		<circle cx="96" cy="18" r="2.6" />
-		<circle cx="186" cy="36" r="1.8" />
-		<circle cx="58" cy="78" r="2.2" />
-		<circle cx="128" cy="100" r="1.6" />
-		<circle cx="14" cy="122" r="3" />
-		<circle cx="206" cy="108" r="1.8" />
-		<circle cx="160" cy="196" r="2.4" />
+		<circle cx="86" cy="88" r="2.4" />
+		<circle cx="200" cy="52" r="1.8" />
+		<circle cx="16" cy="110" r="2.8" />
+		<circle cx="134" cy="204" r="2" />
 	</g>
 </svg>
