@@ -373,7 +373,7 @@ export default async function HomePage() {
 			    ours and nothing on this page talks to Meta. An empty feed (before
 			    the first sync, or with no token set) drops the band entirely. */}
 			{instagramPosts.length > 0 ? (
-				<Section tone="paper">
+				<Section tone="butter">
 					<Container width="wide">
 						<div className="mb-8 flex flex-wrap items-end justify-between gap-4">
 							<div className="flex flex-col gap-2">
@@ -400,7 +400,7 @@ export default async function HomePage() {
 			    site that has collected none simply does not have this band. */}
 			{reviews.length > 0 ? (
 				<Section
-					tone="butter"
+					tone="paper"
 					id="reviews">
 					<Container width="wide">
 						<div className="mb-10 flex flex-col gap-2">
