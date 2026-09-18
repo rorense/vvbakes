@@ -2,7 +2,13 @@
 
 import Image from "next/image";
 import { productImageUrl } from "@/lib/images";
-import { availableVariants, formatPrice, minOrderQty, priceProductLines } from "@/lib/pricing";
+import {
+	availableVariants,
+	formatPrice,
+	minOrderQty,
+	priceProductLines,
+	unitPriceRange,
+} from "@/lib/pricing";
 import type { Product, ProductVariant } from "@/lib/types";
 import { Stepper } from "@/components/ui/Stepper";
 
@@ -192,9 +198,14 @@ export function FlavourMix({
 			    to another does not move the price. */}
 			{product.extraUnitPriceCents !== null ? (
 				<p className="text-cocoa-soft mt-1 text-xs">
-					The first {minimum} are {formatPrice(product.unitPriceCents)} each and every one after
-					that is {formatPrice(product.extraUnitPriceCents)}. However many {groupName.toLowerCase()}
-					s you split them across comes to the same.
+					{/* The flavours' price, not the product row's. They are not the same
+					    number: the minis carry $16.00 on the product and $17.50 on every
+					    one of their six flavours, and it is the flavour that is charged.
+					    Reading the row here printed "$16 each" under a price table
+					    saying $17.50, which is the one thing a price may never do. */}
+					The first {minimum} are {unitPriceRange(product)} each and every one after that is{" "}
+					{formatPrice(product.extraUnitPriceCents)}. However many {groupName.toLowerCase()}s you
+					split them across comes to the same.
 				</p>
 			) : null}
 

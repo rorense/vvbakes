@@ -15,6 +15,7 @@ import {
 	priceProductLines,
 	priceRule,
 	selectionFor,
+	unitPriceRange,
 	variantFor,
 	variantOptionIds,
 	variantOptions,
@@ -268,6 +269,36 @@ describe("a price after the minimum", () => {
 	it("leaves a product without one priced exactly as before", () => {
 		const p = product({ tiers: FOUR_FOR_TWELVE });
 		expect(priceProduct(p, 5)).toEqual(priceForQty(300, FOUR_FOR_TWELVE, 5));
+	});
+});
+
+describe("unitPriceRange", () => {
+	it("reads the flavours, not the product row they sit on", () => {
+		// The live minis carry $16.00 on the product and $17.50 on every flavour,
+		// and it is the flavour that gets charged. Anything quoting a price to a
+		// customer has to ask this rather than `product.unitPriceCents`, which is
+		// a fallback nothing reaches while the flavours all have prices of their
+		// own. The flavour panel printed "$16 each" under a price table saying
+		// $17.50 until it did.
+		const p = product({
+			unitPriceCents: 1600,
+			variants: ["Vanilla", "Ube"].map((name) => variant({ name, unitPriceCents: 1750 })),
+		});
+		expect(unitPriceRange(p)).toBe("$17.50");
+
+		// A genuine spread is still two numbers, and a product sold as one thing
+		// is still its own price.
+		expect(
+			unitPriceRange(
+				product({
+					variants: [
+						variant({ name: "Plain", unitPriceCents: 1600 }),
+						variant({ name: "Gold leaf", unitPriceCents: 3000 }),
+					],
+				}),
+			),
+		).toBe("$16 – $30");
+		expect(unitPriceRange(product({ unitPriceCents: 500 }))).toBe("$5");
 	});
 });
 
