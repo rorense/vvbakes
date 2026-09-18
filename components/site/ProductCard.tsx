@@ -1,7 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
-import { fallbackAccent, productImageUrl, variantImageAlt, variantImagePath } from "@/lib/images";
+import {
+	fallbackAccent,
+	galleryImageAlt,
+	productImageUrl,
+	variantImageAlt,
+	variantImagePath,
+} from "@/lib/images";
 import { isOrderable, priceRule, variantOptions } from "@/lib/pricing";
 import {
 	ACCENT_BG,
@@ -30,6 +36,13 @@ export function ProductImage({
 	 * product whose variants differ only by size wants. See `variantImagePath`.
 	 */
 	variant = null,
+	/**
+	 * A photo picked out of the strip underneath, which wins over the variant's.
+	 * The position is 1-based and counts the main photo as the first, because
+	 * that number is all the alt text has to tell three views of one cake apart.
+	 * Null everywhere but the product page.
+	 */
+	picked = null,
 	className,
 	sizes,
 	priority,
@@ -38,19 +51,24 @@ export function ProductImage({
 }: {
 	product: Product;
 	variant?: ProductVariant | null;
+	picked?: { path: string; position: number } | null;
 	className?: string;
 	sizes?: string;
 	priority?: boolean;
 	behind?: Accent | null;
 }) {
 	const options = variant ? variantOptions(product, variant) : [];
-	const url = productImageUrl(variantImagePath(product, variant, options));
+	const url = productImageUrl(picked?.path ?? variantImagePath(product, variant, options));
 
 	if (url) {
 		return (
 			<Image
 				src={url}
-				alt={variantImageAlt(product, variant, options)}
+				alt={
+					picked
+						? galleryImageAlt(product, picked.position)
+						: variantImageAlt(product, variant, options)
+				}
 				fill
 				sizes={sizes ?? "(min-width: 640px) 33vw, 50vw"}
 				className={cn("object-cover", className)}

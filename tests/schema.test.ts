@@ -3480,3 +3480,53 @@ describe("a flavour of their own", () => {
 		await db.query("delete from orders where id = $1", [order.id]);
 	});
 });
+
+describe("more photos than one", () => {
+	it("starts every product with none, which is what the page draws no strip for", async () => {
+		const result = await db.query<{ gallery_image_paths: string[] }>(
+			"select gallery_image_paths from products",
+		);
+		expect(result.rows.every((row) => row.gallery_image_paths.length === 0)).toBe(true);
+	});
+
+	it("keeps them in the order they were given", async () => {
+		const id = await productId("cupcakes");
+		await db.query("update products set gallery_image_paths = $2 where id = $1", [
+			id,
+			["cupcakes/side.webp", "cupcakes/one.webp"],
+		]);
+
+		const result = await db.query<{ gallery_image_paths: string[] }>(
+			"select gallery_image_paths from products where id = $1",
+			[id],
+		);
+		expect(result.rows[0]!.gallery_image_paths).toEqual([
+			"cupcakes/side.webp",
+			"cupcakes/one.webp",
+		]);
+
+		await db.query("update products set gallery_image_paths = '{}' where id = $1", [id]);
+	});
+
+	it("refuses a ninth, which is the number the admin stops offering at", async () => {
+		const id = await productId("cupcakes");
+		const nine = Array.from({ length: 9 }, (_, index) => `cupcakes/${index}.webp`);
+
+		const message = await errorOf(() =>
+			db.query("update products set gallery_image_paths = $2 where id = $1", [id, nine]),
+		);
+		expect(message).toMatch(/gallery_image_paths/);
+	});
+
+	it("refuses a hole in the list, which is a photo nothing could show", async () => {
+		const id = await productId("cupcakes");
+
+		const message = await errorOf(() =>
+			db.query("update products set gallery_image_paths = $2 where id = $1", [
+				id,
+				["cupcakes/side.webp", null],
+			]),
+		);
+		expect(message).toMatch(/gallery_image_paths/);
+	});
+});

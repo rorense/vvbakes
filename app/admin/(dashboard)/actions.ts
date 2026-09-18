@@ -133,6 +133,13 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		return fail("The extras couldn't be read. Please try again.");
 	}
 
+	let galleryImagePaths: unknown = [];
+	try {
+		galleryImagePaths = JSON.parse(String(formData.get("galleryImagePaths") ?? "[]"));
+	} catch {
+		return fail("The extra photos couldn't be read. Please try again.");
+	}
+
 	const parsed = productSchema.safeParse({
 		id: formData.get("id") || undefined,
 		name: formData.get("name") ?? "",
@@ -146,6 +153,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		extraUnitPriceCents: formData.get("extraUnitPrice") ?? "",
 		imagePath: formData.get("imagePath") ?? "",
 		imageAlt: formData.get("imageAlt") ?? "",
+		galleryImagePaths,
 		isAvailable: checkbox(formData, "isAvailable"),
 		isFeatured: checkbox(formData, "isFeatured"),
 		priceOnRequest: checkbox(formData, "priceOnRequest"),
@@ -196,6 +204,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		extra_unit_price_cents: input.extraUnitPriceCents,
 		image_path: input.imagePath,
 		image_alt: input.imageAlt,
+		gallery_image_paths: input.galleryImagePaths,
 		is_available: input.isAvailable,
 		is_featured: input.isFeatured,
 		availability_note: input.availabilityNote,

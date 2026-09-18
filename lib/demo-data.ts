@@ -73,6 +73,7 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		extras: [],
 		imagePath: null,
 		imageAlt: null,
+		galleryImagePaths: [],
 		isAvailable: true,
 		isFeatured: false,
 		availabilityNote: null,

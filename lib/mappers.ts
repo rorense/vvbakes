@@ -319,6 +319,11 @@ export function toProduct(
 		extras: (row.product_extras ?? []).map(toExtra).sort(bySortOrder),
 		imagePath: row.image_path,
 		imageAlt: row.image_alt,
+		// `?? []` for the reason the switches below are defaulted: between the
+		// deploy and its migration the column is not there, and an undefined here
+		// would reach `.length` on the product page as a crash rather than as the
+		// empty strip every product has today.
+		galleryImagePaths: row.gallery_image_paths ?? [],
 		isAvailable: row.is_available,
 		isFeatured: row.is_featured,
 		availabilityNote: row.availability_note,

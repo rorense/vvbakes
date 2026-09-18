@@ -269,6 +269,20 @@ export interface Product {
 	/** Object path inside the product-images bucket, not a URL. */
 	imagePath: string | null;
 	imageAlt: string | null;
+	/**
+	 * More photos of the same thing, shown as a strip under the main one: the
+	 * side of the cake, a slice cut out of it, one cupcake out of the box.
+	 *
+	 * Object paths in the same bucket as `imagePath`, in the order she put them
+	 * in. Empty is the ordinary state and the product page shows no strip at all.
+	 *
+	 * Deliberately separate from `imagePath` rather than a list with the main
+	 * photo at the front: the card, the basket and the share card all want one
+	 * photo, and reordering the strip must not quietly change which one that is.
+	 *
+	 * No alt text of their own. See `galleryImageAlt` in lib/images.ts.
+	 */
+	galleryImagePaths: string[];
 	isAvailable: boolean;
 	isFeatured: boolean;
 	availabilityNote: string | null;

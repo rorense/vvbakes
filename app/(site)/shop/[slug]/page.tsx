@@ -14,6 +14,7 @@ import { AddToOrder } from "@/components/order/AddToOrder";
 import {
 	VariantAllergens,
 	VariantChoiceProvider,
+	VariantGallery,
 	VariantPhoto,
 } from "@/components/order/VariantChoice";
 
@@ -119,15 +120,21 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 				    still rendered on the server. */}
 				<VariantChoiceProvider product={product}>
 					<div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-						<ArchFrame
-							tone="blush"
-							className="relative aspect-4/5 w-full">
-							<VariantPhoto
-								product={product}
-								sizes="(min-width: 1024px) 45vw, 100vw"
-								priority
-							/>
-						</ArchFrame>
+						{/* The strip only appears on a product with more than one photo,
+						    and it decides that for itself, so there is no second copy of
+						    the rule here to fall out of step with it. */}
+						<div className="flex flex-col gap-3">
+							<ArchFrame
+								tone="blush"
+								className="relative aspect-4/5 w-full">
+								<VariantPhoto
+									product={product}
+									sizes="(min-width: 1024px) 45vw, 100vw"
+									priority
+								/>
+							</ArchFrame>
+							<VariantGallery product={product} />
+						</div>
 
 						{/* The right column is laid out as a menu card: name, note, a
 						    hairline price table, then the quantity control. */}

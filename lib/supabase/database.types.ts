@@ -44,6 +44,8 @@ type ProductRow = {
 	variant_label: string;
 	image_path: string | null;
 	image_alt: string | null;
+	/** Extra photos shown under the main one, in order. Empty for most products. */
+	gallery_image_paths: string[];
 	is_available: boolean;
 	is_featured: boolean;
 	availability_note: string | null;

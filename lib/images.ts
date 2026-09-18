@@ -145,3 +145,16 @@ export function variantImageAlt(
 	if (!shown || shown === product.imagePath) return productImageAlt(product);
 	return `${product.name}, ${variant.name}, from vvbakes`;
 }
+
+/**
+ * Alt text for one of the extra photos under the main one.
+ *
+ * Not the product's own alt text, deliberately: that sentence describes the
+ * main photo and this is a different picture. No sentence is asked for per
+ * gallery photo, for the reason a variant photo is not asked for one either, so
+ * what is left is the name and the position. The position is what separates
+ * three tiles of the same cake for somebody who cannot see them.
+ */
+export function galleryImageAlt(product: Pick<Product, "name">, position: number): string {
+	return `${product.name} from vvbakes, photo ${position}`;
+}

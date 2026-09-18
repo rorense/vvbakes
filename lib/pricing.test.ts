@@ -49,6 +49,7 @@ function product(overrides: Partial<Product> = {}): Product {
 		extras: [],
 		imagePath: null,
 		imageAlt: null,
+		galleryImagePaths: [],
 		isAvailable: true,
 		isFeatured: false,
 		availabilityNote: null,

@@ -38,6 +38,17 @@ export const INSTAGRAM_IMAGE_BUCKET = "instagram";
 export const INSTAGRAM_FEED_LIMIT = 12;
 
 /**
+ * How many extra photos one product may show under its main one.
+ *
+ * A ceiling, not a target. Nobody taps a ninth thumbnail on a phone, and the
+ * number is here rather than written twice so the admin stops offering an
+ * upload at the point the column would refuse it. See the migration in
+ * supabase/migrations/20260918000017_product_gallery.sql, which holds the same
+ * number as a check constraint.
+ */
+export const MAX_GALLERY_PHOTOS = 8;
+
+/**
  * How many inspiration photos one line of an order may carry.
  *
  * Three covers what people actually send — a cake they saw, a colour, a

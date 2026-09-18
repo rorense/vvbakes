@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { saveProduct } from "@/app/admin/(dashboard)/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom, listErrorFrom } from "@/lib/action-state";
 import { cn } from "@/lib/cn";
+import { MAX_GALLERY_PHOTOS } from "@/lib/constants";
 import { moveItem, patchItem } from "@/lib/list-edit";
 import {
 	formatPrice,
@@ -28,7 +29,7 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox, Field, FormError, Input, Select, Switch, Textarea } from "@/components/ui/Form";
 import { Notice } from "@/components/ui/Notice";
 import { useToastOnResult } from "@/components/ui/Toast";
-import { AdminCard } from "./AdminShell";
+import { AdminCard, ReorderButtons } from "./AdminShell";
 import { DraftList } from "./DraftList";
 import { ImageUploader } from "./ImageUploader";
 
@@ -352,6 +353,9 @@ export function ProductForm({
 		initialCells(product, initialGroups(product)),
 	);
 	const [imagePath, setImagePath] = useState(product?.imagePath ?? "");
+	const [galleryPaths, setGalleryPaths] = useState<string[]>(
+		() => product?.galleryImagePaths ?? [],
+	);
 
 	// Whether this product is sold in variants is a question about the form,
 	// not a column. The database still decides it the only way that cannot
@@ -639,6 +643,11 @@ export function ProductForm({
 				type="hidden"
 				name="imagePath"
 				value={imagePath}
+			/>
+			<input
+				type="hidden"
+				name="galleryImagePaths"
+				value={JSON.stringify(galleryPaths)}
 			/>
 			<input
 				type="hidden"
@@ -1032,6 +1041,16 @@ export function ProductForm({
 						)}
 					</Field>
 				</div>
+
+				{/* Only the main photo is described. The rest are the same cake from
+				    another side, and three more boxes here would be three more boxes
+				    to leave empty. The page names them by position instead. */}
+				<GalleryFieldset
+					slug={nameAndSlug.slug || "product"}
+					paths={galleryPaths}
+					setPaths={setGalleryPaths}
+					error={errors.galleryImagePaths}
+				/>
 			</AdminCard>
 
 			<AdminCard title="Availability">
@@ -1233,6 +1252,94 @@ export function ProductForm({
 }
 
 /** Repeatable "N for $X" rows. Submitted as one JSON field. */
+/**
+ * The extra photos, the ones the product page stacks under the main one.
+ *
+ * A row per photo rather than a fixed set of slots, because the number of
+ * angles a cake deserves is not a number this form gets to decide. There is no
+ * name, no price and no switch on one: a photo is a photo, so the row is the
+ * tile, the arrows that say where it sits and the Remove underneath.
+ *
+ * Adding one is choosing a file rather than pressing Add and then choosing a
+ * file. An empty tile at the end of the strip is the one control that does not
+ * leave a half-filled row behind if she changes her mind, which is the failure
+ * every list in this form has to think about and this one simply cannot have.
+ *
+ * Eight is the column's ceiling, so the adder goes once she reaches it rather
+ * than letting her upload a ninth the save would then refuse.
+ */
+function GalleryFieldset({
+	slug,
+	paths,
+	setPaths,
+	error,
+}: {
+	slug: string;
+	paths: string[];
+	setPaths: (next: string[]) => void;
+	error?: string;
+}) {
+	return (
+		<fieldset className="mt-6 flex flex-col gap-3">
+			<legend className="text-sm font-medium">More photos</legend>
+			<p className="text-cocoa-soft text-xs">
+				Optional. These sit under the main photo on the product page, in this order, and customers
+				can tap between them. The main photo above is always the one on the shop grid.
+			</p>
+
+			<div className="flex flex-wrap items-start gap-3">
+				{paths.map((path, index) => (
+					<div
+						key={path}
+						className="border-line flex flex-col items-center gap-2 rounded-md border p-2">
+						<ImageUploader
+							size="sm"
+							slug={slug}
+							label={`photo ${index + 2}`}
+							value={path}
+							onChange={(next) =>
+								setPaths(
+									// The tile's own Remove hands back an empty path. A blank slot
+									// in the middle of a strip is not a thing to keep, so it drops
+									// the row instead of holding an empty one open.
+									next === ""
+										? paths.filter((_, i) => i !== index)
+										: paths.map((one, i) => (i === index ? next : one)),
+								)
+							}
+						/>
+
+						<ReorderButtons
+							label={`photo ${index + 2}`}
+							layout="row"
+							isFirst={index === 0}
+							isLast={index === paths.length - 1}
+							onMove={(direction) => setPaths(moveItem(paths, index, direction === "up" ? -1 : 1))}
+						/>
+					</div>
+				))}
+
+				{paths.length < MAX_GALLERY_PHOTOS ? (
+					<div className="border-line flex flex-col items-center gap-2 rounded-md border border-dashed p-2">
+						<ImageUploader
+							size="sm"
+							slug={slug}
+							label={paths.length === 0 ? "a second photo" : "another photo"}
+							value=""
+							onChange={(path) => {
+								if (path !== "") setPaths([...paths, path]);
+							}}
+						/>
+						<span className="text-cocoa-soft text-2xs">Add</span>
+					</div>
+				) : null}
+			</div>
+
+			{error ? <p className="text-danger text-xs font-medium">{error}</p> : null}
+		</fieldset>
+	);
+}
+
 function TierFieldset({
 	tiers,
 	setTiers,
