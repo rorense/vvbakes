@@ -366,6 +366,34 @@ export default async function HomePage() {
 				</Section>
 			) : null}
 
+			{/* The Instagram grid. Proof that the oven is on this week, which is a
+			    different thing from the menu and from the reviews: those say what
+			    she sells and what people thought, this says she is still baking.
+			    Copied down nightly by /api/cron/instagram, so the pictures are
+			    ours and nothing on this page talks to Meta. An empty feed (before
+			    the first sync, or with no token set) drops the band entirely. */}
+			{instagramPosts.length > 0 ? (
+				<Section tone="paper">
+					<Container width="wide">
+						<div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+							<div className="flex flex-col gap-2">
+								<SectionLabel>Lately</SectionLabel>
+								<h2 className="font-display text-3xl">My recent bakes</h2>
+							</div>
+							<a
+								href={instagramUrl(settings.instagramHandle)}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-sm font-medium underline underline-offset-4">
+								@{settings.instagramHandle} on Instagram
+							</a>
+						</div>
+
+						<InstagramFeed posts={instagramPosts} />
+					</Container>
+				</Section>
+			) : null}
+
 			{/* Kind words. Between seeing the cakes and being asked to order one,
 			    which is where someone decides whether to trust a home kitchen with
 			    a birthday. Written in /admin/settings, and nothing is seeded, so a
@@ -395,34 +423,6 @@ export default async function HomePage() {
 								</figure>
 							))}
 						</div>
-					</Container>
-				</Section>
-			) : null}
-
-			{/* The Instagram grid. Proof that the oven is on this week, which is a
-			    different thing from the menu and from the reviews: those say what
-			    she sells and what people thought, this says she is still baking.
-			    Copied down nightly by /api/cron/instagram, so the pictures are
-			    ours and nothing on this page talks to Meta. An empty feed — before
-			    the first sync, or with no token set — drops the band entirely. */}
-			{instagramPosts.length > 0 ? (
-				<Section tone="paper">
-					<Container width="wide">
-						<div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-							<div className="flex flex-col gap-2">
-								<SectionLabel>Lately</SectionLabel>
-								<h2 className="font-display text-3xl">Fresh out of the oven</h2>
-							</div>
-							<a
-								href={instagramUrl(settings.instagramHandle)}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="text-sm font-medium underline underline-offset-4">
-								@{settings.instagramHandle} on Instagram
-							</a>
-						</div>
-
-						<InstagramFeed posts={instagramPosts} />
 					</Container>
 				</Section>
 			) : null}
