@@ -327,7 +327,13 @@ export function OrderForm({
 	const lostPhotos = ready ? photoIds.filter((id) => !photos.has(id)).length : 0;
 
 	const subtotal = lines.reduce((total, line) => total + line.totalCents, 0);
-	const deliveryFee = fulfilment === "delivery" ? settings.deliveryFeeCents : 0;
+	// Nothing is charged for delivery while she is quoting the fee by hand. The
+	// database holds the column at 0 to match, so this is belt and braces rather
+	// than the only thing keeping the total honest; `feeToCome` is what says so
+	// out loud, next to the number.
+	const deliveryFee =
+		fulfilment === "delivery" && !settings.deliveryFeeOnRequest ? settings.deliveryFeeCents : 0;
+	const deliveryFeeToCome = fulfilment === "delivery" && settings.deliveryFeeOnRequest;
 	const total = subtotal + deliveryFee;
 	// Something in the basket has no price yet, so the figure above is a subtotal
 	// of everything else and has to say so wherever it appears.
@@ -682,7 +688,11 @@ export function OrderForm({
 							title="Delivery"
 							detail={settings.deliveryAreaText ?? "To your door"}
 							price={
-								settings.deliveryFeeCents > 0 ? formatMoney(settings.deliveryFeeCents) : "Free"
+								settings.deliveryFeeOnRequest
+									? "Fee to confirm"
+									: settings.deliveryFeeCents > 0
+										? formatMoney(settings.deliveryFeeCents)
+										: "Free"
 							}
 						/>
 					</div>
@@ -797,6 +807,7 @@ export function OrderForm({
 					<Total
 						subtotal={subtotal}
 						deliveryFee={deliveryFee}
+						deliveryFeeToCome={deliveryFeeToCome}
 						total={total}
 						hasUnpriced={hasUnpriced}
 						mayCostMore={mayCostMore}
@@ -1014,12 +1025,21 @@ function Step({
 function Total({
 	subtotal,
 	deliveryFee,
+	deliveryFeeToCome,
 	total,
 	hasUnpriced,
 	mayCostMore,
 }: {
 	subtotal: number;
 	deliveryFee: number;
+	/**
+	 * True when delivery is chosen and the fee is one she quotes by hand.
+	 *
+	 * Not the same as a fee of zero, which is free delivery and wants no
+	 * sentence at all. This one has money still to come, so the total below is
+	 * short of the final figure in a way the customer has to be told about.
+	 */
+	deliveryFeeToCome: boolean;
 	total: number;
 	/** True when something in the basket has no price on it yet. */
 	hasUnpriced: boolean;
@@ -1035,7 +1055,7 @@ function Total({
 	return (
 		<div className="flex flex-col gap-2">
 			<HairlineList as="dl">
-				{deliveryFee > 0 ? (
+				{deliveryFee > 0 || deliveryFeeToCome ? (
 					<>
 						<HairlineRow as="div">
 							<dt className="text-cocoa-soft text-sm">Subtotal</dt>
@@ -1043,7 +1063,9 @@ function Total({
 						</HairlineRow>
 						<HairlineRow as="div">
 							<dt className="text-cocoa-soft text-sm">Delivery</dt>
-							<dd className="text-sm">{formatMoney(deliveryFee)}</dd>
+							<dd className="text-sm">
+								{deliveryFeeToCome ? "To confirm" : formatMoney(deliveryFee)}
+							</dd>
 						</HairlineRow>
 					</>
 				) : null}
@@ -1062,6 +1084,15 @@ function Total({
 				<p className="text-cocoa-soft text-xs">
 					Plus whatever the custom work comes to. I&rsquo;ll price it once I&rsquo;ve read your
 					brief and email you the full total.
+				</p>
+			) : null}
+
+			{/* Said whatever else is on the line, because the delivery fee is money
+			    on top of a number the customer is reading as the number. */}
+			{deliveryFeeToCome ? (
+				<p className="text-cocoa-soft text-xs">
+					Plus delivery, which depends on your address. I&rsquo;ll work it out and email you the
+					full total before anything is paid.
 				</p>
 			) : null}
 

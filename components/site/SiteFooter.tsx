@@ -16,8 +16,16 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
 				<div className="grid gap-10 sm:grid-cols-3">
 					<div className="flex flex-col gap-3">
 						<Wordmark size="lg" />
-						{/* Set in the logo itself, so it is set here too. */}
-						<p className="font-display text-cocoa-soft text-sm">{settings.tagline}</p>
+						{/* Set in the logo itself, so it is set here too: same family as the
+						    wordmark above was not enough, because Fraunces only looks like the
+						    logo with SOFT and WONK dialled in, and those are applied per use.
+						    Without them this sat in the plain cut and read as a caption in a
+						    different face. */}
+						<p
+							className="font-display text-cocoa-soft text-sm"
+							style={{ fontVariationSettings: '"SOFT" 40, "WONK" 1' }}>
+							{settings.tagline}
+						</p>
 					</div>
 
 					<nav

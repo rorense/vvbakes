@@ -487,6 +487,16 @@ export interface SiteSettings {
 	ordersClosedMessage: string | null;
 	deliveryEnabled: boolean;
 	deliveryFeeCents: number;
+	/**
+	 * The fee depends on the address and is confirmed by hand after the order.
+	 *
+	 * Nothing is charged for delivery at checkout when this is on, so
+	 * `deliveryFeeCents` is held at 0 by a check constraint and the charge goes
+	 * into the quote alongside a custom cake's price. It exists because 0 on its
+	 * own can only say "free", and "there is a fee, I just cannot name it until
+	 * I know where you are" is a different answer.
+	 */
+	deliveryFeeOnRequest: boolean;
 	deliveryAreaText: string | null;
 	contactEmail: string | null;
 	contactPhone: string | null;

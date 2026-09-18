@@ -361,6 +361,7 @@ export function toSettings(row: SettingsRow): SiteSettings {
 		ordersClosedMessage: row.orders_closed_message,
 		deliveryEnabled: row.delivery_enabled,
 		deliveryFeeCents: row.delivery_fee_cents,
+		deliveryFeeOnRequest: row.delivery_fee_on_request,
 		deliveryAreaText: row.delivery_area_text,
 		contactEmail: row.contact_email,
 		contactPhone: row.contact_phone,

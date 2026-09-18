@@ -63,7 +63,7 @@ const CUSTOM_PROMPTS = [
 	},
 	{
 		label: "How you'd like it to look",
-		body: "Share your ideas, colours and inspiration. Screenshots and photos are always welcome!",
+		body: "Share your ideas, colours or inspiration. Screenshots and photos are always welcome!",
 	},
 	{
 		label: "When you need it",

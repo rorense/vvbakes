@@ -1124,6 +1124,36 @@ describe("place_order", () => {
 		);
 	});
 
+	// The pair 20260918000015 introduces. A fee she is quoting by hand must not
+	// also be sitting in the column, or the order is charged for delivery behind
+	// a page promising to tell her customer the figure first.
+	it("will not hold a delivery fee while the fee is quoted by hand", async () => {
+		const message = await errorOf(async () =>
+			db.query(
+				"update site_settings set delivery_fee_on_request = true, delivery_fee_cents = 800 where id = 1",
+			),
+		);
+		expect(message).toContain("site_settings_delivery_fee_on_request_is_free");
+	});
+
+	it("charges nothing for delivery while the fee is quoted by hand", async () => {
+		await db.query(
+			"update site_settings set delivery_enabled = true, delivery_fee_cents = 0, delivery_fee_on_request = true where id = 1",
+		);
+
+		const order = await placeOrder({
+			items: [{ product_id: await productId("brochi"), qty: 1 }],
+			pickupDate: await dateIn(7),
+			fulfilment: "delivery",
+			address: "1 Example Street",
+		});
+		expect(order.total_cents).toBe(500);
+
+		await db.query(
+			"update site_settings set delivery_enabled = false, delivery_fee_on_request = false where id = 1",
+		);
+	});
+
 	it("refuses everything while orders are closed", async () => {
 		await db.query("update site_settings set orders_open = false where id = 1");
 
@@ -3191,12 +3221,14 @@ describe("the price guide", () => {
 		]);
 	});
 
+	// Her wording, not the one 20260917000001 seeded: 20260918000016 replaces it,
+	// and this asserts the end of that pair rather than the middle of it.
 	it("ships with the caveat that goes under it", async () => {
 		const result = await db.query<{ price_guide_note: string | null }>(
 			"select price_guide_note from products where slug = 'custom-cake'",
 		);
 		expect(result.rows[0]!.price_guide_note).toBe(
-			"Custom designs and premium flavours may cost extra.",
+			"Custom designs & premium flavours may incur extra costs",
 		);
 	});
 

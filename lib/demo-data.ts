@@ -532,6 +532,7 @@ export const DEMO_SETTINGS: SiteSettings = {
 	ordersClosedMessage: null,
 	deliveryEnabled: false,
 	deliveryFeeCents: 0,
+	deliveryFeeOnRequest: false,
 	deliveryAreaText: null,
 	contactEmail: null,
 	contactPhone: null,

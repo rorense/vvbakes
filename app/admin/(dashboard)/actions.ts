@@ -804,6 +804,7 @@ export async function saveSettings(_previous: State, formData: FormData): Promis
 		ordersClosedMessage: formData.get("ordersClosedMessage") ?? "",
 		deliveryEnabled: checkbox(formData, "deliveryEnabled"),
 		deliveryFeeCents: formData.get("deliveryFee") || "0",
+		deliveryFeeOnRequest: checkbox(formData, "deliveryFeeOnRequest"),
 		deliveryAreaText: formData.get("deliveryAreaText") ?? "",
 		contactEmail: formData.get("contactEmail") ?? "",
 		contactPhone: formData.get("contactPhone") ?? "",
@@ -840,7 +841,12 @@ export async function saveSettings(_previous: State, formData: FormData): Promis
 				orders_open: input.ordersOpen,
 				orders_closed_message: input.ordersClosedMessage,
 				delivery_enabled: input.deliveryEnabled,
-				delivery_fee_cents: input.deliveryFeeCents,
+				// Zeroed rather than kept, because the two together are one answer
+				// and the database refuses the pair where they disagree. The form
+				// disables the fee box while the switch is on, so the number being
+				// dropped here is one she cannot currently see or have typed.
+				delivery_fee_cents: input.deliveryFeeOnRequest ? 0 : input.deliveryFeeCents,
+				delivery_fee_on_request: input.deliveryFeeOnRequest,
 				delivery_area_text: input.deliveryAreaText,
 				contact_email: input.contactEmail,
 				contact_phone: input.contactPhone,

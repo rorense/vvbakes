@@ -229,6 +229,7 @@ export const settings: SiteSettings = {
 	ordersClosedMessage: null,
 	deliveryEnabled: false,
 	deliveryFeeCents: 0,
+	deliveryFeeOnRequest: false,
 	deliveryAreaText: null,
 	contactEmail: "hello@example.com",
 	contactPhone: "021 555 0199",

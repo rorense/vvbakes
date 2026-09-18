@@ -631,6 +631,7 @@ export const settingsSchema = z.object({
 	ordersClosedMessage: optionalText(300),
 	deliveryEnabled: z.boolean(),
 	deliveryFeeCents: dollars,
+	deliveryFeeOnRequest: z.boolean(),
 	deliveryAreaText: optionalText(300),
 	contactEmail: optionalEmail,
 	contactPhone: optionalText(30),

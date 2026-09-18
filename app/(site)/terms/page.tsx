@@ -227,13 +227,28 @@ export default async function TermsPage() {
 					{settings.deliveryEnabled ? (
 						<Clause title="Delivery">
 							{/* The order form charges exactly this, so the sentence has to follow
-							    the setting rather than describe a fee I quote by hand. */}
+							    the settings rather than describe a fee nothing collects. All
+							    three branches are a real arrangement some shop wants, and the
+							    middle one is hers: there is a fee, it depends on the address,
+							    and it is quoted in the reply rather than added at checkout. */}
+							{settings.deliveryFeeOnRequest ? (
+								<p>
+									Delivery is available for an additional fee, depending on your location and how
+									far you are from {settings.pickupSuburb ?? "me"}. When you place your order,
+									include your address and I&rsquo;ll confirm the delivery fee with you. Nothing is
+									added for delivery at the checkout.
+								</p>
+							) : (
+								<p>
+									Delivery is available
+									{settings.deliveryFeeCents > 0
+										? ` for ${formatMoney(settings.deliveryFeeCents)}, added to your order when you choose it`
+										: ", free of charge"}
+									.
+								</p>
+							)}
 							<p>
-								Delivery is available
-								{settings.deliveryFeeCents > 0
-									? ` for ${formatMoney(settings.deliveryFeeCents)}, added to your order when you choose it`
-									: ", free of charge"}
-								. Please check the address on your order carefully, because I deliver to the address
+								Please check the address on your order carefully, because I deliver to the address
 								you give me.
 							</p>
 							{/* Free text, so it gets a line of its own rather than being spliced

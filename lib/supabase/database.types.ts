@@ -148,6 +148,7 @@ type SiteSettingsRow = {
 	orders_closed_message: string | null;
 	delivery_enabled: boolean;
 	delivery_fee_cents: number;
+	delivery_fee_on_request: boolean;
 	delivery_area_text: string | null;
 	contact_email: string | null;
 	contact_phone: string | null;

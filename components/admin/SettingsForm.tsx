@@ -34,6 +34,7 @@ export function SettingsForm({
 
 	const [ordersOpen, setOrdersOpen] = useState(settings.ordersOpen);
 	const [deliveryEnabled, setDeliveryEnabled] = useState(settings.deliveryEnabled);
+	const [deliveryFeeOnRequest, setDeliveryFeeOnRequest] = useState(settings.deliveryFeeOnRequest);
 	const [faqRows, setFaqRows] = useState<FaqDraft[]>(() => toFaqDrafts(faqs));
 	const [reviewRows, setReviewRows] = useState<ReviewDraft[]>(() => toReviewDrafts(reviews));
 
@@ -275,10 +276,25 @@ export function SettingsForm({
 						onChange={(event) => setDeliveryEnabled(event.target.checked)}
 					/>
 
+					{/* Above the fee rather than beside it, because it decides whether
+					    the fee box is a question at all. */}
+					<Switch
+						name="deliveryFeeOnRequest"
+						label="I'll confirm the fee after the order"
+						description="For a fee that depends on the address. Nothing is charged for delivery at checkout; the terms and the order form say you'll confirm it, and you add it to the quote when you reply."
+						checked={deliveryFeeOnRequest}
+						onChange={(event) => setDeliveryFeeOnRequest(event.target.checked)}
+						disabled={!deliveryEnabled}
+					/>
+
 					<div className="grid gap-5 sm:grid-cols-2">
 						<Field
 							label="Delivery fee"
-							hint="In dollars. Use 0 for free delivery."
+							hint={
+								deliveryFeeOnRequest
+									? "Not charged at checkout while you're confirming the fee by hand."
+									: "In dollars. Use 0 for free delivery."
+							}
 							error={errors.deliveryFeeCents}>
 							{(props) => (
 								<Input
@@ -286,7 +302,7 @@ export function SettingsForm({
 									name="deliveryFee"
 									inputMode="decimal"
 									defaultValue={(settings.deliveryFeeCents / 100).toString()}
-									disabled={!deliveryEnabled}
+									disabled={!deliveryEnabled || deliveryFeeOnRequest}
 								/>
 							)}
 						</Field>
