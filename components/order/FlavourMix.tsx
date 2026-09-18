@@ -2,46 +2,55 @@
 
 import Image from "next/image";
 import { productImageUrl } from "@/lib/images";
-import {
-	availableVariants,
-	formatMoney,
-	formatPrice,
-	minOrderQty,
-	priceProduct,
-} from "@/lib/pricing";
+import { availableVariants, formatPrice, minOrderQty, priceProductLines } from "@/lib/pricing";
 import type { Product, ProductVariant } from "@/lib/types";
 import { Stepper } from "@/components/ui/Stepper";
 
 /** How many of each flavour, keyed by variant id. Absent means none. */
 export type FlavourCounts = Record<string, number>;
 
-/** One flavour with a count, and what that many of it comes to. */
+/** One flavour with a count, and the share of the order's price it carries. */
 export interface MixLine {
 	variant: ProductVariant;
 	qty: number;
 	totalCents: number;
-	/** How that total breaks down, e.g. "1 x 2 for $35.00 + 1 x $15.00 box of 12". */
+	/** How that share breaks down, e.g. "2 x $17.50 box of 12 + 1 x $15.00 box of 12". */
 	note: string;
 }
 
 /**
- * The flavours a customer has actually asked for, priced.
+ * The flavours a customer has actually asked for, priced as one order.
  *
- * Priced one flavour at a time, because that is what the basket will hold and
- * what `place_order` will charge: a line is one flavour, and a price for N of
- * this product is a price for N of one of them. See `Product.extraUnitPriceCents`.
+ * Not one flavour at a time. Past the minimum every one is the cheaper rate
+ * however the flavours fall, so three boxes is three boxes whether that is
+ * three of one or one each of three. Each line still carries a figure of its
+ * own, because that is what the basket holds and what `place_order` writes, and
+ * the figures add back up to the order's. See `priceProductLines`.
  *
  * In her order, and only the ones with a count, so the caller can treat the
  * length as "how many lines is this about to add".
  */
-export function mixLines(product: Product, counts: FlavourCounts): MixLine[] {
-	return availableVariants(product)
+export function mixLines(
+	product: Product,
+	counts: FlavourCounts,
+	/** How many of this product the basket is already holding. */
+	alreadyCounted = 0,
+): MixLine[] {
+	const chosen = availableVariants(product)
 		.map((variant) => ({ variant, qty: counts[variant.id] ?? 0 }))
-		.filter((line) => line.qty > 0)
-		.map(({ variant, qty }) => {
-			const priced = priceProduct(product, qty, variant);
-			return { variant, qty, totalCents: priced.totalCents, note: priced.note };
-		});
+		.filter((line) => line.qty > 0);
+
+	// Priced together, not one at a time, so that what the page quotes is what
+	// the basket will hold: past the minimum every one is the cheaper rate, and
+	// which flavour it happens to be does not come into it.
+	const priced = priceProductLines(product, chosen, alreadyCounted);
+
+	return chosen.map(({ variant, qty }, index) => ({
+		variant,
+		qty,
+		totalCents: priced[index]!.totalCents,
+		note: priced[index]!.note,
+	}));
 }
 
 /** How many of the product in total, across every flavour picked. */
@@ -72,36 +81,26 @@ export function FlavourMix({
 	counts,
 	onChange,
 	groupName,
+	alreadyCounted = 0,
 }: {
 	product: Product;
 	counts: FlavourCounts;
 	onChange: (counts: FlavourCounts) => void;
 	/** What this product calls them: "Flavour", "Size". */
 	groupName: string;
+	/**
+	 * How many of this product the basket is already holding.
+	 *
+	 * The cheaper rate is a rule about the order, so a second visit to this page
+	 * is already past the minimum and the boxes it adds cost the lower price.
+	 * Without this the page would quote the first two all over again.
+	 */
+	alreadyCounted?: number;
 }) {
 	const offered = availableVariants(product);
-	const lines = mixLines(product, counts);
+	const lines = mixLines(product, counts, alreadyCounted);
 	const total = mixQty(lines);
 	const minimum = minOrderQty(product);
-
-	/**
-	 * What mixing costs over buying the same number of one flavour, or zero.
-	 *
-	 * Measured against the cheapest of the flavours actually picked, because
-	 * that is the comparison a customer could act on: it is the number they
-	 * would save by putting everything on one row. Flavours they did not pick
-	 * are not an option they were weighing.
-	 *
-	 * Zero for most baskets, including every basket that has not passed the
-	 * minimum on any one row, which is the ordinary two boxes in two flavours.
-	 */
-	const surcharge =
-		lines.length > 1
-			? lines.reduce((total, line) => total + line.totalCents, 0) -
-				Math.min(
-					...lines.map((line) => priceProduct(product, mixQty(lines), line.variant).totalCents),
-				)
-			: 0;
 
 	/**
 	 * How far up a flavour goes on its first press.
@@ -141,9 +140,6 @@ export function FlavourMix({
 				{offered.map((variant) => {
 					const qty = counts[variant.id] ?? 0;
 					const thumbnail = productImageUrl(variant.imagePath ?? product.imagePath);
-					// Only once it is being ordered. An untouched page is a list of
-					// flavours to choose from, not a column of $0.00 to read past.
-					const priced = qty > 0 ? priceProduct(product, qty, variant) : null;
 
 					return (
 						<li
@@ -159,11 +155,16 @@ export function FlavourMix({
 								/>
 							) : null}
 
+							{/* No price beside the flavour, and that is not an omission. The
+							    cheaper rate belongs to the order rather than to any one
+							    row, so which rows it lands on is decided by walking them:
+							    the same two boxes would read $17.50 here and $15 there
+							    depending on what else was picked, which explains nothing
+							    and invites the question it looks like it answers. The
+							    total underneath is the number that is actually true, and
+							    the line under that says how it was reached. */}
 							<span className="flex min-w-0 flex-1 flex-col">
 								<span className="truncate text-sm font-medium">{variant.name}</span>
-								{priced && !priced.onRequest ? (
-									<span className="text-cocoa-soft text-xs">{priced.note}</span>
-								) : null}
 							</span>
 
 							<Stepper
@@ -180,32 +181,20 @@ export function FlavourMix({
 									set(variant, next === 0 ? 0 : Math.max(next, firstStep(variant)));
 								}}
 							/>
-
-							<span className="w-20 shrink-0 text-right text-sm tabular-nums">
-								{priced && !priced.onRequest ? formatMoney(priced.totalCents) : ""}
-							</span>
 						</li>
 					);
 				})}
 			</ul>
 
-			{/* The one place the per-line rule is visible as a number, so it is the
-			    one place it has to be said: a customer watching the total move as
-			    they shift a box from one flavour to another deserves to know why.
-
-			    Said only when it is true, which is not the same as "two flavours
-			    are picked". Two boxes in two flavours comes to exactly what two of
-			    one comes to, because neither line has passed the first two yet;
-			    warning there would be charging someone's attention for nothing and
-			    would be wrong besides. So the split is priced against the best the
-			    same number could have cost as a single flavour, and the sentence
-			    appears with that difference in it or not at all. */}
-			{surcharge > 0 ? (
+			{/* The rule, said once, in the words she uses. The last sentence is the
+			    whole of the change 20260918000013 made and the thing a customer
+			    filling in this list most wants to know: moving a box from one row
+			    to another does not move the price. */}
+			{product.extraUnitPriceCents !== null ? (
 				<p className="text-cocoa-soft mt-1 text-xs">
-					Mixing comes to {formatMoney(surcharge)} more than {total} of one{" "}
-					{groupName.toLowerCase()}, because the first {minimum} of each are{" "}
-					{formatPrice(product.unitPriceCents)} and it is{" "}
-					{formatPrice(product.extraUnitPriceCents ?? product.unitPriceCents)} each after that.
+					The first {minimum} are {formatPrice(product.unitPriceCents)} each and every one after
+					that is {formatPrice(product.extraUnitPriceCents)}. However many {groupName.toLowerCase()}
+					s you split them across comes to the same.
 				</p>
 			) : null}
 

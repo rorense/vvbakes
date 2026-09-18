@@ -60,7 +60,7 @@ import { useVariantChoice } from "./VariantChoice";
  * differently are two cakes however alike the rest of the line looks.
  */
 export function AddToOrder({ product }: { product: Product }) {
-	const { add } = useCart();
+	const { cart, add } = useCart();
 	const groups = optionGroups(product);
 	const { selection, variant, choose } = useVariantChoice(product);
 	// Starts on the minimum for what is showing: the commonest order, and one
@@ -135,8 +135,17 @@ export function AddToOrder({ product }: { product: Product }) {
 	const mixing =
 		product.mixVariants && !product.priceOnRequest && groups.length === 1 && hasVariants(product);
 
+	// How many of this product the basket is already holding. The cheaper rate
+	// past the minimum is a rule about the order, so someone coming back for a
+	// second look is already past it and the boxes they add now cost the lower
+	// price. Without this the page would quote them the first two all over again
+	// and then the basket would disagree with it.
+	const alreadyCounted = cart.lines
+		.filter((line) => line.productId === product.id)
+		.reduce((total, line) => total + line.qty, 0);
+
 	// One per flavour asked for, already priced the way the basket will hold it.
-	const lines = mixing ? mixLines(product, counts) : [];
+	const lines = mixing ? mixLines(product, counts, alreadyCounted) : [];
 	const mixCents = lines.reduce((total, line) => total + line.totalCents, 0);
 
 	// A selection can name a combination the owner never priced — she sells the
@@ -271,6 +280,7 @@ export function AddToOrder({ product }: { product: Product }) {
 					product={product}
 					counts={counts}
 					groupName={groups[0]!.name}
+					alreadyCounted={alreadyCounted}
 					onChange={(next) => {
 						setCounts(next);
 						setAdded(false);

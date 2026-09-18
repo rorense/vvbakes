@@ -12,6 +12,7 @@ import {
 	optionGroups,
 	priceForQty,
 	priceProduct,
+	priceProductLines,
 	priceRule,
 	selectionFor,
 	variantFor,
@@ -226,12 +227,14 @@ describe("a price after the minimum", () => {
 		expect(priceProduct(p, 1).totalCents * 2).toBe(priceProduct(p, 2).totalCents);
 	});
 
-	it("names the first few as one price and the rest as singles", () => {
+	it("names them per unit, at each rate, dearest first", () => {
+		// Not "1 x 2 for $35.00": the first two are not a bundle this line bought,
+		// they are where the order's allowance happened to run out. See unitsNote.
 		const p = product({ ...MINIS, unitLabel: "box of 12" });
 
 		expect(priceProduct(p, 1).note).toBe("1 x $17.50 box of 12");
-		expect(priceProduct(p, 2).note).toBe("1 x 2 for $35.00");
-		expect(priceProduct(p, 4).note).toBe("1 x 2 for $35.00 + 2 x $15.00 box of 12");
+		expect(priceProduct(p, 2).note).toBe("2 x $17.50 box of 12");
+		expect(priceProduct(p, 4).note).toBe("2 x $17.50 box of 12 + 2 x $15.00 box of 12");
 	});
 
 	it("counts from the step size when the product has no minimum", () => {
@@ -265,6 +268,133 @@ describe("a price after the minimum", () => {
 	it("leaves a product without one priced exactly as before", () => {
 		const p = product({ tiers: FOUR_FOR_TWELVE });
 		expect(priceProduct(p, 5)).toEqual(priceForQty(300, FOUR_FOR_TWELVE, 5));
+	});
+});
+
+describe("pricing a product's lines together", () => {
+	/** The minis with three flavours, all at the one price she charges. */
+	function minis(overrides: Partial<Product> = {}) {
+		return product({
+			...MINIS,
+			unitLabel: "box of 12",
+			variants: ["Vanilla", "Chocolate", "Ube"].map((name) =>
+				variant({ name, unitPriceCents: 1750 }),
+			),
+			...overrides,
+		});
+	}
+
+	const totalOf = (priced: ReturnType<typeof priceProductLines>) =>
+		priced.reduce((total, line) => total + line.totalCents, 0);
+
+	it("charges the same for three boxes however the flavours fall", () => {
+		// The rule she asked for, in one assertion: it does not matter how many
+		// flavours, three boxes is $50.
+		const p = minis();
+		const [v, c, u] = p.variants;
+
+		expect(totalOf(priceProductLines(p, [{ variant: v!, qty: 3 }]))).toBe(5000);
+		expect(
+			totalOf(
+				priceProductLines(p, [
+					{ variant: v!, qty: 2 },
+					{ variant: c!, qty: 1 },
+				]),
+			),
+		).toBe(5000);
+		expect(
+			totalOf(
+				priceProductLines(p, [
+					{ variant: v!, qty: 1 },
+					{ variant: c!, qty: 1 },
+					{ variant: u!, qty: 1 },
+				]),
+			),
+		).toBe(5000);
+	});
+
+	it("keeps agreeing all the way up", () => {
+		const p = minis();
+		const [v, c, u] = p.variants;
+
+		for (const [split, total] of [
+			[[2, 0, 0], 3500],
+			[[1, 1, 0], 3500],
+			[[4, 0, 0], 6500],
+			[[2, 1, 1], 6500],
+			[[1, 1, 2], 6500],
+			[[3, 3, 2], 3500 + 1500 * 6],
+			[[8, 0, 0], 3500 + 1500 * 6],
+		] as const) {
+			const lines = [
+				{ variant: v!, qty: split[0] },
+				{ variant: c!, qty: split[1] },
+				{ variant: u!, qty: split[2] },
+			].filter((line) => line.qty > 0);
+			expect([split, totalOf(priceProductLines(p, lines))]).toEqual([split, total]);
+		}
+	});
+
+	it("gives each line a total of its own that adds up to the order's", () => {
+		const p = minis();
+		const [v, c] = p.variants;
+		const priced = priceProductLines(p, [
+			{ variant: v!, qty: 1 },
+			{ variant: c!, qty: 3 },
+		]);
+
+		// Same price, so the bigger line is walked first and takes the whole
+		// allowance: three boxes as $17.50 + $17.50 + $15, and the single box
+		// left over at $15.
+		expect(priced.map((line) => line.totalCents)).toEqual([1500, 5000]);
+		expect(totalOf(priced)).toBe(6500);
+		expect(priced[1]!.note).toBe("2 x $17.50 box of 12 + 1 x $15.00 box of 12");
+		expect(priced[0]!.note).toBe("1 x $15.00 box of 12");
+	});
+
+	it("spends the allowance on the cheapest flavours, so the customer pays least", () => {
+		// The house rule everywhere else: where there is a choice, the cheaper
+		// answer is the right one. Here that means the dear flavour takes the
+		// discount and the cheap one fills the allowance.
+		const p = minis({
+			variants: [
+				variant({ name: "Plain", unitPriceCents: 1600 }),
+				variant({ name: "Gold leaf", unitPriceCents: 3000 }),
+			],
+		});
+		const [plain, gold] = p.variants;
+
+		const priced = priceProductLines(p, [
+			{ variant: gold!, qty: 2 },
+			{ variant: plain!, qty: 2 },
+		]);
+		// Plain fills both full-price slots at $16; the gold pair drops to $15.
+		expect(totalOf(priced)).toBe(1600 * 2 + 1500 * 2);
+		// And the other way round is the same answer, so the order the basket
+		// happens to list them in cannot change the bill.
+		expect(
+			totalOf(
+				priceProductLines(p, [
+					{ variant: plain!, qty: 2 },
+					{ variant: gold!, qty: 2 },
+				]),
+			),
+		).toBe(1600 * 2 + 1500 * 2);
+	});
+
+	it("leaves a product with no rate past the minimum priced one line at a time", () => {
+		const p = product({
+			tiers: FOUR_FOR_TWELVE,
+			variants: [variant({ name: "Vanilla", unitPriceCents: 300 })],
+		});
+		const [v] = p.variants;
+		const priced = priceProductLines(p, [
+			{ variant: v!, qty: 4 },
+			{ variant: v!, qty: 4 },
+		]);
+		// Two bundles, not one bundle and four singles: nothing about this product
+		// changed.
+		expect(priced.map((line) => line.totalCents)).toEqual([1200, 1200]);
 	});
 });
 

@@ -1379,14 +1379,12 @@ describe("variants", () => {
 			[three.id],
 		);
 		expect(threeLines.rows).toEqual([
-			{ line_total_cents: 4500 * 2 + 1500, pricing_note: "1 x 2 for $90.00 + 1 x $15.00 cake" },
+			{ line_total_cents: 4500 * 2 + 1500, pricing_note: "2 x $45.00 cake + 1 x $15.00 cake" },
 		]);
 
-		// The reason the rate is counted per line rather than across the basket:
-		// two flavours, one of each, is the minimum met across them, and both are
-		// charged the first-one price. Splitting does not cost more than not
-		// splitting: two of one flavour is $90 and one of each is $95 only
-		// because the carrot is the dearer cake, not because it was split.
+		// Two flavours, one of each, is the minimum met across them, and both are
+		// inside the allowance. $95 rather than $90 only because the carrot is the
+		// dearer cake, not because it was split.
 		const split = await placeOrder({
 			items: [
 				{ product_id: cakeId, variant_id: chocolate, qty: 1 },
@@ -1412,6 +1410,77 @@ describe("variants", () => {
 
 		await db.query(
 			"update products set min_per_order = null, extra_unit_price_cents = null where id = $1",
+			[cakeId],
+		);
+	});
+
+	it("charges the same for three however the flavours fall", async () => {
+		// The rule in one test, and the reason 20260918000013 exists. It does not
+		// matter how many flavours: past the first two, every one is $15.
+		//
+		// The three flavours are levelled to one price first, because a flavour
+		// priced differently from its neighbours is a different question and the
+		// test above already covers it. Here the only variable is the split.
+		await db.query(
+			`update products set min_per_order = 2, extra_unit_price_cents = 1500 where id = $1`,
+			[cakeId],
+		);
+		await db.query("update product_variants set unit_price_cents = 4500 where product_id = $1", [
+			cakeId,
+		]);
+
+		const splits: Array<Array<[string, number]>> = [
+			[["choc", 3]],
+			[
+				["choc", 2],
+				["carrot", 1],
+			],
+			[
+				["choc", 1],
+				["carrot", 1],
+				["red", 1],
+			],
+		];
+		const ids: Record<string, string> = { choc: chocolate, carrot, red: redVelvet };
+		const totals: number[] = [];
+
+		for (const [index, split] of splits.entries()) {
+			const order = await placeOrder({
+				items: split.map(([name, qty]) => ({
+					product_id: cakeId,
+					variant_id: ids[name]!,
+					qty,
+				})),
+				// A day each, so three orders do not eat a day's capacity out from
+				// under the tests that come after this one.
+				pickupDate: await dateIn(7 + index),
+			});
+			const row = await db.query<{ subtotal_cents: number }>(
+				"select subtotal_cents from orders where id = $1",
+				[order.id],
+			);
+			totals.push(row.rows[0]!.subtotal_cents);
+
+			// And the lines always add back up to it, however the allowance was
+			// split between them.
+			const lines = await db.query<{ sum: number }>(
+				"select sum(line_total_cents)::int as sum from order_items where order_id = $1",
+				[order.id],
+			);
+			expect(lines.rows[0]!.sum).toBe(row.rows[0]!.subtotal_cents);
+		}
+
+		// $45 + $45 + $15, three times over.
+		expect(totals).toEqual([10500, 10500, 10500]);
+
+		await db.query(
+			"update products set min_per_order = null, extra_unit_price_cents = null where id = $1",
+			[cakeId],
+		);
+		await db.query(
+			`update product_variants set unit_price_cents = case name
+				when 'Chocolate' then 4500 when 'Carrot & walnut' then 5000 else 5500 end
+			 where product_id = $1`,
 			[cakeId],
 		);
 	});
@@ -2435,7 +2504,10 @@ describe("extras by the number", () => {
 			 from order_item_extras x
 			 join order_items i on i.id = x.order_item_id
 			 where i.order_id = $1
-			 order by x.sort_order, x.name`,
+			 -- unit_qty because the two rows one test here cares about are the same
+			 -- extra at two counts, so sort_order and name match on both and the
+			 -- order was otherwise whatever the rows happened to be written in.
+			 order by x.sort_order, x.name, x.unit_qty`,
 			[orderId],
 		);
 		return result.rows;

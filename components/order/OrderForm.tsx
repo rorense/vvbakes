@@ -22,7 +22,8 @@ import {
 	isVariantAvailable,
 	minOrderQty,
 	normaliseExtras,
-	priceProduct,
+	priceProductLines,
+	type PricedQuantity,
 } from "@/lib/pricing";
 import type {
 	CartBrief,
@@ -200,8 +201,26 @@ export function OrderForm({
 			}
 		}
 
-		return [...merged.values()].map((line) => {
-			const menu = priceProduct(line.product, line.qty, line.variant);
+		const all = [...merged.values()];
+
+		// Priced a product at a time rather than a line at a time, because the
+		// rule that needs it is a rule about the order: three boxes of minis is
+		// $50 whether that is three of one flavour or one each of three, and a
+		// line priced on its own would start the allowance over and charge
+		// $52.50. `place_order` groups and allocates exactly the same way, which
+		// is what keeps the figure here and the figure charged the same figure.
+		//
+		// Products with no cheaper rate past the minimum come back out of this
+		// priced one line at a time, which is what they have always been.
+		const priced = new Map<string, PricedQuantity>();
+		for (const productId of new Set(all.map((line) => line.product.id))) {
+			const forProduct = all.filter((line) => line.product.id === productId);
+			const results = priceProductLines(forProduct[0]!.product, forProduct);
+			forProduct.forEach((line, index) => priced.set(line.key, results[index]!));
+		}
+
+		return all.map((line) => {
+			const menu = priced.get(line.key)!;
 			const extrasCents = extrasTotalCents(line.extras, line.qty);
 
 			return {

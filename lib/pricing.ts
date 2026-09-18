@@ -68,6 +68,15 @@ export interface AfterMinimum {
 	minimum: number;
 	/** What each one after those costs. */
 	unitPriceCents: number;
+	/**
+	 * How many of this product are already spoken for by other lines of the same
+	 * order, and so have already eaten into the allowance above.
+	 *
+	 * Zero for a line standing on its own, which is what the product page shows
+	 * and what a basket holding one flavour comes to. `priceProductLines` is
+	 * what fills it in, and is the only caller that needs to.
+	 */
+	alreadyCounted?: number;
 }
 
 /**
@@ -154,27 +163,137 @@ function priceAfterMinimum(
 	unitPriceCents: number,
 	qty: number,
 	unitLabel: string,
-	{ minimum, unitPriceCents: extraCents }: AfterMinimum,
+	{ minimum, unitPriceCents: extraCents, alreadyCounted = 0 }: AfterMinimum,
 ): PricedQuantity {
-	const atFullPrice = Math.min(qty, Math.max(1, minimum));
+	// How much of the full-price allowance is left once whatever came before has
+	// taken its share. Zero on a line that starts past the minimum, which is
+	// every line of a basket after the first couple.
+	const allowance = Math.max(0, Math.max(1, minimum) - Math.max(0, alreadyCounted));
+	const atFullPrice = Math.min(qty, allowance);
 	const extra = qty - atFullPrice;
-
-	const parts = [
-		// One bundle of them where there are several, because "the first two" is
-		// one price off the menu and "2 x $17.50 each" invites the reader to check
-		// the arithmetic on a number they were given whole.
-		atFullPrice > 1
-			? `1 x ${atFullPrice} for ${formatMoney(unitPriceCents * atFullPrice)}`
-			: `1 x ${formatMoney(unitPriceCents)} ${unitLabel}`,
-	];
-
-	if (extra > 0) parts.push(`${extra} x ${formatMoney(extraCents)} ${unitLabel}`);
 
 	return {
 		totalCents: unitPriceCents * atFullPrice + extraCents * extra,
-		note: parts.join(" + "),
+		note: unitsNote(
+			[
+				{ count: atFullPrice, cents: unitPriceCents },
+				{ count: extra, cents: extraCents },
+			],
+			unitLabel,
+		),
 		onRequest: false,
 	};
+}
+
+/**
+ * "2 x $17.50 box of 12 + 1 x $15.00 box of 12", dearest first.
+ *
+ * Per unit rather than as a bundle, unlike the tier notes beside it, and that
+ * is the honest way round now that the rule is about the whole order. "1 x 2
+ * for $35.00" would be quoting the first two boxes as a thing this line bought,
+ * when what actually happened is that the order reached its minimum and this
+ * line was standing where the allowance ran out. The line did not buy a bundle;
+ * it bought some boxes at one rate and some at another, and that is what this
+ * says.
+ */
+function unitsNote(
+	parts: ReadonlyArray<{ count: number; cents: number }>,
+	unitLabel: string,
+): string {
+	return parts
+		.filter((part) => part.count > 0)
+		.sort((a, b) => b.cents - a.cents)
+		.map((part) => `${part.count} x ${formatMoney(part.cents)} ${unitLabel}`)
+		.join(" + ");
+}
+
+/**
+ * One line of an order, as the thing that prices it needs to see the line.
+ *
+ * `variant` carries the price of one; null is a product sold as one thing.
+ */
+export interface LineToPrice {
+	variant: ProductVariant | null;
+	qty: number;
+}
+
+/**
+ * What each of one product's lines comes to, priced as one order rather than
+ * one at a time.
+ *
+ * This is the whole reason it exists. "Three or more boxes and each one past
+ * the first two is $15" is a rule about the order, not about a flavour of it,
+ * so three boxes come to $50 whether that is three of one or one each of three.
+ * Pricing a line on its own cannot say that: each line would start its own
+ * allowance over and three flavours would come to $52.50.
+ *
+ * The allowance goes to the cheapest units first, which is what leaves the
+ * customer paying the least, and is the same side `priceForQty` already takes
+ * when it searches the bundle table for the cheapest way to make a quantity up.
+ * Ties fall back to the order the lines arrived in, so the answer is stable and
+ * the browser and the database can agree on it.
+ *
+ * Products with no cheaper rate past the minimum are priced exactly as before,
+ * one line at a time, because for them a line really is the whole story.
+ *
+ * Returns one entry per line, in the order the lines were given.
+ */
+export function priceProductLines(
+	product: Product,
+	lines: readonly LineToPrice[],
+	/**
+	 * How many of this product the order already holds outside `lines`.
+	 *
+	 * Zero for the basket, which is handed every line there is. The product page
+	 * passes what the basket is already holding, so that a second visit to the
+	 * page quotes the boxes it is about to add at the rate they will actually be
+	 * charged rather than starting the allowance again.
+	 */
+	alreadyCounted = 0,
+): PricedQuantity[] {
+	if (product.priceOnRequest || product.extraUnitPriceCents === null) {
+		return lines.map((line) => priceProduct(product, line.qty, line.variant));
+	}
+
+	const minimum = minOrderQty(product);
+
+	// Cheapest first, then the biggest quantity, then the flavour's id.
+	//
+	// The order matters because the allowance runs out inside one of these
+	// lines, and which line that is decides how the total is split between them.
+	// The total itself never changes. `place_order` sorts on the same three
+	// things, which is what keeps each line's own figure the same on this page
+	// and on the order it becomes; see the comment there for the one case the
+	// three cannot separate, and for why it does not change what anybody pays.
+	const order = lines
+		.map((line, index) => ({
+			index,
+			cents: unitPriceOf(product, line.variant),
+			qty: line.qty,
+			id: line.variant?.id ?? "",
+		}))
+		.sort((a, b) => a.cents - b.cents || b.qty - a.qty || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+	const priced = new Array<PricedQuantity>(lines.length);
+	let counted = Math.max(0, alreadyCounted);
+
+	for (const { index } of order) {
+		const line = lines[index]!;
+		priced[index] = priceForQty(
+			unitPriceOf(product, line.variant),
+			product.tiers,
+			line.qty,
+			product.unitLabel,
+			{
+				minimum,
+				unitPriceCents: product.extraUnitPriceCents,
+				alreadyCounted: counted,
+			},
+		);
+		counted += line.qty;
+	}
+
+	return priced;
 }
 
 /** True when the product is sold as flavours, sizes or some other named choice. */
