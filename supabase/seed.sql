@@ -63,44 +63,53 @@ on conflict (slug) do nothing;
 -- than only on the one, so the column reads as a decision made per product
 -- instead of as one row with something odd about it.
 --
--- `note_placeholder` is here for the same reason, and for two migrations
+-- `note_placeholder` is here for the same reason, and for three migrations
 -- rather than one. 20260918000002_slice_note_example.sql puts her own example
--- inside the note box on the things sold by the slice, and
--- 20260918000004_cookie_note_placeholder.sql does it for the cookies; on a
--- fresh install both run before there is a row to put it in. Null on the other
--- two means "say what BriefFields says", which is the right answer for almost
+-- inside the note box on the things sold by the slice,
+-- 20260918000004_cookie_note_placeholder.sql does it for the cookies, and
+-- 20260918000009_cupcake_wording.sql does it for the cupcakes; on a fresh
+-- install all three run before there is a row to put it in. Null on the chiffon
+-- means "say what BriefFields says", which is the right answer for almost
 -- everything and the reason that wording is not copied out here.
+--
+-- `inspiration_hint` is the last column for the same reason again, and is the
+-- one only the cupcakes need. The default in InspirationPicker talks about a
+-- cake, which is right on the custom cake and wrong on a box of cupcakes; the
+-- other four here do not ask for photos at all, so null is not a decision they
+-- are making.
 insert into products (
 	name, slug, category_id, description,
 	unit_price_cents, unit_label, qty_step, is_featured, sort_order,
-	wants_custom_flavour, wants_brief, wants_note, note_placeholder
+	wants_custom_flavour, wants_brief, wants_note, note_placeholder, inspiration_hint
 ) values
 	(
 		'Cupcakes', 'cupcakes',
 		(select id from categories where slug = 'cupcakes'),
 		null, 300, 'each', 1, true, 1,
-		true, true, true, null
+		true, true, true,
+		'E.g. Cupcakes are for a gender reveal party, make half the order with pastel pink coloured vanilla buttercream, and the other half with pastel blue coloured vanilla buttercream in a rosette design as shown in the inspo picture.',
+		'Cupcakes you''ve seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.'
 	),
 	(
 		'Cookies', 'cookies',
 		(select id from categories where slug = 'cookies'),
 		'Each pack comes with two cookies.', 500, 'pack', 1, true, 2,
 		false, false, true,
-		'E.g. Please don''t add any flaky salt'
+		'E.g. Please don''t add any flaky salt', null
 	),
 	(
 		'Brochi', 'brochi',
 		(select id from categories where slug = 'cakes-and-kue'),
 		null, 500, 'slice', 1, false, 3,
 		false, false, true,
-		'E.g. Can each slice be cut in half?'
+		'E.g. Can each slice be cut in half?', null
 	),
 	(
 		'Wingko', 'wingko',
 		(select id from categories where slug = 'cakes-and-kue'),
 		null, 500, 'slice', 1, false, 4,
 		false, false, true,
-		'E.g. Can each slice be cut in half?'
+		'E.g. Can each slice be cut in half?', null
 	),
 	(
 		-- It comes how it comes. A box inviting writing on top only invites a
@@ -108,7 +117,7 @@ insert into products (
 		'Pandan Chiffon Cake', 'pandan-chiffon-cake',
 		(select id from categories where slug = 'cakes-and-kue'),
 		null, 300, 'slice', 1, true, 5,
-		false, false, false, null
+		false, false, false, null, null
 	)
 on conflict (slug) do nothing;
 
@@ -132,15 +141,24 @@ insert into products (
 	name, slug, category_id, description,
 	unit_price_cents, unit_label, qty_step, min_per_order, extra_unit_price_cents,
 	is_featured, sort_order,
-	wants_custom_flavour, wants_brief, wants_note, inspiration_hint
+	wants_custom_flavour, wants_brief, wants_note, mix_variants,
+	note_placeholder, inspiration_hint
 ) values (
 	'Cupcakes - mini sized', 'cupcakes-mini-sized',
 	(select id from categories where slug = 'cupcakes'),
 	'Freshly baked mini cupcakes in a delicious variety of flavours, topped with a creamy frosting and perfect for any occasion.',
 	1750, 'box of 12', 1, 2, 1500,
 	false, 6,
-	true, true, true,
-	'Cupcakes you have seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.'
+	-- `mix_variants` last of the four, and the only product here it is on for:
+	-- a box is one flavour and two boxes is the smallest order, so mixing is the
+	-- ordinary case rather than the exception. 20260918000012_mix_variants.sql
+	-- switches it on for the shop that already has this row.
+	true, true, true, true,
+	-- The same two as the regular sized above, word for word, which is what
+	-- 20260918000009_cupcake_wording.sql writes onto both of them on an install
+	-- that already has the rows.
+	'E.g. Cupcakes are for a gender reveal party, make half the order with pastel pink coloured vanilla buttercream, and the other half with pastel blue coloured vanilla buttercream in a rosette design as shown in the inspo picture.',
+	'Cupcakes you''ve seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.'
 )
 on conflict (slug) do nothing;
 

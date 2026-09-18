@@ -55,6 +55,8 @@ type ProductRow = {
 	wants_brief: boolean;
 	/** The product page asks for a flavour of their own, and for what the frosting should be. */
 	wants_custom_flavour: boolean;
+	/** Every flavour offered at once with a count beside each. Needs exactly one option group. */
+	mix_variants: boolean;
 	/** The product page asks "Anything to add?" at all. */
 	wants_note: boolean;
 	/** The line under the note box, in her words. Null uses the wording in BriefFields. */

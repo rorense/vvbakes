@@ -277,10 +277,13 @@ describe("seed data", () => {
 		expect(result.rows.filter((row) => row.note_hint !== null).map((row) => row.slug)).toEqual([]);
 
 		// The example is the one piece of wording seeded, and only where she
-		// asked for it: the two sold by the slice and the cookies, which is what
-		// 20260918000002 and 20260918000004 put on an install that already has
-		// them. A fourth slug here is a copy of the default in a place it should
-		// not be.
+		// asked for it: the two sold by the slice, the cookies and the two kinds
+		// of cupcake, which is what 20260918000002, 20260918000004 and
+		// 20260918000009 put on an install that already has them. A sixth slug
+		// here is a copy of the default in a place it should not be.
+		const CUPCAKE_EXAMPLE =
+			"E.g. Cupcakes are for a gender reveal party, make half the order with pastel pink coloured vanilla buttercream, and the other half with pastel blue coloured vanilla buttercream in a rosette design as shown in the inspo picture.";
+
 		expect(
 			result.rows
 				.filter((row) => row.note_placeholder !== null)
@@ -288,8 +291,42 @@ describe("seed data", () => {
 		).toEqual([
 			["brochi", "E.g. Can each slice be cut in half?"],
 			["cookies", "E.g. Please don't add any flaky salt"],
+			["cupcakes", CUPCAKE_EXAMPLE],
+			["cupcakes-mini-sized", CUPCAKE_EXAMPLE],
 			["wingko", "E.g. Can each slice be cut in half?"],
 		]);
+	});
+
+	/**
+	 * The photo picker's line, which only the cupcakes reword.
+	 *
+	 * Checked apart from the note above because it is a different question with a
+	 * different default: the note box is offered on everything, while the picker
+	 * is only drawn where `wants_brief` is on, so a hint on a product that never
+	 * shows it is wording nobody will ever read.
+	 */
+	it("rewords the photo picker for the cupcakes and nothing else", async () => {
+		const result = await db.query<{
+			slug: string;
+			wants_brief: boolean;
+			inspiration_hint: string | null;
+		}>("select slug, wants_brief, inspiration_hint from products order by slug");
+
+		const reworded = result.rows.filter((row) => row.inspiration_hint !== null);
+
+		expect(reworded.map((row) => row.slug)).toEqual(["cupcakes", "cupcakes-mini-sized"]);
+
+		// Every one of them asks for photos, or the wording is unreachable.
+		expect(reworded.every((row) => row.wants_brief)).toBe(true);
+
+		// The default's first three words are the whole of the change, and the
+		// rest has to survive: "be specific in the notes" is the part she cares
+		// about and the part a careless reword would drop.
+		for (const row of reworded) {
+			expect(row.inspiration_hint).toMatch(/^Cupcakes you've seen and loved/);
+			expect(row.inspiration_hint).toContain("be specific in the notes section");
+			expect(row.inspiration_hint).not.toContain("A cake");
+		}
 	});
 
 	it("is idempotent", async () => {
@@ -302,6 +339,178 @@ describe("seed data", () => {
 		// migration adds and the minis the seed adds in a second insert.
 		// Re-running the seed must not duplicate any of the three sets.
 		expect(result.rows[0]!.count).toBe(7);
+	});
+
+	/**
+	 * The wording migration against the slugs the live shop actually uses.
+	 *
+	 * The seed is not the install that matters here. On a fresh database the
+	 * rows do not exist when the migration runs and it is the seed above that
+	 * puts the wording in; the migration only earns its keep on the shop that is
+	 * already running, whose minis are `mini-cupcakes` rather than the seed's
+	 * `cupcakes-mini-sized`. Asserting against the seed alone would prove the
+	 * pattern matches the one slug nobody needs it to match.
+	 *
+	 * 20260918000007 is the reason this is worth a test at all: 20260918000002
+	 * was recorded as applied and its three products stayed null, and nothing
+	 * anywhere said so. A version already in the history is never run again, so
+	 * a pattern that misses is a pattern that needs a whole new migration.
+	 */
+	it("reaches the slugs the live shop uses, not just the seeded ones", async () => {
+		const migration = await import("node:fs/promises").then((fs) =>
+			fs.readFile("supabase/migrations/20260918000009_cupcake_wording.sql", "utf8"),
+		);
+
+		await db.query(
+			`insert into products (name, slug, unit_price_cents, unit_label, wants_brief, sort_order)
+			 values ('Cupcakes - mini sized', 'mini-cupcakes', 1750, 'box of 12', true, 900)`,
+		);
+
+		try {
+			// Guarded on null throughout, so running it a second time against the
+			// already-seeded rows is exactly the no-op it promises to be.
+			await db.exec(migration);
+
+			const result = await db.query<{
+				note_placeholder: string | null;
+				inspiration_hint: string | null;
+			}>("select note_placeholder, inspiration_hint from products where slug = 'mini-cupcakes'");
+
+			expect(result.rows[0]!.note_placeholder).toContain("gender reveal party");
+			expect(result.rows[0]!.inspiration_hint).toMatch(/^Cupcakes you've seen and loved/);
+
+			// And nothing it was not aimed at. The cookies keep their own example,
+			// which is the guard doing its job rather than a coincidence of order.
+			const cookies = await db.query<{ note_placeholder: string | null }>(
+				"select note_placeholder from products where slug = 'cookies'",
+			);
+			expect(cookies.rows[0]!.note_placeholder).toBe("E.g. Please don't add any flaky salt");
+		} finally {
+			await db.query("delete from products where slug = 'mini-cupcakes'");
+		}
+	});
+
+	it("offers the minis as several flavours at once, and nothing else", async () => {
+		const result = await db.query<{ slug: string }>(
+			"select slug from products where mix_variants order by slug",
+		);
+		// Only the minis. The chiffon and the tiramisu sell sizes, which are the
+		// same shape in this table and are not a thing anyone mixes, so a second
+		// slug here means the switch was set from the data rather than by her.
+		expect(result.rows.map((row) => row.slug)).toEqual(["cupcakes-mini-sized"]);
+	});
+
+	it("switches mixing on for the live minis slug too", async () => {
+		const migration = await import("node:fs/promises").then((fs) =>
+			fs.readFile("supabase/migrations/20260918000012_mix_variants.sql", "utf8"),
+		);
+
+		await db.query(
+			`insert into products (name, slug, unit_price_cents, unit_label, sort_order)
+			 values ('Cupcakes - mini sized', 'mini-cupcakes', 1750, 'box of 12', 902)`,
+		);
+
+		try {
+			await db.exec(migration);
+
+			const minis = await db.query<{ mix_variants: boolean }>(
+				"select mix_variants from products where slug = 'mini-cupcakes'",
+			);
+			expect(minis.rows[0]!.mix_variants).toBe(true);
+
+			// And nothing it was not aimed at, in particular not the regular sized
+			// cupcakes, which share the first half of the pattern.
+			const regular = await db.query<{ mix_variants: boolean }>(
+				"select mix_variants from products where slug = 'cupcakes'",
+			);
+			expect(regular.rows[0]!.mix_variants).toBe(false);
+		} finally {
+			await db.query("delete from products where slug = 'mini-cupcakes'");
+		}
+	});
+
+	/**
+	 * The price migration against the shop as it stands: the live slug, the live
+	 * flavour price, and the four bundle rungs it is replacing.
+	 *
+	 * Priced through `price_for_qty` rather than read back off the row, because
+	 * the row holding 1500 is not the claim being made. The claim is that seven
+	 * boxes stop costing $112.50, and only the function can say that.
+	 */
+	it("puts the minis on the rate she asked for, rungs and all", async () => {
+		const migration = await import("node:fs/promises").then((fs) =>
+			fs.readFile("supabase/migrations/20260918000010_mini_cupcake_price.sql", "utf8"),
+		);
+
+		const created = await db.query<{ id: string }>(
+			`insert into products
+				(name, slug, unit_price_cents, unit_label, min_per_order, sort_order)
+			 values ('Cupcakes - mini sized', 'mini-cupcakes', 1600, 'box of 12', 2, 901)
+			 returning id`,
+		);
+		const minis = created.rows[0]!.id;
+
+		try {
+			await db.query(
+				`insert into product_variants (product_id, name, unit_price_cents, sort_order)
+				 values ($1, 'Vanilla', 1750, 0), ($1, 'Ube', 1750, 1)`,
+				[minis],
+			);
+			// The ladder as the live shop holds it today.
+			await db.query(
+				`insert into product_price_tiers (product_id, qty, price_cents)
+				 values ($1, 3, 5000), ($1, 4, 6500), ($1, 5, 8000), ($1, 6, 9500)`,
+				[minis],
+			);
+
+			const vanilla = await db.query<{ id: string }>(
+				"select id from product_variants where product_id = $1 and name = 'Vanilla'",
+				[minis],
+			);
+			const flavour = vanilla.rows[0]!.id;
+
+			// Before: the seventh box falls off the last rung and pays full price.
+			const before = await db.query<{ total_cents: number }>(
+				"select total_cents from price_for_qty($1, 7, $2)",
+				[minis, flavour],
+			);
+			expect(before.rows[0]!.total_cents).toBe(11250);
+
+			await db.exec(migration);
+
+			// The rungs are gone rather than outvoted. One left behind would win
+			// whichever quantity it happened to be cheapest for.
+			const tiers = await db.query<{ count: number }>(
+				"select count(*)::int as count from product_price_tiers where product_id = $1",
+				[minis],
+			);
+			expect(tiers.rows[0]!.count).toBe(0);
+
+			for (const [qty, cents] of [
+				[1, 1750],
+				[2, 3500],
+				[3, 5000],
+				[4, 6500],
+				[5, 8000],
+				[6, 9500],
+				[7, 11000],
+				[20, 3500 + 1500 * 18],
+			] as const) {
+				const priced = await db.query<{ total_cents: number }>(
+					"select total_cents from price_for_qty($1, $2, $3)",
+					[minis, qty, flavour],
+				);
+				expect([qty, priced.rows[0]!.total_cents]).toEqual([qty, cents]);
+			}
+
+			// The regular sized cupcakes are not in this and keep their bundle.
+			expect(await price("cupcakes", 4)).toEqual({
+				total_cents: 1200,
+				note: "1 x 4 for $12.00",
+			});
+		} finally {
+			await db.query("delete from products where slug = 'mini-cupcakes'");
+		}
 	});
 });
 

@@ -302,6 +302,25 @@ export interface Product {
 	 */
 	wantsCustomFlavour: boolean;
 	/**
+	 * The product page offers every flavour at once with a count beside each,
+	 * rather than one at a time.
+	 *
+	 * The minis are why. A box is one flavour and twenty-four is the smallest
+	 * order, so the ordinary order is two boxes in two flavours, and asking one
+	 * flavour at a time makes that two passes through the page with nothing
+	 * saying the second pass exists.
+	 *
+	 * Hers to set, because what decides it is what the choice *means* and that
+	 * is not in the schema. Seven flavours of cupcake want a list of numbers;
+	 * the chiffon's two sizes are the same shape in the database and nobody
+	 * orders half a six inch and half an eight.
+	 *
+	 * Only read where the product has exactly one option group. A product with
+	 * more has no list to put numbers beside: the thing being counted is a
+	 * combination, and the custom cake has a hundred and sixty of them.
+	 */
+	mixVariants: boolean;
+	/**
 	 * The product page asks "Anything to add?" at all.
 	 *
 	 * On for everything unless she turns it off. Some things come how they

@@ -151,6 +151,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		priceOnRequest: checkbox(formData, "priceOnRequest"),
 		wantsBrief: checkbox(formData, "wantsBrief"),
 		wantsCustomFlavour: checkbox(formData, "wantsCustomFlavour"),
+		mixVariants: checkbox(formData, "mixVariants"),
 		// The marker is what tells an unticked box apart from a form rendered
 		// before this field existed. The question is on by default, so an absent
 		// checkbox would otherwise read as "off" and saving a product from a stale
@@ -204,6 +205,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		price_guide_note: input.priceGuideNote,
 		wants_brief: input.wantsBrief,
 		wants_custom_flavour: input.wantsCustomFlavour,
+		mix_variants: input.mixVariants,
 		wants_note: input.wantsNote,
 		note_hint: input.noteHint,
 		note_placeholder: input.notePlaceholder,

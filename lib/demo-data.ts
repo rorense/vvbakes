@@ -81,6 +81,7 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		priceOnRequest: false,
 		wantsBrief: false,
 		wantsCustomFlavour: false,
+		mixVariants: false,
 		wantsNote: true,
 		noteHint: null,
 		notePlaceholder: null,
@@ -253,6 +254,9 @@ export const DEMO_PRODUCTS: Product[] = [
 		})),
 		wantsCustomFlavour: true,
 		wantsBrief: true,
+		// The product the flavour list was built for: a box is one flavour and
+		// two boxes is the smallest order, so mixing is the ordinary case.
+		mixVariants: true,
 		inspirationHint:
 			"Cupcakes you have seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.",
 	}),

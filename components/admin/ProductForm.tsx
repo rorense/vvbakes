@@ -1102,6 +1102,17 @@ export function ProductForm({
 						description="Adds a custom flavour box, and a question about the frosting, to this product's page. For the things you'll make in a flavour that isn't on the menu — not for the ones that come how they come."
 						defaultChecked={product?.wantsCustomFlavour ?? false}
 					/>
+					{/* Only offered where there is one list to put numbers beside. With
+					    two, the thing being counted is a combination rather than a
+					    flavour, and the custom cake has a hundred and sixty of them. */}
+					{product && product.variants.length > 0 && product.optionGroups.length <= 1 ? (
+						<Switch
+							name="mixVariants"
+							label={`Let them order several ${product.variantLabel.toLowerCase()}s at once`}
+							description={`Shows every ${product.variantLabel.toLowerCase()} at once with a number beside each, instead of one at a time, and puts a separate line in the basket for each one they pick. For the things people buy a few kinds of, like a box of cupcakes. Not for sizes: nobody orders half a six inch cake and half an eight.`}
+							defaultChecked={product.mixVariants}
+						/>
+					) : null}
 					{/* The odd one out, and the reason it is controlled rather than
 					    defaulted: this one starts on. Every product has asked for a
 					    note since the shop opened, so the switch is here to take the

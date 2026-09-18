@@ -55,6 +55,7 @@ function product(overrides: Partial<Product> = {}): Product {
 		priceOnRequest: false,
 		wantsBrief: false,
 		wantsCustomFlavour: false,
+		mixVariants: false,
 		wantsNote: true,
 		noteHint: null,
 		notePlaceholder: null,

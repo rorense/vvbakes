@@ -331,6 +331,7 @@ export function toProduct(
 		priceOnRequest: row.price_on_request ?? false,
 		wantsBrief: row.wants_brief ?? false,
 		wantsCustomFlavour: row.wants_custom_flavour ?? false,
+		mixVariants: row.mix_variants ?? false,
 		// True rather than false when the column is missing, which is the one of
 		// these that inverts: the note has been asked for on every product since
 		// the shop opened, and the minutes between the deploy and the migration

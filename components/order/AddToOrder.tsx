@@ -26,6 +26,7 @@ import type { CartExtra, Product } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Stepper } from "@/components/ui/Stepper";
 import { BriefFields, EMPTY_BRIEF, isDraftEmpty, type DraftBrief } from "./BriefFields";
+import { FlavourMix, mixLines, mixQty, type FlavourCounts } from "./FlavourMix";
 import { useVariantChoice } from "./VariantChoice";
 
 /**
@@ -67,6 +68,9 @@ export function AddToOrder({ product }: { product: Product }) {
 	// about rather than the product, so a whole chiffon cake opens on one where
 	// its slices open on eight. The stepper may be taken below it; see `floor`.
 	const [qty, setQty] = useState(() => minOrderQty(product, variant));
+	// How many of each flavour, when the product is bought as several at once.
+	// Empty and unread on everything else; see `mixing` below.
+	const [counts, setCounts] = useState<FlavourCounts>({});
 	const [added, setAdded] = useState(false);
 	const [saving, setSaving] = useState(false);
 	// Held as a list rather than a map so the order it is written to the cart in
@@ -119,15 +123,38 @@ export function AddToOrder({ product }: { product: Product }) {
 		);
 	}
 
+	/**
+	 * True when this product is bought as several of its flavours at once.
+	 *
+	 * Three conditions beyond her switch, and each one is a case the panel has
+	 * no answer for. Two option groups means the thing being counted is a
+	 * combination rather than a flavour, and the custom cake has a hundred and
+	 * sixty of them. No variants means there is no list. Priced on request means
+	 * every row would read $0.00, which beside a cake reads as a free cake.
+	 */
+	const mixing =
+		product.mixVariants && !product.priceOnRequest && groups.length === 1 && hasVariants(product);
+
+	// One per flavour asked for, already priced the way the basket will hold it.
+	const lines = mixing ? mixLines(product, counts) : [];
+	const mixCents = lines.reduce((total, line) => total + line.totalCents, 0);
+
 	// A selection can name a combination the owner never priced — she sells the
 	// lemon in two layers and not in three — and the page has to say so rather
 	// than quoting the product's own price for something that is not for sale.
-	const picked = !hasVariants(product) || variant !== null;
-	const menu = picked ? priceProduct(product, qty, variant) : null;
+	// Mixing has no single selection to be wrong: nothing picked is simply
+	// nothing to add yet.
+	const picked = mixing ? lines.length > 0 : !hasVariants(product) || variant !== null;
+	const menu = mixing || !picked ? null : priceProduct(product, qty, variant);
+
+	// How many of the product this add is for, which is what the extras are
+	// priced against: one set of candles per cake, however the cakes were
+	// chosen. Mixing spreads that across the flavours rather than changing it.
+	const units = mixing ? mixQty(lines) : qty;
 	// The running total is what the customer will actually be charged for this
 	// line, so the extras belong in it. They are priced per unit, which is why
 	// the quantity is passed rather than added on once.
-	const extrasCents = extrasTotalCents(chosen, qty);
+	const extrasCents = extrasTotalCents(chosen, units);
 
 	// The picker starts at the whole product's minimum, because that is what most
 	// people are buying and landing on it saves them the presses. It does not
@@ -192,26 +219,40 @@ export function AddToOrder({ product }: { product: Product }) {
 		setSaving(true);
 		try {
 			const photoIds = await savePhotos(brief.photos.map((photo) => photo.file));
+			const extras = chosen.map(({ extra, qty: count }) => ({ id: extra.id, qty: count }));
+			const written = isDraftEmpty(brief)
+				? undefined
+				: {
+						note: brief.note,
+						inspirationUrl: brief.inspirationUrl,
+						photoIds,
+						customFlavour: brief.customFlavour,
+						// The tick and the text are one answer; `normaliseBrief` drops
+						// whichever of them the other one wins over, so both are handed
+						// over as they stand rather than reconciled twice.
+						frosting: brief.frosting,
+						frostingMatchesFlavour: brief.frostingMatchesFlavour,
+					};
 
-			add(
-				product.id,
-				qty,
-				variant?.id ?? null,
-				chosen.map(({ extra, qty: count }) => ({ id: extra.id, qty: count })),
-				isDraftEmpty(brief)
-					? undefined
-					: {
-							note: brief.note,
-							inspirationUrl: brief.inspirationUrl,
-							photoIds,
-							customFlavour: brief.customFlavour,
-							// The tick and the text are one answer; `normaliseBrief` drops
-							// whichever of them the other one wins over, so both are handed
-							// over as they stand rather than reconciled twice.
-							frosting: brief.frosting,
-							frostingMatchesFlavour: brief.frostingMatchesFlavour,
-						},
-			);
+			if (mixing) {
+				// One line per flavour, which is what the basket holds and what
+				// `place_order` prices. Written one at a time because that is the
+				// shape of the cart's `add`, and because each call reads the stored
+				// cart back before writing, so the four of them accumulate.
+				//
+				// The brief goes on the first line and only the first. It describes
+				// the order of cupcakes rather than any one flavour of them, and
+				// copying it would be worse than untidy: photos are uploaded per
+				// line and counted per line against the order's cap of six, so the
+				// same three pictures on three flavours is nine photos and an order
+				// the shop refuses to take.
+				lines.forEach((line, index) => {
+					add(product.id, line.qty, line.variant.id, extras, index === 0 ? written : undefined);
+				});
+				setCounts({});
+			} else {
+				add(product.id, qty, variant?.id ?? null, extras, written);
+			}
 
 			// The previews belong to this picker and nothing else will ever draw
 			// them; the basket makes its own from the stored blobs.
@@ -225,67 +266,81 @@ export function AddToOrder({ product }: { product: Product }) {
 
 	return (
 		<div className="flex flex-col gap-4">
-			{groups.map((group) => (
-				<fieldset
-					key={group.id || group.name}
-					className="flex flex-col gap-2">
-					<legend className="text-cocoa-soft text-2xs mb-2 font-medium tracking-widest uppercase">
-						{group.name}
-					</legend>
-					<div className="flex flex-wrap gap-2">
-						{group.options
-							// A sold-out option is left out rather than shown struck through:
-							// the picker offers what can be bought, and the product's own
-							// "sold out" note covers the case where that is nothing.
-							.filter((option) => option.isAvailable)
-							.map((option) => {
-								const thumbnail = productImageUrl(option.imagePath);
-								const chosen = selection[group.id] === option.id;
-								// Greyed rather than hidden: a lemon that only comes in two
-								// layers should still show three, so the reason the choice is
-								// missing is visible instead of the choice being missing.
-								const selectable = isOptionSelectable(product, selection, group.id, option.id);
+			{mixing ? (
+				<FlavourMix
+					product={product}
+					counts={counts}
+					groupName={groups[0]!.name}
+					onChange={(next) => {
+						setCounts(next);
+						setAdded(false);
+					}}
+				/>
+			) : null}
 
-								return (
-									<label
-										key={option.id}
-										className={cn(
-											"rounded-pill flex items-center border text-sm transition-colors",
-											// A pill with a photo in it is tighter on the left, so the
-											// image sits flush inside the rounded end rather than
-											// floating in a gap of its own.
-											thumbnail ? "gap-2 py-1 pr-4 pl-1" : "px-4 py-2",
-											chosen
-												? "border-cocoa bg-paper-deep font-medium"
-												: "border-line hover:border-cocoa",
-											selectable
-												? "cursor-pointer"
-												: "text-cocoa-soft cursor-not-allowed opacity-50",
-										)}>
-										<input
-											type="radio"
-											name={`option-${group.id || group.name}`}
-											className="sr-only"
-											checked={chosen}
-											disabled={!selectable}
-											onChange={() => pick(group.id, option.id)}
-										/>
-										{thumbnail ? (
-											<Image
-												src={thumbnail}
-												alt=""
-												width={64}
-												height={64}
-												className="size-7 shrink-0 rounded-full object-cover"
-											/>
-										) : null}
-										{option.name}
-									</label>
-								);
-							})}
-					</div>
-				</fieldset>
-			))}
+			{mixing
+				? null
+				: groups.map((group) => (
+						<fieldset
+							key={group.id || group.name}
+							className="flex flex-col gap-2">
+							<legend className="text-cocoa-soft text-2xs mb-2 font-medium tracking-widest uppercase">
+								{group.name}
+							</legend>
+							<div className="flex flex-wrap gap-2">
+								{group.options
+									// A sold-out option is left out rather than shown struck through:
+									// the picker offers what can be bought, and the product's own
+									// "sold out" note covers the case where that is nothing.
+									.filter((option) => option.isAvailable)
+									.map((option) => {
+										const thumbnail = productImageUrl(option.imagePath);
+										const chosen = selection[group.id] === option.id;
+										// Greyed rather than hidden: a lemon that only comes in two
+										// layers should still show three, so the reason the choice is
+										// missing is visible instead of the choice being missing.
+										const selectable = isOptionSelectable(product, selection, group.id, option.id);
+
+										return (
+											<label
+												key={option.id}
+												className={cn(
+													"rounded-pill flex items-center border text-sm transition-colors",
+													// A pill with a photo in it is tighter on the left, so the
+													// image sits flush inside the rounded end rather than
+													// floating in a gap of its own.
+													thumbnail ? "gap-2 py-1 pr-4 pl-1" : "px-4 py-2",
+													chosen
+														? "border-cocoa bg-paper-deep font-medium"
+														: "border-line hover:border-cocoa",
+													selectable
+														? "cursor-pointer"
+														: "text-cocoa-soft cursor-not-allowed opacity-50",
+												)}>
+												<input
+													type="radio"
+													name={`option-${group.id || group.name}`}
+													className="sr-only"
+													checked={chosen}
+													disabled={!selectable}
+													onChange={() => pick(group.id, option.id)}
+												/>
+												{thumbnail ? (
+													<Image
+														src={thumbnail}
+														alt=""
+														width={64}
+														height={64}
+														className="size-7 shrink-0 rounded-full object-cover"
+													/>
+												) : null}
+												{option.name}
+											</label>
+										);
+									})}
+							</div>
+						</fieldset>
+					))}
 
 			{offered.length > 0 ? (
 				<fieldset className="flex flex-col gap-2">
@@ -326,7 +381,7 @@ export function AddToOrder({ product }: { product: Product }) {
 													{/* "each" is only true when there is more than one to
 													    be each of, and a stepped product's floor is never
 													    one, so the label follows the quantity. */}
-													{extraPriceLabel(extra, { perUnit: qty > 1 })}
+													{extraPriceLabel(extra, { perUnit: units > 1 })}
 												</span>
 											</span>
 											{extra.description ? (
@@ -355,7 +410,7 @@ export function AddToOrder({ product }: { product: Product }) {
 													: `Up to ${extra.maxQty}`}
 												{extra.priceCents > 0
 													? `, ${formatMoney(extra.priceCents * picked.qty)}${
-															qty > 1 ? " each" : ""
+															units > 1 ? " each" : ""
 														}`
 													: ""}
 											</span>
@@ -378,17 +433,25 @@ export function AddToOrder({ product }: { product: Product }) {
 			/>
 
 			<div className="flex flex-wrap items-center gap-4">
-				<Stepper
-					value={qty}
-					min={floor}
-					max={null}
-					step={product.qtyStep}
-					label={variant ? `${product.name}, ${variant.name}` : product.name}
-					onChange={(next) => {
-						setQty(Math.max(floor, next));
-						setAdded(false);
-					}}
-				/>
+				{/* Mixing counts each flavour on its own row, so a stepper here would
+				    be a second answer to a question already asked. What is left is
+				    the total those rows come to. */}
+				{mixing ? null : (
+					<Stepper
+						value={qty}
+						min={floor}
+						max={null}
+						step={product.qtyStep}
+						label={variant ? `${product.name}, ${variant.name}` : product.name}
+						onChange={(next) => {
+							setQty(Math.max(floor, next));
+							setAdded(false);
+						}}
+					/>
+				)}
+				{mixing && picked ? (
+					<p className="font-display text-xl">{formatMoney(mixCents + extrasCents)}</p>
+				) : null}
 				{menu ? (
 					// A cake with no price yet still has priced extras on it, so the
 					// two cases are a sentence and a number rather than one number that
@@ -405,19 +468,32 @@ export function AddToOrder({ product }: { product: Product }) {
 				) : null}
 			</div>
 
-			<p className="text-cocoa-soft text-xs">
-				{menu
-					? // The extras are named in the breakdown rather than folded into the
-						// menu note, which explains the menu price and nothing else.
-						[
-							menu.onRequest ? "I'll come back to you with a price" : menu.note,
-							...chosen.map(
-								({ extra, qty: count }) =>
-									`${extraLabel(extra.name, count)} ${formatMoney(extra.priceCents * count * qty)}`,
-							),
-						].join(" + ")
-					: "That combination isn't one I make at the moment."}
-			</p>
+			{/* Mixing already shows each flavour's own breakdown on its own row, so
+			    all that is left to name here is the extras. With nothing picked
+			    there is nothing to break down and no wrong combination to report
+			    either, which is the one thing the pill picker has to say. */}
+			{mixing && !picked ? null : (
+				<p className="text-cocoa-soft text-xs">
+					{mixing
+						? chosen
+								.map(
+									({ extra, qty: count }) =>
+										`${extraLabel(extra.name, count)} ${formatMoney(extra.priceCents * count * units)}`,
+								)
+								.join(" + ")
+						: menu
+							? // The extras are named in the breakdown rather than folded into
+								// the menu note, which explains the menu price and nothing else.
+								[
+									menu.onRequest ? "I'll come back to you with a price" : menu.note,
+									...chosen.map(
+										({ extra, qty: count }) =>
+											`${extraLabel(extra.name, count)} ${formatMoney(extra.priceCents * count * units)}`,
+									),
+								].join(" + ")
+							: "That combination isn't one I make at the moment."}
+				</p>
+			)}
 
 			<div className="flex flex-wrap items-center gap-3">
 				<Button
@@ -447,7 +523,10 @@ export function AddToOrder({ product }: { product: Product }) {
 			    is a rule about nothing. That is what a whole cake sold beside
 			    slices comes to, and it is the one the customer is least likely to
 			    want a sentence about. */}
-			{minimum > floor ? (
+			{/* The flavour list says this itself, against the total across its own
+			    rows, which is the number the rule is actually about. Saying it
+			    twice on one page is saying it once too often. */}
+			{minimum > floor && !mixing ? (
 				<p className="text-cocoa-soft text-xs">
 					At least {minimum} per order{minimumScope()}.
 					{/* Said out loud now that the picker will let them go under it.

@@ -400,6 +400,7 @@ export const productSchema = z
 		priceOnRequest: z.boolean(),
 		wantsBrief: z.boolean(),
 		wantsCustomFlavour: z.boolean(),
+		mixVariants: z.boolean(),
 		// Unlike the two above, this one is on by default, so an absent field and
 		// an unticked box have to mean different things. saveProduct sorts that
 		// out before it gets here; see the marker it reads.
