@@ -6,7 +6,7 @@ import type { InstagramPost } from "@/lib/types";
  * The Instagram grid.
  *
  * Square tiles in a tight grid, because that is the shape everyone already
- * reads as "this is her Instagram" — an arch frame here would look like another
+ * reads as "this is her Instagram": an arch frame here would look like another
  * row of product cards. No captions on the tiles for the same reason: the grid
  * is the recognisable thing, and the words are one tap away on the post itself.
  *

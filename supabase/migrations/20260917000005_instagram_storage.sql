@@ -6,7 +6,7 @@
 -- signed URL, which is the same bargain the product bucket makes.
 --
 -- No insert policy for anyone. These are written by the cron using the service
--- role, so there is no upload endpoint to point a script at — the same shape as
+-- role, so there is no upload endpoint to point a script at, the same shape as
 -- the inspiration bucket, and for the same reason.
 --
 -- The filename is the Instagram media id, so re-syncing a post overwrites its

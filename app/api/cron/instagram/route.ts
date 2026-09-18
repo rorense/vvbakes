@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 /**
  * The first run downloads a dozen pictures and is the slow one; after that it
  * is usually one. Sixty seconds is the ceiling on Vercel's Hobby plan, and a
- * run that hits it still leaves every post it finished behind — see storePost.
+ * run that hits it still leaves every post it finished behind, see storePost.
  */
 export const maxDuration = 60;
 
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 	// waiting for the timer to come round.
 	//
 	// No "page" argument. That form purges by a tag built from the route as the
-	// app directory keys it, which for this home page is `/(site)/page` — so
+	// app directory keys it, which for this home page is `/(site)/page`, so
 	// `revalidatePath("/", "page")` asked for a tag nothing carries and did
 	// nothing at all. The plain form matches the URL that was asked for, which
 	// has no route group in it. See the note on `revalidateCatalogue` in

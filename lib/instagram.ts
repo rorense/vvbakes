@@ -424,8 +424,8 @@ async function recordOutcome(
  * A readable sentence from a Meta error body.
  *
  * Built from the body alone, never from the request. The access token travels
- * as a query parameter, so anything that echoes the URL — a thrown fetch error,
- * a logged request — puts a live credential in the logs.
+ * as a query parameter, so anything that echoes the URL (a thrown fetch error,
+ * a logged request) puts a live credential in the logs.
  */
 function describeApiError(body: Record<string, unknown> | null, status: number): string {
 	const error = body?.error;

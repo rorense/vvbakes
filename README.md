@@ -607,19 +607,59 @@ There is no widget, no third-party script, and no cost.
 1. The account has to be **Professional** (Business or Creator). Free, and it is
    a toggle in the Instagram app under Settings → Account type.
 2. At [developers.facebook.com](https://developers.facebook.com), create an app
-   and add the **Instagram API with Instagram Login** product. Do *not* reach
-   for the Basic Display API: Meta shut it down on 4 December 2024, and most of
-   the tutorials still online are written against it.
-3. Add the owner's account as a user with a role on the app. While the app stays
-   in Development mode that is enough — App Review is only needed to read *other
-   people's* accounts, which this never does.
-4. Generate a token and exchange it for a **long-lived** one.
-5. Put it in `INSTAGRAM_ACCESS_TOKEN`, locally and in the Vercel project.
+   with the **Manage messaging & content on Instagram** use case, then open
+   **Instagram API → API setup with Instagram login**.
+
+   Two wrong turns on that screen. The *Embed Facebook, Instagram and Threads
+   content in other websites* use case is oEmbed: it describes what we are
+   doing, needs App Review, and cannot serve a feed. And the Basic Display API,
+   which most tutorials still online are written against, was shut down on
+   4 December 2024.
+
+3. **Assign the Instagram Tester role before anything else**, in the app's
+   **Roles** tab, then accept the invitation from the Instagram account itself
+   under Settings → Apps and websites → Tester invites.
+
+   This is the step that looks optional and is not. Skip it and "Add account"
+   opens a popup that lands on an ordinary Instagram feed with no consent
+   screen, which reads exactly like a broken button.
+
+   Being a tester is also what makes App Review unnecessary. The panel warns
+   that review is required "before your app can access live data"; live data
+   means accounts with no role on the app. Leave the app **Unpublished**.
+
+4. Back in **API setup with Instagram login**, add the permissions it asks for
+   and press **Add account**. Only `instagram_business_basic` is ever used, and
+   the messaging and publishing ones come as a set and sit unused.
+
+   The token this generates has been long-lived in practice. There is no need
+   to exchange it by hand unless a call rejects it within the hour.
+
+5. Put it in `INSTAGRAM_ACCESS_TOKEN`, locally and in the Vercel project. A
+   Vercel variable only takes effect on a **new deployment**, so redeploy after
+   adding it or the sync answers `"skipped":"no Instagram access token"`.
+
 6. Trigger a first sync rather than waiting for 04:00:
 
-   ```
+   ```bash
    curl -H "Authorization: Bearer $CRON_SECRET" https://vvbakes.co.nz/api/cron/instagram
    ```
+
+   In PowerShell that line fails twice over: `curl` is an alias for
+   `Invoke-WebRequest`, which will not take a string header, and there is no
+   `grep` to read the secret with. Use the real curl and read `.env.local`
+   the PowerShell way:
+
+   ```powershell
+   $secret = ((Get-Content .env.local | Where-Object { $_ -match '^CRON_SECRET=' }) -replace '^CRON_SECRET=','' -replace '"','').Trim()
+   curl.exe -s -H "Authorization: Bearer $secret" https://vvbakes.co.nz/api/cron/instagram
+   ```
+
+   `unauthorized` here almost always means the `CRON_SECRET` in `.env.local` is
+   not the one in the Vercel project. They are set at different times and drift.
+   Hitting `/api/cron/keepalive` with the same secret tells you which it is: that
+   route has been live for longer, so if it refuses too, the secrets differ
+   rather than this route being broken.
 
    The first run downloads twelve pictures and is the slow one. After that it is
    usually one. The response says what happened: `stored`, `downloaded`,
@@ -636,7 +676,7 @@ update instagram_sync set access_token = null, token_expires_at = null where id 
 
 #### When it breaks
 
-It breaks quietly. A dead token does not empty the page — it leaves last
+It breaks quietly. A dead token does not empty the page, it leaves last
 month's posts sitting there looking fine. So the job writes what went wrong to
 `instagram_sync.last_error` and when it last succeeded to `synced_at`:
 
@@ -650,8 +690,8 @@ there is no path from a signed-in browser session to the credential.
 
 A refresh needs a token at least 24 hours old and not yet expired. The job asks
 for a new one once there are fewer than ten days left, which lands around day
-fifty and leaves a week of nightly retries. Miss that window entirely — the site
-offline for two months, say — and the token is gone for good; generate a new one
+fifty and leaves a week of nightly retries. Miss that window entirely (the site
+offline for two months, say) and the token is gone for good; generate a new one
 and clear the stored one as above.
 
 Two other things worth knowing:

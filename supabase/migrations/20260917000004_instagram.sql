@@ -30,7 +30,7 @@
 --
 -- `media_type` is deliberately unconstrained beyond a length check. Instagram
 -- has added values to it before and will again, and a check constraint that
--- rejects a new one would silently drop the newest post — the worst possible
+-- rejects a new one would silently drop the newest post, the worst possible
 -- row to lose. The page treats anything it does not recognise as a picture.
 create table instagram_posts (
 	id text primary key check (length(btrim(id)) between 1 and 64),
@@ -68,7 +68,7 @@ create policy "admin all" on instagram_posts for all to authenticated
 -- launch. INSTAGRAM_ACCESS_TOKEN is still read, once, to seed this row.
 --
 -- `last_error` is the whole reason this table has more than one column. When
--- this breaks it breaks silently — a stale token returns an error, the page
+-- this breaks it breaks silently: a stale token returns an error, the page
 -- keeps rendering yesterday's posts, and nobody finds out for weeks. The cron
 -- writes whatever went wrong here so there is something to look at.
 create table instagram_sync (
