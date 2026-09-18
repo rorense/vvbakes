@@ -56,15 +56,28 @@ export function isDraftEmpty(brief: DraftBrief): boolean {
  */
 const NOTE_COPY = {
 	brief: {
-		hint: "The occasion, any specific flavour, colour, design requests. The more details you provide, the better I can prepare, price and bring your vision to life. Please note that I don’t do writing on cakes - please request a personalised cake topper if you want something specific to be written (3 weeks notice required). Thanks!",
+		hint: (noun: string) =>
+			`The occasion, any specific flavour, colour, design requests. The more details you provide, the better I can prepare, price and bring your vision to life. Please note that I don’t do writing on ${noun}s - please request a personalised ${noun} topper if you want something specific to be written (3 weeks notice required). Thanks!`,
 		placeholder:
 			"e.g. The cake is for my mum’s 50th birthday, the party theme is pink and white so we’d like the frosting colour of the cake to match. The cake needs to feed 20 people. I’d also like to request a custom cake topper to say: “Happy 50th Mum” in pink. Inspiration picture has been attached, something similar would be good but doesn’t need to match 100%. No dietary requirements.",
 	},
 	plain: {
-		hint: "Anything I should know about this one.",
+		hint: () => "Anything I should know about this one.",
 		placeholder: "e.g. no sprinkles on the pink ones",
 	},
 } as const;
+
+/**
+ * What this product calls itself in the questions below: "cake", "cupcake".
+ *
+ * Three sentences here were written for the custom cake and say "cake" out
+ * loud, which is the wrong word on a box of cupcakes and was asking them about
+ * the wrong thing. `briefNoun` is hers to set per product and null still says
+ * "cake", so nothing moves for a product she has not thought about.
+ */
+function briefNoun(product: Product): string {
+	return product.briefNoun?.trim() || "cake";
+}
 
 /**
  * What a customer wants to say about this particular thing.
@@ -124,8 +137,9 @@ export function BriefFields({
 	// than being read beside it: turning the note off there would be turning the
 	// brief off, which is not what the switch offers to do.
 	const asksNote = product.wantsNote || product.wantsBrief;
+	const noun = briefNoun(product);
 	const copy = product.wantsBrief ? NOTE_COPY.brief : NOTE_COPY.plain;
-	const noteHint = product.noteHint ?? copy.hint;
+	const noteHint = product.noteHint ?? copy.hint(noun);
 	const notePlaceholder = product.notePlaceholder ?? copy.placeholder;
 
 	// Nothing is being asked, so there is nothing to draw a line above.
@@ -136,7 +150,7 @@ export function BriefFields({
 			{product.wantsCustomFlavour ? (
 				<fieldset className="flex flex-col gap-4">
 					<legend className="text-sm font-medium">
-						Custom cake flavour
+						Custom {noun} flavour
 						<span className="text-cocoa-soft text-xs font-normal"> (optional)</span>
 					</legend>
 					<div className="flex flex-col gap-2">
@@ -179,7 +193,7 @@ export function BriefFields({
 					    the note sits under the box rather than inside either branch. */}
 					<p className="text-cocoa-soft text-xs">
 						Please note that flavours will colour the frosting e.g. matcha flavoured frosting will
-						be green. If coloured frosting for decorating the cake is required, then the flavour
+						be green. If coloured frosting for decorating the {noun}s is required, then the flavour
 						needs to match the colour, or it will be vanilla flavoured. Due to the yellow colour of
 						NZ butter, it is difficult to achieve a white frosting naturally so please bear in mind
 						plain frosting will have a yellow tinge.

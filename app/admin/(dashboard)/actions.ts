@@ -161,6 +161,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		noteHint: formData.get("noteHint") ?? "",
 		notePlaceholder: formData.get("notePlaceholder") ?? "",
 		inspirationHint: formData.get("inspirationHint") ?? "",
+		briefNoun: formData.get("briefNoun") ?? "",
 		availabilityNote: formData.get("availabilityNote") ?? "",
 		allergens: formData.getAll("allergens").map(String),
 		sortOrder: formData.get("sortOrder") ?? 0,
@@ -210,6 +211,7 @@ export async function saveProduct(_previous: State, formData: FormData): Promise
 		note_hint: input.noteHint,
 		note_placeholder: input.notePlaceholder,
 		inspiration_hint: input.inspirationHint,
+		brief_noun: input.briefNoun,
 	};
 
 	let productId = input.id;

@@ -413,6 +413,9 @@ export const productSchema = z
 		// The line under the photo picker. Same rule and same length as the two
 		// above: null means "say what the code says".
 		inspirationHint: optionalText(500),
+		// One word, and the plural is made from it, so there is no room for a
+		// sentence here and no need for one.
+		briefNoun: optionalText(40),
 		tiers: z.array(priceTierSchema).max(6),
 		// Starting prices for something with no price. Submitted whether or not
 		// the product is priced on request, for the reason the price field above

@@ -340,6 +340,7 @@ export function toProduct(
 		noteHint: row.note_hint ?? null,
 		notePlaceholder: row.note_placeholder ?? null,
 		inspirationHint: row.inspiration_hint ?? null,
+		briefNoun: row.brief_noun ?? null,
 		priceGuideNote: row.price_guide_note ?? null,
 	};
 }

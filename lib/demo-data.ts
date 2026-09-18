@@ -86,6 +86,7 @@ function demoProduct(overrides: Partial<Product> & Pick<Product, "id" | "slug" |
 		noteHint: null,
 		notePlaceholder: null,
 		inspirationHint: null,
+		briefNoun: null,
 		...overrides,
 	};
 }
@@ -219,6 +220,16 @@ export const DEMO_PRODUCTS: Product[] = [
 		// the frosting, and somewhere to put the picture it came from.
 		wantsCustomFlavour: true,
 		wantsBrief: true,
+		// The questions say "cake" unless a product says otherwise, which is the
+		// wrong word on a box of cupcakes. Mirrors 20260918000014_brief_noun.sql.
+		briefNoun: "cupcake",
+		// The same wording the seed puts on these two and
+		// 20260918000009_cupcake_wording.sql puts on the live ones. Without it a
+		// fresh clone shows the custom cake's example on a box of cupcakes.
+		notePlaceholder:
+			"E.g. Cupcakes are for a gender reveal party, make half the order with pastel pink coloured vanilla buttercream, and the other half with pastel blue coloured vanilla buttercream in a rosette design as shown in the inspo picture.",
+		inspirationHint:
+			"Cupcakes you've seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.",
 	}),
 	// The worked example for the price that is not a bundle. Mirrors the product
 	// seeded by supabase/seed.sql: $17.50 a box of twelve for the first two, $15
@@ -254,6 +265,14 @@ export const DEMO_PRODUCTS: Product[] = [
 		})),
 		wantsCustomFlavour: true,
 		wantsBrief: true,
+		// The questions say "cake" unless a product says otherwise, which is the
+		// wrong word on a box of cupcakes. Mirrors 20260918000014_brief_noun.sql.
+		briefNoun: "cupcake",
+		// The same wording the seed puts on these two and
+		// 20260918000009_cupcake_wording.sql puts on the live ones. Without it a
+		// fresh clone shows the custom cake's example on a box of cupcakes.
+		notePlaceholder:
+			"E.g. Cupcakes are for a gender reveal party, make half the order with pastel pink coloured vanilla buttercream, and the other half with pastel blue coloured vanilla buttercream in a rosette design as shown in the inspo picture.",
 		// The product the flavour list was built for: a box is one flavour and
 		// two boxes is the smallest order, so mixing is the ordinary case.
 		mixVariants: true,

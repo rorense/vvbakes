@@ -107,6 +107,7 @@ function parseMaxQty(maxQty: unknown) {
 		wantsBrief: false,
 		wantsCustomFlavour: false,
 		mixVariants: false,
+		briefNoun: "",
 		wantsNote: true,
 		noteHint: null,
 		notePlaceholder: null,

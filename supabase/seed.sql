@@ -80,7 +80,12 @@ on conflict (slug) do nothing;
 insert into products (
 	name, slug, category_id, description,
 	unit_price_cents, unit_label, qty_step, is_featured, sort_order,
-	wants_custom_flavour, wants_brief, wants_note, note_placeholder, inspiration_hint
+	wants_custom_flavour, wants_brief, wants_note, note_placeholder, inspiration_hint,
+	-- `brief_noun` last, and only the cupcakes set it: the questions say "cake"
+	-- otherwise, which is right on the three sold by the slice and wrong on a
+	-- box of cupcakes. 20260918000014_brief_noun.sql does the same to a shop
+	-- that already has these rows.
+	brief_noun
 ) values
 	(
 		'Cupcakes', 'cupcakes',
@@ -88,28 +93,29 @@ insert into products (
 		null, 300, 'each', 1, true, 1,
 		true, true, true,
 		'E.g. Cupcakes are for a gender reveal party, make half the order with pastel pink coloured vanilla buttercream, and the other half with pastel blue coloured vanilla buttercream in a rosette design as shown in the inspo picture.',
-		'Cupcakes you''ve seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.'
+		'Cupcakes you''ve seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.',
+		'cupcake'
 	),
 	(
 		'Cookies', 'cookies',
 		(select id from categories where slug = 'cookies'),
 		'Each pack comes with two cookies.', 500, 'pack', 1, true, 2,
 		false, false, true,
-		'E.g. Please don''t add any flaky salt', null
+		'E.g. Please don''t add any flaky salt', null, null
 	),
 	(
 		'Brochi', 'brochi',
 		(select id from categories where slug = 'cakes-and-kue'),
 		null, 500, 'slice', 1, false, 3,
 		false, false, true,
-		'E.g. Can each slice be cut in half?', null
+		'E.g. Can each slice be cut in half?', null, null
 	),
 	(
 		'Wingko', 'wingko',
 		(select id from categories where slug = 'cakes-and-kue'),
 		null, 500, 'slice', 1, false, 4,
 		false, false, true,
-		'E.g. Can each slice be cut in half?', null
+		'E.g. Can each slice be cut in half?', null, null
 	),
 	(
 		-- It comes how it comes. A box inviting writing on top only invites a
@@ -117,7 +123,7 @@ insert into products (
 		'Pandan Chiffon Cake', 'pandan-chiffon-cake',
 		(select id from categories where slug = 'cakes-and-kue'),
 		null, 300, 'slice', 1, true, 5,
-		false, false, false, null, null
+		false, false, false, null, null, null
 	)
 on conflict (slug) do nothing;
 
@@ -142,7 +148,7 @@ insert into products (
 	unit_price_cents, unit_label, qty_step, min_per_order, extra_unit_price_cents,
 	is_featured, sort_order,
 	wants_custom_flavour, wants_brief, wants_note, mix_variants,
-	note_placeholder, inspiration_hint
+	note_placeholder, inspiration_hint, brief_noun
 ) values (
 	'Cupcakes - mini sized', 'cupcakes-mini-sized',
 	(select id from categories where slug = 'cupcakes'),
@@ -158,7 +164,8 @@ insert into products (
 	-- 20260918000009_cupcake_wording.sql writes onto both of them on an install
 	-- that already has the rows.
 	'E.g. Cupcakes are for a gender reveal party, make half the order with pastel pink coloured vanilla buttercream, and the other half with pastel blue coloured vanilla buttercream in a rosette design as shown in the inspo picture.',
-	'Cupcakes you''ve seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.'
+	'Cupcakes you''ve seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.',
+	'cupcake'
 )
 on conflict (slug) do nothing;
 

@@ -390,6 +390,49 @@ describe("seed data", () => {
 		}
 	});
 
+	it("calls the cupcakes cupcakes in their own questions, and nothing else", async () => {
+		const result = await db.query<{ slug: string; brief_noun: string | null }>(
+			"select slug, brief_noun from products order by slug",
+		);
+		const named = result.rows.filter((row) => row.brief_noun !== null);
+
+		// Only the two kinds of cupcake. Null everywhere else says "cake", which
+		// is what all three sentences said before there was a choice and is right
+		// on the custom cake they were written for.
+		expect(named.map((row) => [row.slug, row.brief_noun])).toEqual([
+			["cupcakes", "cupcake"],
+			["cupcakes-mini-sized", "cupcake"],
+		]);
+	});
+
+	it("puts the noun on the live cupcake slugs too", async () => {
+		const migration = await import("node:fs/promises").then((fs) =>
+			fs.readFile("supabase/migrations/20260918000014_brief_noun.sql", "utf8"),
+		);
+
+		await db.query(
+			`insert into products (name, slug, unit_price_cents, unit_label, sort_order)
+			 values ('Cupcakes - mini sized', 'mini-cupcakes', 1750, 'box of 12', 903)`,
+		);
+
+		try {
+			await db.exec(migration);
+
+			const minis = await db.query<{ brief_noun: string | null }>(
+				"select brief_noun from products where slug = 'mini-cupcakes'",
+			);
+			expect(minis.rows[0]!.brief_noun).toBe("cupcake");
+
+			// And not the things that are actually cakes.
+			const chiffon = await db.query<{ brief_noun: string | null }>(
+				"select brief_noun from products where slug = 'pandan-chiffon-cake'",
+			);
+			expect(chiffon.rows[0]!.brief_noun).toBeNull();
+		} finally {
+			await db.query("delete from products where slug = 'mini-cupcakes'");
+		}
+	});
+
 	it("offers the minis as several flavours at once, and nothing else", async () => {
 		const result = await db.query<{ slug: string }>(
 			"select slug from products where mix_variants order by slug",

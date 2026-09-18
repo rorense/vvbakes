@@ -62,6 +62,7 @@ function product(overrides: Partial<Product> = {}): Product {
 		noteHint: null,
 		notePlaceholder: null,
 		inspirationHint: null,
+		briefNoun: null,
 		...overrides,
 	};
 }

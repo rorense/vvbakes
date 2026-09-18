@@ -341,6 +341,7 @@ export function ProductForm({
 	// what she typed.
 	const [wantsBrief, setWantsBrief] = useState(product?.wantsBrief ?? false);
 	const [inspirationHint, setInspirationHint] = useState(product?.inspirationHint ?? "");
+	const [briefNoun, setBriefNoun] = useState(product?.briefNoun ?? "");
 	const [extraRows, setExtraRows] = useState<ExtraDraft[]>(() =>
 		toExtraDrafts(product?.extras ?? []),
 	);
@@ -601,6 +602,11 @@ export function ProductForm({
 				type="hidden"
 				name="inspirationHint"
 				value={inspirationHint}
+			/>
+			<input
+				type="hidden"
+				name="briefNoun"
+				value={briefNoun}
 			/>
 			<input
 				type="hidden"
@@ -1102,6 +1108,23 @@ export function ProductForm({
 						description="Adds a custom flavour box, and a question about the frosting, to this product's page. For the things you'll make in a flavour that isn't on the menu — not for the ones that come how they come."
 						defaultChecked={product?.wantsCustomFlavour ?? false}
 					/>
+					{/* Not behind either switch, because it is read by both of them and by
+					    the note box as well. Blank on almost everything, and the sentences
+					    say "cake" when it is. */}
+					<Field
+						label="What the questions call this"
+						hint='One word, singular. The questions say "cake" unless you change it: "Custom cake flavour", "writing on cakes", "decorating the cakes". Put "cupcake" here and they all follow. Leave blank for cake.'
+						error={errors.briefNoun}>
+						{(props) => (
+							<Input
+								{...props}
+								value={briefNoun}
+								onChange={(event) => setBriefNoun(event.target.value)}
+								placeholder="cake"
+								invalid={Boolean(errors.briefNoun)}
+							/>
+						)}
+					</Field>
 					{/* Only offered where there is one list to put numbers beside. With
 					    two, the thing being counted is a combination rather than a
 					    flavour, and the custom cake has a hundred and sixty of them. */}

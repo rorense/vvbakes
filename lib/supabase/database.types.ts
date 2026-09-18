@@ -63,6 +63,8 @@ type ProductRow = {
 	note_hint: string | null;
 	/** The example inside the empty note box, in her words. Null uses BriefFields. */
 	note_placeholder: string | null;
+	/** What the brief questions call this, singular. Null says "cake". */
+	brief_noun: string | null;
 	/** The line under the photo picker, in her words. Null uses InspirationPicker. */
 	inspiration_hint: string | null;
 	/** The line under the price guide, in her own words. Null hides it. */

@@ -355,6 +355,21 @@ export interface Product {
 	 * a custom cake and what it is not on a box of cupcakes.
 	 */
 	inspirationHint: string | null;
+	/**
+	 * What the brief and flavour questions call this, singular: "cake",
+	 * "cupcake". Null says "cake", which is what they all said before there was
+	 * a choice.
+	 *
+	 * Three sentences a customer reads are built from it: the custom flavour
+	 * legend, the note about colouring the frosting, and the default note hint.
+	 * They were written for the custom cake and asked a box of cupcakes about
+	 * cakes.
+	 *
+	 * Pluralised by adding an s where the sentence needs it, which holds for
+	 * cake, cupcake, cookie, brownie and slice. A word it does not hold for is a
+	 * reason to widen this rather than to store the plural too.
+	 */
+	briefNoun: string | null;
 }
 
 /** A category with its products already attached, for the shop page. */
