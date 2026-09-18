@@ -626,8 +626,17 @@ function BakeryJsonLd({
 	return (
 		<script
 			type="application/ld+json"
-			// Serialised server-side from our own settings, never from user input.
-			dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+			// The business name, tagline and contact details are all editable in
+			// the admin, so "our own settings" is still stored text and not a
+			// reason to skip escaping. JSON.stringify leaves "<" intact, and a
+			// tagline holding a closing script tag would end this one early.
+			//
+			// The replacement needs both backslashes. "<" in TypeScript
+			// source is already the character "<", so escaping it with one
+			// backslash compiles to a replace of "<" with "<" and does nothing
+			// at all. Two backslashes emit the six characters <, which is
+			// what a JSON string wants and parses back to the same text.
+			dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }}
 		/>
 	);
 }

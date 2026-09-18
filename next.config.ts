@@ -125,6 +125,28 @@ const nextConfig: NextConfig = {
 				source: "/:path*",
 				headers: [
 					{ key: "Content-Security-Policy", value: contentSecurityPolicy() },
+					/**
+					 * Vercel already redirects HTTP to HTTPS, but a redirect is a
+					 * request that happened: the first one still leaves the browser
+					 * in plaintext, and on a hostile network that is the one worth
+					 * having. This tells the browser never to try it again.
+					 *
+					 * Two years is the figure the preload list asks for, and there
+					 * is no reason to pick a shorter one. `includeSubDomains` is
+					 * safe here because everything under the domain that a browser
+					 * ever reaches is served by Vercel over HTTPS; mail is not
+					 * browser traffic and is unaffected.
+					 *
+					 * `preload` is deliberately absent. The directive alone does
+					 * nothing without submitting the domain at hstspreload.org, and
+					 * that is a commitment worth making on purpose, not as a side
+					 * effect of a header: removal from the list takes months to
+					 * reach real browsers.
+					 */
+					{
+						key: "Strict-Transport-Security",
+						value: "max-age=63072000; includeSubDomains",
+					},
 					{ key: "X-Content-Type-Options", value: "nosniff" },
 					{ key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
 					// Kept alongside frame-ancestors for browsers that honour only one.

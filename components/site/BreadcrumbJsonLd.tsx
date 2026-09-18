@@ -40,9 +40,15 @@ export function BreadcrumbJsonLd({ crumbs }: { crumbs: Crumb[] }) {
 			type="application/ld+json"
 			// Product and category names come from the admin catalogue, so JSON
 			// escaping alone is not enough: JSON.stringify leaves "<" intact, and a
-			// name holding "</script>" would close this tag early. \u003c is valid
-			// inside a JSON string and parses back to the same text.
-			dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\u003c") }}
+			// name holding a closing script tag would end this one early.
+			//
+			// The replacement needs both backslashes, and this line had only one
+			// for a long time. A single backslash is an escape the TypeScript
+			// compiler resolves, so the replacement string was already the single
+			// character "<" and the whole call replaced "<" with "<". Two
+			// backslashes emit the six characters a JSON string wants, which parse
+			// back to the same text.
+			dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }}
 		/>
 	);
 }
