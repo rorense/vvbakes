@@ -342,6 +342,43 @@
 		}
 	}
 
+	/*
+	 * The drop the phone's navigation sheet arrives on. See
+	 * components/site/MobileNav.tsx for what is in it.
+	 *
+	 * It comes down from behind the header because that is where the hamburger
+	 * that opened it sits, and a panel that slides out of the control you just
+	 * pressed needs no explaining. Under reduced motion it is simply there, the
+	 * links were always the point.
+	 *
+	 * The sheet travels but does not fade, and the fade is left to the backdrop.
+	 * A browser that is not drawing the page does not advance an animation
+	 * either, and the first frame is what you get when it resumes: 12px of
+	 * travel to make up is nothing, a sheet still sitting at zero opacity is an
+	 * invisible menu. Seen in the preview pane with the window behind another.
+	 */
+	@media (prefers-reduced-motion: no-preference) {
+		.nav-sheet[open] {
+			animation: nav-sheet 180ms ease-out;
+		}
+
+		.nav-sheet[open]::backdrop {
+			animation: nav-backdrop 180ms ease-out;
+		}
+	}
+
+	@keyframes nav-sheet {
+		from {
+			translate: 0 -0.75rem;
+		}
+	}
+
+	@keyframes nav-backdrop {
+		from {
+			opacity: 0;
+		}
+	}
+
 	/* Hide scrollbars on the horizontal date/category rails without losing scroll. */
 	.rail {
 		overflow-x: auto;
