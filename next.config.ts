@@ -80,6 +80,22 @@ const nextConfig: NextConfig = {
 				]
 			: [],
 		formats: ["image/webp"],
+		/**
+		 * How long an optimised copy is kept before Next goes back to storage for
+		 * the original. A year, rather than the four hours it defaults to.
+		 *
+		 * That default is written for a URL whose picture can change underneath
+		 * it, and almost nothing here is one: a product photo and an inspiration
+		 * photo are filed under a random name and never overwritten, so a photo
+		 * she replaces is a new path. The exception is an Instagram picture,
+		 * filed under its media id and rewritten whenever the feed re-syncs, and
+		 * what that rewrite puts back is the same post's picture, which Instagram
+		 * does not let anybody edit once it is published.
+		 *
+		 * What four hours cost is a fetch and a re-encode on the first view after
+		 * every window, paid by whoever clicks a photo next.
+		 */
+		minimumCacheTTL: 31536000,
 	},
 	experimental: {
 		serverActions: {
