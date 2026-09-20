@@ -242,61 +242,6 @@
 		mask-repeat: repeat-x;
 	}
 
-	/*
-	 * Hearts, dots and sparkles strewn across an intro band, the way a card shop
-	 * prints them behind a greeting. It replaced a field of plain dots, which is
-	 * what the client was reacting to when she asked for the hero to be "the same
-	 * colour" as the dates band: the two grounds were already the same paper, and
-	 * the texture on top was the whole of the difference.
-	 *
-	 * The same tile is laid twice, at sizes that share no common multiple and off
-	 * an offset that lines nothing up. A single layer repeats often enough across a
-	 * desktop hero for the eye to find it: it reads the same three hearts marching
-	 * sideways. Two layers at 450 and 315 only agree again after 3150px, which is
-	 * wider than any viewport, so the same arrangement is never seen twice. The
-	 * smaller layer also draws its hearts smaller, which is the size variation the
-	 * reference picture has. The two layers union rather than intersect, which is
-	 * `mask-composite`'s default.
-	 *
-	 * The pair was 300 and 210. The client asked for the scatter to be sparser
-	 * still after the tile had already been thinned to nine, and past that point
-	 * deleting more starts to make the repeat catchable, so the tile is spread
-	 * instead. Scaling it scales its contents too, so that spread also made the
-	 * hearts half again as big — which she then asked to take back, having only
-	 * ever wanted them further apart. The two sizes stay where they are and the
-	 * marks inside the tile are drawn smaller instead, in
-	 * public/patterns/hearts.svg, because the spacing is the half of it she
-	 * wanted to keep.
-	 *
-	 * It is a mask rather than a picture, so colour is the caller's to choose:
-	 * `currentColor` fills it, and the band sets the hue with a `text-*` utility
-	 * and the strength with an `opacity-*` one. Only the two paper bands wear it
-	 * now, both in rose, and at far more of it than the peach they briefly wore:
-	 * rose is only a little bluer than the yellow ground, so a faint wash of it
-	 * blends back to tan, and pink is the whole of what the client asked for. The
-	 * indirection is still what let the shop's five coloured grounds carry a cocoa
-	 * tint while they had it, and what any future band on a different ground would
-	 * need. Prefixed as well as not, for the same Safari versions `.torn-edge`
-	 * above is prefixed for.
-	 */
-	.heart-field {
-		background-color: currentColor;
-		-webkit-mask-image: url("/patterns/hearts.svg"), url("/patterns/hearts.svg");
-		mask-image: url("/patterns/hearts.svg"), url("/patterns/hearts.svg");
-		-webkit-mask-size:
-			450px 450px,
-			315px 315px;
-		mask-size:
-			450px 450px,
-			315px 315px;
-		-webkit-mask-position:
-			0 0,
-			206px 137px;
-		mask-position:
-			0 0,
-			206px 137px;
-	}
-
 	.marquee-track {
 		display: flex;
 		width: max-content;

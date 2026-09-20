@@ -52,13 +52,8 @@ export function NotFoundBody({ settings }: { settings: SiteSettings }) {
 		<>
 			<Section
 				tone="paper"
-				size="loose"
-				className="relative overflow-hidden">
-				<div
-					className="heart-field text-rose pointer-events-none absolute inset-0 opacity-70"
-					aria-hidden="true"
-				/>
-				<Container className="relative">
+				size="loose">
+				<Container>
 					<div className="flex flex-col gap-6">
 						<SectionLabel>Error 404</SectionLabel>
 

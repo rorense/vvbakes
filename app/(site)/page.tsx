@@ -147,18 +147,9 @@ export default async function HomePage() {
 	return (
 		<>
 			{/* Hero. A 12-column editorial split rather than a centred banner: the
-			    headline holds the left, the logo holds the right, and a single
-			    tilted sticker overlaps the two. */}
-			<Section
-				tone="paper"
-				className="relative overflow-hidden">
-				<div
-					className="heart-field text-rose pointer-events-none absolute inset-0 opacity-70"
-					aria-hidden="true"
-				/>
-				<Container
-					width="wide"
-					className="relative">
+			    headline holds the left, the logo holds the right. */}
+			<Section tone="paper">
+				<Container width="wide">
 					<div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-16">
 						<div className="flex flex-col gap-6 lg:col-span-7">
 							<SectionLabel>
