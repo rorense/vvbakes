@@ -23,12 +23,15 @@ export function MobileNav({
 	instagramHandle,
 	instagramHref,
 	brand,
+	homeLabel,
 }: {
 	links: NavItem[];
 	instagramHandle: string;
 	instagramHref: string;
 	/** The header's logo and wordmark, so the sheet can put back what it covers. */
 	brand: React.ReactNode;
+	/** Accessible name for the brand, which is a link home in here as it is out there. */
+	homeLabel: string;
 }) {
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const [open, setOpen] = useState(false);
@@ -114,11 +117,15 @@ export function MobileNav({
 				}}
 				className="bg-paper text-cocoa backdrop:bg-cocoa/40 nav-sheet m-0 max-h-dvh w-full max-w-none overflow-y-auto p-0">
 				<div className="flex h-16 items-center justify-between gap-4 px-5">
-					<div
-						aria-hidden="true"
-						className="flex min-w-0 items-center gap-2">
+					<NavLink
+						href="/"
+						aria-label={homeLabel}
+						onClick={() => {
+							if (samePath("/", pathname)) close();
+						}}
+						className="tap-safe flex min-w-0 items-center gap-2">
 						{brand}
-					</div>
+					</NavLink>
 					<button
 						type="button"
 						onClick={close}

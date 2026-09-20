@@ -101,14 +101,14 @@ export function SiteHeader({ settings }: { settings: SiteSettings }) {
 				</nav>
 
 				{/* The sheet covers the header it opens from, so it carries its own
-				    copy of the logo and wordmark to put back what it hid. Not a link:
-				    a second "home" inside the menu that does nothing when you are
-				    already home would leave the sheet sitting there. */}
+				    copy of the logo and wordmark, linked home exactly like the one
+				    it hid. */}
 				<MobileNav
 					links={LINKS}
 					instagramHandle={settings.instagramHandle}
 					instagramHref={instagramUrl(settings.instagramHandle)}
 					brand={<BrandMarks />}
+					homeLabel={`${settings.businessName} home`}
 				/>
 			</Container>
 		</header>
