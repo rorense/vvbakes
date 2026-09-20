@@ -19,7 +19,6 @@ import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { Marquee } from "@/components/ui/Marquee";
 import { ArchFrame } from "@/components/ui/ArchFrame";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { Sticker } from "@/components/ui/Sticker";
 import { InstagramFeed } from "@/components/site/InstagramFeed";
 import { ProductCard } from "@/components/site/ProductCard";
 import { PublicCalendar } from "@/components/site/PublicCalendar";
@@ -226,9 +225,7 @@ export default async function HomePage() {
 						{/* Capped until `lg`, where the grid finally gives the badge a column of
 						    its own. Uncapped it is `w-full` of the whole container on a phone,
 						    which made a 419px-tall arch the page's main event and pushed the
-						    buttons off the fold. The cap sits on this wrapper rather than on the
-						    frame so the sticker, positioned against it, shrinks with the arch
-						    rather than drifting off into the margin. */}
+						    buttons off the fold. */}
 						<div className="relative mx-auto w-full max-w-64 lg:col-span-5 lg:mx-0 lg:max-w-none">
 							{/* The badge fills the arch rather than sitting on a tile inside it. It is
 							    the ringless crop, and the frame is butter because that is the badge’s
@@ -249,26 +246,6 @@ export default async function HomePage() {
 									priority
 								/>
 							</ArchFrame>
-
-							<div className="absolute -bottom-6 -left-8">
-								<Sticker tone={availability.ordersOpen ? "rose-deep" : "cocoa"}>
-									{availability.ordersOpen ? (
-										nextDate ? (
-											<>
-												oven&rsquo;s on
-												<br />
-												<span className="font-display text-sm">
-													next free day {formatDateShort(nextDate.date)}
-												</span>
-											</>
-										) : (
-											<>booked solid, sorry</>
-										)
-									) : (
-										<>oven&rsquo;s off for now</>
-									)}
-								</Sticker>
-							</div>
 						</div>
 					</div>
 				</Container>
