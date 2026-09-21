@@ -391,13 +391,13 @@ export const productSchema = z
 		imageAlt: optionalText(200),
 		// The strip under the main photo. Blanks are dropped rather than refused:
 		// an empty slot is a row she added and never filled, which is a thing to
-		// throw away, not a mistake worth stopping the save over. Eight is the
-		// column's ceiling, and the form stops adding at the same number.
+		// throw away, not a mistake worth stopping the save over. Twenty five is
+		// the column's ceiling, and the form stops adding at the same number.
 		//
 		// Absent reads as none, the way every optional field here does: a tab
 		// opened before this shipped submits no such box, and taking that as an
 		// error would refuse a save that has nothing wrong with it. `default`
-		// rather than `catch`, so a real list of nine is still refused instead of
+		// rather than `catch`, so a real list of twenty six is still refused instead of
 		// quietly saving as an empty one.
 		galleryImagePaths: z
 			.array(z.string().trim().max(400))

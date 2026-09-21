@@ -162,10 +162,12 @@ function galleryPhotos(product: Product, variant: ProductVariant | null): Galler
  * How many photos the frame will hold at once.
  *
  * The frame stacks what it can show rather than repointing one element, so this
- * is also what a product page ends up downloading and it needs a ceiling. Nine
- * is the strip at its fullest: a main photo and the eight `MAX_GALLERY_PHOTOS`
- * allows. The three after it cover the flavours of a product that gives each
- * one a picture of its own.
+ * is also what a product page ends up downloading and it needs a ceiling. It
+ * used to be the whole strip at its fullest, back when `MAX_GALLERY_PHOTOS` was
+ * eight. The gallery now allows far more than a phone should fetch before it is
+ * asked to, so this stays where it is and stops trying to be a total: twelve is
+ * what a first look is worth, a main photo and the ones under it, with room for
+ * the pictures behind the flavours of a product that gives each one its own.
  *
  * A product with more photos than that still works. The ones past the ceiling
  * are fetched when they are picked, which is what every photo used to do.

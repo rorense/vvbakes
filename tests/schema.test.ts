@@ -3508,12 +3508,27 @@ describe("more photos than one", () => {
 		await db.query("update products set gallery_image_paths = '{}' where id = $1", [id]);
 	});
 
-	it("refuses a ninth, which is the number the admin stops offering at", async () => {
+	it("takes a full twenty five, which is the number the admin offers up to", async () => {
 		const id = await productId("cupcakes");
-		const nine = Array.from({ length: 9 }, (_, index) => `cupcakes/${index}.webp`);
+		const full = Array.from({ length: 25 }, (_, index) => `cupcakes/${index}.webp`);
+
+		await db.query("update products set gallery_image_paths = $2 where id = $1", [id, full]);
+
+		const result = await db.query<{ gallery_image_paths: string[] }>(
+			"select gallery_image_paths from products where id = $1",
+			[id],
+		);
+		expect(result.rows[0]!.gallery_image_paths).toHaveLength(25);
+
+		await db.query("update products set gallery_image_paths = '{}' where id = $1", [id]);
+	});
+
+	it("refuses a twenty sixth, which is the number the admin stops offering at", async () => {
+		const id = await productId("cupcakes");
+		const tooMany = Array.from({ length: 26 }, (_, index) => `cupcakes/${index}.webp`);
 
 		const message = await errorOf(() =>
-			db.query("update products set gallery_image_paths = $2 where id = $1", [id, nine]),
+			db.query("update products set gallery_image_paths = $2 where id = $1", [id, tooMany]),
 		);
 		expect(message).toMatch(/gallery_image_paths/);
 	});

@@ -40,13 +40,22 @@ export const INSTAGRAM_FEED_LIMIT = 12;
 /**
  * How many extra photos one product may show under its main one.
  *
- * A ceiling, not a target. Nobody taps a ninth thumbnail on a phone, and the
- * number is here rather than written twice so the admin stops offering an
+ * A ceiling, not a target. It is here to catch a loop gone wrong rather than to
+ * argue with her about a seventh angle, which is what eight had quietly turned
+ * into: a cake photographed from every side and in every light is a product
+ * page, not a mistake.
+ *
+ * A number this high is only affordable because the page does not fetch all of
+ * them up front. See `MAX_FRAME_PHOTOS` in components/order/VariantChoice.tsx,
+ * which is what a product page downloads eagerly; the rest are fetched when
+ * they are picked.
+ *
+ * The number is here rather than written twice so the admin stops offering an
  * upload at the point the column would refuse it. See the migration in
- * supabase/migrations/20260918000017_product_gallery.sql, which holds the same
- * number as a check constraint.
+ * supabase/migrations/20260921000001_more_gallery_photos.sql, which holds the
+ * same number as a check constraint.
  */
-export const MAX_GALLERY_PHOTOS = 8;
+export const MAX_GALLERY_PHOTOS = 25;
 
 /**
  * How many inspiration photos one line of an order may carry.

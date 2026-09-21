@@ -1265,8 +1265,8 @@ export function ProductForm({
  * leave a half-filled row behind if she changes her mind, which is the failure
  * every list in this form has to think about and this one simply cannot have.
  *
- * Eight is the column's ceiling, so the adder goes once she reaches it rather
- * than letting her upload a ninth the save would then refuse.
+ * Twenty five is the column's ceiling, so the adder goes once she reaches it
+ * rather than letting her upload a twenty sixth the save would then refuse.
  */
 function GalleryFieldset({
 	slug,
