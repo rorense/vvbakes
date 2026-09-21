@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { deleteFeedback, publishFeedback, resubscribe } from "./actions";
-import { adminFeedback, adminFeedbackOptOuts, adminSettings } from "@/lib/admin-queries";
+import {
+	adminFeedback,
+	adminFeedbackOptOuts,
+	adminFeedbackRatings,
+	adminSettings,
+} from "@/lib/admin-queries";
 import { AdminHeader, EmptyState } from "@/components/admin/AdminShell";
 import { FeedbackRow } from "@/components/admin/FeedbackRow";
 import { OptOutList } from "@/components/admin/OptOutList";
@@ -17,10 +22,11 @@ export const metadata = { title: "Feedback" };
  * row, and it only exists where the customer ticked the box.
  */
 export default async function AdminFeedbackPage() {
-	const [feedback, optOuts, settings] = await Promise.all([
+	const [feedback, optOuts, settings, ratings] = await Promise.all([
 		adminFeedback(),
 		adminFeedbackOptOuts(),
 		adminSettings(),
+		adminFeedbackRatings(),
 	]);
 
 	const waiting = feedback.filter((row) => row.consented && !row.publishedAt).length;
@@ -47,6 +53,7 @@ export default async function AdminFeedbackPage() {
 						<FeedbackRow
 							key={row.id}
 							feedback={row}
+							ratings={ratings.get(row.id)}
 							timezone={settings.timezone}
 							onPublish={publishFeedback}
 							onDelete={deleteFeedback}

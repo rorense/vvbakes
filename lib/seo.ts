@@ -15,7 +15,14 @@
 
 import { SITE_NAME, instagramUrl, siteUrl } from "./constants";
 import { formatPrice, hasVariants, priceRange } from "./pricing";
-import type { Category, Faq, Product, SiteSettings } from "./types";
+import type {
+	Category,
+	CategoryWithProducts,
+	Faq,
+	Product,
+	ProductRating,
+	SiteSettings,
+} from "./types";
 
 /** The city the shop bakes in. Part of the brand's address, not a preference. */
 export const SITE_CITY = "Auckland";
@@ -234,11 +241,26 @@ export function productJsonLd({
 	category,
 	images,
 	description,
+	rating = null,
 }: {
 	product: Product;
 	category: Pick<Category, "name"> | null;
 	images: readonly string[];
 	description: string;
+	/**
+	 * This product's score, when anybody has given it one. Null is the ordinary
+	 * state and publishes no `aggregateRating` at all, which is the only honest
+	 * answer for a product nobody has rated: an empty rating node is worth less
+	 * than none and earns a structured-data warning besides.
+	 *
+	 * On the product rather than on the bakery, and that is the whole point of
+	 * collecting these. Google will not show stars for a business's rating of
+	 * itself: "If the entity that's being reviewed controls the reviews about
+	 * itself, their pages that use LocalBusiness or any other type of
+	 * Organization structured data are ineligible for star review feature." A
+	 * rating of a cake is not that.
+	 */
+	rating?: ProductRating | null;
 }) {
 	const offers = productOffers(product);
 
@@ -254,6 +276,20 @@ export function productJsonLd({
 		brand: { "@type": "Brand", name: SITE_NAME },
 		...(category ? { category: category.name } : {}),
 		...(offers ? { offers } : {}),
+		...(rating && rating.count > 0
+			? {
+					aggregateRating: {
+						"@type": "AggregateRating",
+						// One decimal place. The function rounds to two, which would
+						// publish "4.67" against a count of three and imply a precision
+						// three opinions do not have.
+						ratingValue: Number(rating.average.toFixed(1)),
+						reviewCount: rating.count,
+						bestRating: 5,
+						worstRating: 1,
+					},
+				}
+			: {}),
 	};
 }
 
@@ -376,6 +412,64 @@ export function catalogueItemListJsonLd(entries: ReadonlyArray<{ slug: string; n
 			name: entry.name,
 			url: `${base}/shop/${entry.slug}`,
 		})),
+	};
+}
+
+/**
+ * What a category page says about itself, in prose and in its meta tag.
+ *
+ * Built from what is actually in the category rather than written per
+ * category, because a category is created in the admin and nothing there asks
+ * her for a description. Naming two or three of the products is what stops
+ * five of these pages reading as the same sentence with the noun swapped,
+ * which is the failure mode of every auto-generated category page.
+ */
+export function categoryDescription(category: CategoryWithProducts): string {
+	const sellable = category.products.filter((product) => product.isAvailable);
+	const shown = (sellable.length > 0 ? sellable : category.products).slice(0, 3);
+	const names = shown.map((product) => product.name);
+
+	const list =
+		names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+
+	const opener = list
+		? `${category.name} baked to order in ${SITE_CITY}: ${list}`
+		: `${category.name} baked to order in ${SITE_CITY}`;
+
+	return `${opener}. Pick a date and collect them fresh, or ask for something made to your own brief.`;
+}
+
+/**
+ * A category page as schema.org sees it: a `CollectionPage` wrapping an
+ * `ItemList` of what is on it.
+ *
+ * The products are linked rather than inlined for the reason the shop page's
+ * list links rather than inlines. Each product page already carries a full
+ * `Product` node with its own offer, and repeating all of that here would put
+ * the same catalogue in the markup three times over.
+ */
+export function categoryJsonLd(category: CategoryWithProducts) {
+	const base = siteUrl();
+	const url = `${base}/shop/category/${category.slug}`;
+
+	return {
+		"@context": "https://schema.org",
+		"@type": "CollectionPage",
+		"@id": `${url}#collection`,
+		name: `${category.name} in ${SITE_CITY}`,
+		description: categoryDescription(category),
+		url,
+		isPartOf: { "@id": bakeryId() },
+		mainEntity: {
+			"@type": "ItemList",
+			numberOfItems: category.products.length,
+			itemListElement: category.products.map((product, index) => ({
+				"@type": "ListItem",
+				position: index + 1,
+				name: product.name,
+				url: `${base}/shop/${product.slug}`,
+			})),
+		},
 	};
 }
 

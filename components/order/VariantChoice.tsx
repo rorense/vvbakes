@@ -305,7 +305,11 @@ export function VariantPhoto({
 							current
 								? picked
 									? galleryImageAlt(product, picked.position)
-									: variantImageAlt(product, variant, options)
+									: // `place` only here. This component is the product page's
+										// main photo and nowhere else, so it is the one image on
+										// the site that can name the city without a screen reader
+										// hearing it once per tile down a grid.
+										variantImageAlt(product, variant, options, { place: true })
 								: ""
 						}
 						aria-hidden={current ? undefined : true}

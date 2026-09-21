@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDateLong } from "@/lib/dates";
 import { firstName } from "@/lib/names";
-import { feedbackForOrder, getOrderByToken } from "@/lib/orders";
+import { feedbackForOrder, getOrderByToken, ratingsForFeedback } from "@/lib/orders";
 import { getSettings } from "@/lib/queries";
 import { Container, Section } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
@@ -67,6 +67,22 @@ export default async function OrderFeedbackPage({
 	}
 
 	const existing = await feedbackForOrder(order.id);
+	const existingRatings = existing ? await ratingsForFeedback(existing.id) : {};
+
+	// One entry per product, not per line. An order holding two lines of the
+	// same cake in different flavours is still one opinion of that cake, which
+	// is the rule the unique constraint enforces in the database, applied here
+	// so the form does not draw the same row twice and then fail on save.
+	//
+	// A line whose product has since been withdrawn has no `productId` and
+	// drops out: there is nothing left for its rating to attach to.
+	const rateable = [
+		...new Map(
+			order.items
+				.filter((item) => item.productId !== null)
+				.map((item) => [item.productId as string, item.productName]),
+		),
+	].map(([productId, name]) => ({ productId, name }));
 
 	return (
 		<Shell>
@@ -83,6 +99,8 @@ export default async function OrderFeedbackPage({
 				token={order.token}
 				defaultAuthor={order.customerName}
 				existing={existing}
+				rateable={rateable}
+				existingRatings={existingRatings}
 			/>
 
 			<div className="border-line flex flex-col gap-2 border-t pt-6">

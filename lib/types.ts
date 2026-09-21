@@ -446,6 +446,31 @@ export interface Feedback {
  * order, because somebody who says "stop sending me these" has not said it
  * about one cake.
  */
+/**
+ * What one customer thought of one product, out of five.
+ *
+ * Given on the feedback form alongside the words, and kept apart from them:
+ * the words are quoted under a name and only with consent, the number is only
+ * ever seen folded into an average. See the migration for why it hangs off the
+ * product rather than the order.
+ */
+export interface FeedbackRating {
+	productId: string;
+	rating: number;
+}
+
+/**
+ * One product's score, as the Product markup publishes it.
+ *
+ * Comes from `product_rating_summary()` rather than from the ratings table,
+ * because the average and the count are the only part of this anon may read.
+ */
+export interface ProductRating {
+	productId: string;
+	count: number;
+	average: number;
+}
+
 export interface FeedbackOptOut {
 	email: string;
 	/** The order whose email they pressed it from, or null once that order is gone. */

@@ -283,6 +283,26 @@ export const feedbackSchema = z.object({
 		.min(1, "Please write something before sending it")
 		.max(800, "That is a little longer than the box takes. Trim it and send again."),
 	consented: z.boolean(),
+	/**
+	 * A star per product they bought, and every one of them optional.
+	 *
+	 * Optional on purpose: the words are the favour being asked and the stars
+	 * are a bonus, so a form that refuses to send without five of them filled
+	 * in would cost the thing it was added to help. An empty array is the
+	 * ordinary answer from somebody who skipped them.
+	 *
+	 * Capped at twenty because it is a hidden-ish field on a public form and
+	 * the cap is cheaper than trusting the page that drew it. No real order has
+	 * twenty distinct products in it.
+	 */
+	ratings: z
+		.array(
+			z.object({
+				productId: z.string().uuid(),
+				rating: z.coerce.number().int().min(1).max(5),
+			}),
+		)
+		.max(20),
 });
 
 // --- admin: products --------------------------------------------------------

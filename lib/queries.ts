@@ -35,6 +35,7 @@ import type {
 	Faq,
 	InstagramPost,
 	Product,
+	ProductRating,
 	Review,
 	SiteSettings,
 } from "./types";
@@ -260,6 +261,78 @@ export const getCatalogue = cache(async (): Promise<CategoryWithProducts[]> => {
 
 	return grouped.filter((group) => group.products.length > 0);
 });
+
+/**
+ * One category and everything in it, for its own page.
+ *
+ * Built on `getCatalogue` rather than querying the category alone, so it
+ * inherits the same two rules: an empty category is not in the list, and the
+ * synthetic "More treats" group that catches orphaned products is. That second
+ * one matters — a product whose category was deleted is still reachable from
+ * its group on the shop page, so the group needs a page of its own or the link
+ * goes nowhere.
+ */
+export const getCategoryBySlug = cache(
+	async (slug: string): Promise<CategoryWithProducts | null> => {
+		const catalogue = await getCatalogue();
+		return catalogue.find((category) => category.slug === slug) ?? null;
+	},
+);
+
+/**
+ * Every product's rating, keyed by product id.
+ *
+ * Through the `product_rating_summary()` function rather than a select,
+ * because the ratings table has no public read policy: a row there is close
+ * enough to naming a customer at this shop's size, and the average and the
+ * count are all the markup needs. See the migration.
+ *
+ * An empty map is the ordinary answer for a shop that has collected nothing
+ * yet, and every caller treats a missing product as "no rating" rather than as
+ * an error. Nothing on the page depends on this, so a failure here costs the
+ * stars and not the page.
+ */
+export const getProductRatings = cache(async (): Promise<Map<string, ProductRating>> => {
+	const ratings = new Map<string, ProductRating>();
+	if (isDemoMode()) return ratings;
+
+	const supabase = createPublicClient();
+	const { data, error } = await supabase.rpc("product_rating_summary");
+
+	if (error) {
+		console.error("[vvbakes] could not read product ratings", error);
+		return ratings;
+	}
+
+	for (const row of data ?? []) {
+		// `numeric` comes back from PostgREST as a string, so the average has to
+		// be parsed rather than trusted to be a number.
+		const average = Number(row.rating_average);
+		if (!Number.isFinite(average) || row.rating_count < 1) continue;
+
+		ratings.set(row.product_id, {
+			productId: row.product_id,
+			count: row.rating_count,
+			average,
+		});
+	}
+
+	return ratings;
+});
+
+/**
+ * Category slugs for `generateStaticParams`.
+ *
+ * Unlike `getProductSlugs` this can go through `getCatalogue`, because a
+ * category's page depends on which products are in it: a category prerendered
+ * from the categories table alone would build pages for empty ones, which the
+ * route then 404s. Reading the catalogue is the only way to know which slugs
+ * are real.
+ */
+export async function getCategorySlugs(): Promise<string[]> {
+	const catalogue = await getCatalogue();
+	return catalogue.map((category) => category.slug);
+}
 
 export const getFeaturedProducts = cache(async (): Promise<Product[]> => {
 	const products = await getProducts();

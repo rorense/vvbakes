@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import type { Faq, Product, ProductVariant, SiteSettings } from "./types";
+import type { CategoryWithProducts, Faq, Product, ProductVariant, SiteSettings } from "./types";
 
 // `siteUrl()` reads the environment at call time, and every builder below puts
 // an absolute URL in its output. Pinning it here keeps the expectations in this
@@ -13,6 +13,8 @@ const {
 	bakeryJsonLd,
 	catalogueItemListJsonLd,
 	cataloguePriceRange,
+	categoryDescription,
+	categoryJsonLd,
 	faqJsonLd,
 	localityLine,
 	offerPrices,
@@ -290,6 +292,50 @@ describe("productJsonLd", () => {
 		expect(data.offers).toMatchObject({ seller: { "@id": bakeryId() } });
 	});
 
+	it("publishes an aggregateRating once the product has one", () => {
+		const data = productJsonLd({
+			product: product(),
+			category: null,
+			images: [],
+			description: "Small ones.",
+			rating: { productId: product().id, count: 4, average: 4.75 },
+		});
+
+		expect(data.aggregateRating).toEqual({
+			"@type": "AggregateRating",
+			// One decimal, not the two the function rounds to: "4.8" from four
+			// opinions, not "4.75".
+			ratingValue: 4.8,
+			reviewCount: 4,
+			bestRating: 5,
+			worstRating: 1,
+		});
+	});
+
+	it("publishes a whole number without a decimal point", () => {
+		const data = productJsonLd({
+			product: product(),
+			category: null,
+			images: [],
+			description: "Small ones.",
+			rating: { productId: product().id, count: 2, average: 5 },
+		});
+		expect(data.aggregateRating).toMatchObject({ ratingValue: 5, reviewCount: 2 });
+	});
+
+	it("emits no rating node for a product nobody has rated", () => {
+		for (const rating of [null, { productId: "x", count: 0, average: 0 }]) {
+			const data = productJsonLd({
+				product: product(),
+				category: null,
+				images: [],
+				description: "Small ones.",
+				rating,
+			});
+			expect(data).not.toHaveProperty("aggregateRating");
+		}
+	});
+
 	it("omits image and offers rather than emitting empty ones", () => {
 		const data = productJsonLd({
 			product: product({ priceOnRequest: true }),
@@ -418,6 +464,108 @@ describe("faqJsonLd", () => {
 
 	it("emits nothing at all for a shop with no FAQs", () => {
 		expect(faqJsonLd([])).toBeNull();
+	});
+});
+
+function category(overrides: Partial<CategoryWithProducts> = {}): CategoryWithProducts {
+	return {
+		id: "demo-cat-1",
+		name: "Cupcakes",
+		slug: "cupcakes",
+		accent: "mint",
+		sortOrder: 1,
+		products: [],
+		...overrides,
+	};
+}
+
+describe("categoryDescription", () => {
+	it("names what is actually in the category", () => {
+		const text = categoryDescription(
+			category({
+				products: [
+					product({ slug: "a", name: "Vanilla cupcakes" }),
+					product({ slug: "b", name: "Red velvet cupcakes" }),
+				],
+			}),
+		);
+		expect(text).toContain("Cupcakes baked to order in Auckland");
+		expect(text).toContain("Vanilla cupcakes and Red velvet cupcakes");
+	});
+
+	it("names at most three, so five categories do not read the same", () => {
+		const text = categoryDescription(
+			category({
+				products: ["a", "b", "c", "d", "e"].map((s) => product({ slug: s, name: `Cake ${s}` })),
+			}),
+		);
+		expect(text).toContain("Cake a, Cake b and Cake c");
+		expect(text).not.toContain("Cake d");
+	});
+
+	it("prefers what is in stock", () => {
+		const text = categoryDescription(
+			category({
+				products: [
+					product({ slug: "a", name: "Sold out one", isAvailable: false }),
+					product({ slug: "b", name: "In stock one" }),
+				],
+			}),
+		);
+		expect(text).toContain("In stock one");
+		expect(text).not.toContain("Sold out one");
+	});
+
+	it("still says something for a category whose every product is sold out", () => {
+		const text = categoryDescription(
+			category({ products: [product({ name: "Sold out one", isAvailable: false })] }),
+		);
+		expect(text).toContain("Sold out one");
+	});
+
+	it("does not trail a stray colon when there is nothing to name", () => {
+		expect(categoryDescription(category())).toBe(
+			"Cupcakes baked to order in Auckland. Pick a date and collect them fresh, or ask for something made to your own brief.",
+		);
+	});
+});
+
+describe("categoryJsonLd", () => {
+	const node = () =>
+		categoryJsonLd(
+			category({
+				products: [
+					product({ slug: "vanilla", name: "Vanilla cupcakes" }),
+					product({ slug: "red-velvet", name: "Red velvet cupcakes" }),
+				],
+			}),
+		);
+
+	it("is a CollectionPage at the category's own URL", () => {
+		expect(node()).toMatchObject({
+			"@type": "CollectionPage",
+			"@id": "https://example.test/shop/category/cupcakes#collection",
+			url: "https://example.test/shop/category/cupcakes",
+			name: "Cupcakes in Auckland",
+		});
+	});
+
+	it("belongs to the same bakery the home page declares", () => {
+		expect(node().isPartOf).toEqual({ "@id": bakeryId() });
+	});
+
+	it("links its products rather than inlining them", () => {
+		const list = node().mainEntity;
+		expect(list).toMatchObject({ "@type": "ItemList", numberOfItems: 2 });
+		expect(list.itemListElement[0]).toEqual({
+			"@type": "ListItem",
+			position: 1,
+			name: "Vanilla cupcakes",
+			// The product's own page, not a URL under the category. One product
+			// lives at one address.
+			url: "https://example.test/shop/vanilla",
+		});
+		expect(list.itemListElement[0]).not.toHaveProperty("offers");
 	});
 });
 

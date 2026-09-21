@@ -35,6 +35,7 @@ export const TABLES = [
 	"reviews",
 	"feedback",
 	"feedback_optouts",
+	"feedback_ratings",
 	"instagram_posts",
 	"instagram_sync",
 	"site_settings",
@@ -62,6 +63,9 @@ export const TABLES = [
 export const FUNCTIONS = [
 	["is_admin", {}],
 	["order_counts_between", { p_from: "2020-01-01", p_to: "2020-01-02" }],
+	// Reads nothing but an aggregate and takes no arguments, so probing it is
+	// free: an empty ratings table returns no rows rather than erroring.
+	["product_rating_summary", {}],
 	["price_for_qty", { p_product_id: "00000000-0000-0000-0000-000000000000", p_qty: 1 }],
 	// Worth probing even though the security section calls it too: that check
 	// asserts the *anon* key is refused, and a function that does not exist is

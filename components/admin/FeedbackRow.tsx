@@ -21,11 +21,22 @@ import { useToastedTransition } from "@/components/ui/Toast";
  */
 export function FeedbackRow({
 	feedback,
+	ratings = [],
 	timezone,
 	onPublish,
 	onDelete,
 }: {
 	feedback: FeedbackWithOrder;
+	/**
+	 * What they gave each product out of five, dearest first. Empty is the
+	 * ordinary state: the stars are optional on the form and plenty of people
+	 * will write the words and skip them.
+	 *
+	 * Shown whether or not they consented, because consent governs quoting
+	 * their words under their name and a number folded into an average is
+	 * neither. The form says so too.
+	 */
+	ratings?: ReadonlyArray<{ name: string; rating: number }>;
 	/** The bakery's zone, so "received" reads as the day she would call it. */
 	timezone: string;
 	onPublish: (id: string) => Promise<void>;
@@ -78,6 +89,27 @@ export function FeedbackRow({
 			</div>
 
 			<p className="text-sm whitespace-pre-wrap">{feedback.body}</p>
+
+			{ratings.length > 0 ? (
+				<ul className="flex flex-wrap gap-2">
+					{ratings.map((entry) => (
+						<li
+							key={entry.name}
+							className="border-line text-2xs rounded-pill flex items-center gap-1 border px-2.5 py-1">
+							{/* The number as well as the stars. Five glyphs at this size
+							    are hard to count at a glance, and she is scanning a list. */}
+							<span
+								aria-hidden="true"
+								className="tracking-tight">
+								{"★".repeat(entry.rating)}
+								<span className="text-cocoa-soft">{"★".repeat(5 - entry.rating)}</span>
+							</span>
+							<span className="sr-only">{entry.rating} out of 5 for</span>
+							<span className="font-medium">{entry.name}</span>
+						</li>
+					))}
+				</ul>
+			) : null}
 
 			<div className="flex flex-wrap items-center gap-2">
 				{feedback.publishedAt ? (

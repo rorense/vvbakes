@@ -1028,14 +1028,20 @@ export function ProductForm({
 					onChange={setImagePath}
 				/>
 				<div className="mt-5">
+					{/* The hint used to say only what the field was for, and every
+					    product on the live site had it empty, so the site fell back to
+					    "Cookies from vvbakes" on all of them. An example is what the
+					    field was missing: it is easier to copy a sentence than to invent
+					    one, and this is also the text Google Images reads. */}
 					<Field
 						label="Photo description"
-						hint="For screen readers and when the image can't load. Describe what's in the photo."
+						hint='For screen readers, for Google Images, and for when the photo will not load. Describe what is actually in it: "A box of six vanilla cupcakes with pink buttercream swirls and gold sprinkles". Left empty, the site falls back to just the product name.'
 						error={errors.imageAlt}>
 						{(props) => (
 							<Input
 								{...props}
 								name="imageAlt"
+								placeholder="A box of six vanilla cupcakes with pink buttercream swirls"
 								defaultValue={product?.imageAlt ?? ""}
 							/>
 						)}

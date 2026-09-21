@@ -57,10 +57,24 @@ export async function submitFeedback(_previous: FormState, formData: FormData): 
 		return fail("There's nothing to look back on yet. This opens once your order is with you.");
 	}
 
+	// One `rating:<productId>` field per product on the form, skipped where they
+	// left the stars alone. Read from the order rather than from the form, so a
+	// caller cannot rate a cake that was never in it: the form's product ids are
+	// a convenience, the order's lines are the authority.
+	const rateable = new Set(
+		order.items.map((item) => item.productId).filter((id): id is string => id !== null),
+	);
+	const ratings = [...rateable].flatMap((productId) => {
+		const raw = formData.get(`rating:${productId}`);
+		const value = typeof raw === "string" ? raw.trim() : "";
+		return value ? [{ productId, rating: value }] : [];
+	});
+
 	const parsed = feedbackSchema.safeParse({
 		author: String(formData.get("author") ?? ""),
 		body: String(formData.get("body") ?? ""),
 		consented: checkbox(formData, "consented"),
+		ratings,
 	});
 
 	if (!parsed.success) {
@@ -76,22 +90,58 @@ export async function submitFeedback(_previous: FormState, formData: FormData): 
 	// Upsert rather than insert. One order has one answer: somebody who comes
 	// back to the link because they forgot to tick the box, or thought better of
 	// what they wrote, is correcting it rather than adding a second opinion.
-	const { error } = await supabase.from("feedback").upsert(
-		{
-			order_id: order.id,
-			author: parsed.data.author,
-			body: parsed.data.body,
-			consented: parsed.data.consented,
-			// A rewrite is un-published until she has read the new words. She
-			// agreed to put the old ones up, not these.
-			published_at: null,
-		},
-		{ onConflict: "order_id" },
-	);
+	const { data: saved, error } = await supabase
+		.from("feedback")
+		.upsert(
+			{
+				order_id: order.id,
+				author: parsed.data.author,
+				body: parsed.data.body,
+				consented: parsed.data.consented,
+				// A rewrite is un-published until she has read the new words. She
+				// agreed to put the old ones up, not these.
+				published_at: null,
+			},
+			{ onConflict: "order_id" },
+		)
+		.select("id")
+		.single();
 
-	if (error) {
+	if (error || !saved) {
 		console.error("[vvbakes] could not save feedback", error);
 		return fail("That couldn't be saved. Please try again in a moment.");
+	}
+
+	// The stars, replaced wholesale rather than merged, for the reason the words
+	// above are overwritten: somebody back at this link is correcting what they
+	// said, and a second pass that left a first pass's four stars behind on a
+	// product they have since dragged to two would be keeping an opinion they
+	// withdrew. Deleting first also clears the stars of anybody who rated on
+	// their first visit and cleared them on the second.
+	const { error: clearError } = await supabase
+		.from("feedback_ratings")
+		.delete()
+		.eq("feedback_id", saved.id);
+
+	if (clearError) {
+		console.error("[vvbakes] could not clear the old ratings", clearError);
+	}
+
+	if (parsed.data.ratings.length > 0) {
+		const { error: ratingError } = await supabase.from("feedback_ratings").insert(
+			parsed.data.ratings.map((entry) => ({
+				feedback_id: saved.id,
+				product_id: entry.productId,
+				rating: entry.rating,
+			})),
+		);
+
+		if (ratingError) {
+			// The words are saved, which is the thing that mattered. Telling them
+			// their feedback failed because a star did would be a lie about which
+			// half went missing.
+			console.error("[vvbakes] could not save the ratings", ratingError);
+		}
 	}
 
 	// Onto the order's own trail, so it is findable from the order rather than

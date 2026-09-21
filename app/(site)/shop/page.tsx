@@ -109,13 +109,29 @@ export default async function ShopPage() {
 					className={cn("py-14 sm:py-20", ACCENT_BG[category.accent])}>
 					<Container width="wide">
 						{/* The heading runs slightly past the container edge, the way a
-						    magazine lets a display line bleed. */}
-						<h2
-							id={`${category.slug}-heading`}
-							className="mb-8 -ml-1 text-4xl sm:-ml-2"
-							style={{ fontVariationSettings: '"SOFT" 40, "WONK" 1' }}>
-							{category.name}
-						</h2>
+						    magazine lets a display line bleed.
+
+						    The link beside it is the only route from this page to the
+						    category's own page, and it is here rather than on the rail at
+						    the top because the rail's job is to jump down this page and a
+						    link that navigates away instead would be the same chip doing
+						    two different things. It also matters that a crawler finds
+						    these at all: an anchor to `#cupcakes` is this page, so without
+						    this line the category pages would be in the sitemap and linked
+						    from nowhere. */}
+						<div className="mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+							<h2
+								id={`${category.slug}-heading`}
+								className="-ml-1 text-4xl sm:-ml-2"
+								style={{ fontVariationSettings: '"SOFT" 40, "WONK" 1' }}>
+								{category.name}
+							</h2>
+							<Link
+								href={`/shop/category/${category.slug}`}
+								className="text-sm font-medium underline underline-offset-4">
+								All {category.name.toLowerCase()}
+							</Link>
+						</div>
 
 						<div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
 							{category.products.map((product) => (

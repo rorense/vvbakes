@@ -295,6 +295,46 @@ export const adminFeedback = cache(async (): Promise<FeedbackWithOrder[]> => {
 });
 
 /**
+ * The stars against each piece of feedback, keyed by feedback id.
+ *
+ * A separate read rather than a join on `FEEDBACK_SELECT`, because the select
+ * and its mapper are shared with the order page and widening them would make
+ * every caller carry ratings to show one list. Unpaged for the same reason
+ * `adminFeedback` is.
+ *
+ * The product name is resolved here rather than stored: a rating points at a
+ * live product, so the name it shows is whatever that product is called today,
+ * which is the right answer for a list she reads to decide what to bake more
+ * of.
+ */
+export const adminFeedbackRatings = cache(
+	async (): Promise<Map<string, Array<{ name: string; rating: number }>>> => {
+		const supabase = await createClient();
+		const { data, error } = await supabase
+			.from("feedback_ratings")
+			.select("feedback_id, rating, products (name)")
+			.order("rating", { ascending: false });
+
+		const byFeedback = new Map<string, Array<{ name: string; rating: number }>>();
+		if (error) {
+			console.error("[vvbakes] could not read the feedback ratings", error);
+			return byFeedback;
+		}
+
+		for (const row of data ?? []) {
+			const name = row.products?.name;
+			if (!name) continue;
+
+			const list = byFeedback.get(row.feedback_id) ?? [];
+			list.push({ name, rating: row.rating });
+			byFeedback.set(row.feedback_id, list);
+		}
+
+		return byFeedback;
+	},
+);
+
+/**
  * Who has asked not to be sent feedback requests.
  *
  * Shown so that a customer who writes saying "I asked you to stop" can be

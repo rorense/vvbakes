@@ -9,17 +9,28 @@ import type { Feedback } from "@/lib/types";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Checkbox, Field, FormError, Input, Textarea } from "@/components/ui/Form";
 import { Notice } from "@/components/ui/Notice";
+import { StarRating } from "./StarRating";
 
 /**
- * Two boxes and a tick box.
+ * Two boxes, a tick box, and a star per thing they bought.
  *
  * Deliberately the shortest form on the site. It is opened from an email a day
  * after someone collected a cake, by a person doing the shop a favour, so every
- * field that is not the favour itself has been left out: no rating out of five,
- * no categories, no "how did you hear about us".
+ * field that is not the favour itself has been left out: no categories, no
+ * "how did you hear about us".
+ *
+ * The stars are the one thing that came back, and they are the exception that
+ * proves the rule rather than a change of mind about it. They are optional,
+ * every one of them, they sit under the words rather than above them, and the
+ * form sends perfectly well with none of them touched. What earns them the
+ * space is that a rating of a product is the only thing that puts stars beside
+ * that product in a search result, and a rating of the shop by the shop is
+ * explicitly ineligible for that. See the migration.
  *
  * The consent box is unticked by default and says in full what ticking it
- * means. Nothing here publishes anything either way; see the action.
+ * means. It governs the words only: a star folded into an average is neither a
+ * quote nor a name, so it counts either way, which the copy below says out
+ * loud rather than leaving to be discovered.
  */
 export function FeedbackForm({
 	token,
@@ -27,10 +38,20 @@ export function FeedbackForm({
 	defaultAuthor,
 	/** What they sent last time, when they have been here before. */
 	existing,
+	/**
+	 * What was in the order, deduplicated by product: one opinion of the cake,
+	 * however many lines of it the basket held. Empty for an order whose
+	 * products have all since been withdrawn, which hides the whole section.
+	 */
+	rateable,
+	/** What they gave each product last time, keyed by product id. */
+	existingRatings,
 }: {
 	token: string;
 	defaultAuthor: string;
 	existing: Feedback | null;
+	rateable: ReadonlyArray<{ productId: string; name: string }>;
+	existingRatings: Readonly<Record<string, number>>;
 }) {
 	// Sent with the submission so the server can refuse a form that was filled in
 	// faster than a person can type. Read from a ref rather than state because
@@ -138,6 +159,28 @@ export function FeedbackForm({
 					/>
 				)}
 			</Field>
+
+			{rateable.length > 0 ? (
+				<fieldset className="border-line flex flex-col gap-3 rounded-lg border p-4">
+					<legend className="px-1 text-sm font-medium">
+						{rateable.length === 1 ? "How was it, out of five?" : "How were they, out of five?"}
+					</legend>
+					<p className="text-cocoa-soft -mt-1 text-xs">
+						Optional, and you can leave any of them blank. Ratings are only ever shown as an
+						average, never with your name or what you wrote.
+					</p>
+					<div className="flex flex-col gap-2">
+						{rateable.map((item) => (
+							<StarRating
+								key={item.productId}
+								name={`rating:${item.productId}`}
+								label={item.name}
+								defaultValue={existingRatings[item.productId] ?? null}
+							/>
+						))}
+					</div>
+				</fieldset>
+			) : null}
 
 			<div className="border-line flex flex-col gap-2 rounded-lg border p-4">
 				<Checkbox

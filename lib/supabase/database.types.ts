@@ -286,6 +286,14 @@ type FeedbackRow = {
 	updated_at: string;
 };
 
+type FeedbackRatingRow = {
+	id: string;
+	feedback_id: string;
+	product_id: string;
+	rating: number;
+	created_at: string;
+};
+
 type FeedbackOptOutRow = {
 	email: string;
 	order_id: string | null;
@@ -385,6 +393,31 @@ export type Database = {
 						columns: ["order_id"];
 						isOneToOne: true;
 						referencedRelation: "orders";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			// The stars beside the words, written by the same action through the
+			// service role. Never updated: a second pass at the feedback form
+			// deletes the row and writes a new one, because a rating somebody
+			// cleared has to be able to disappear and not merely change.
+			feedback_ratings: {
+				Row: FeedbackRatingRow;
+				Insert: Writable<FeedbackRatingRow, "feedback_id" | "product_id" | "rating">;
+				Update: never;
+				Relationships: [
+					{
+						foreignKeyName: "feedback_ratings_feedback_id_fkey";
+						columns: ["feedback_id"];
+						isOneToOne: false;
+						referencedRelation: "feedback";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "feedback_ratings_product_id_fkey";
+						columns: ["product_id"];
+						isOneToOne: false;
+						referencedRelation: "products";
 						referencedColumns: ["id"];
 					},
 				];
@@ -647,6 +680,13 @@ export type Database = {
 			order_counts_between: {
 				Args: { p_from: string; p_to: string };
 				Returns: Array<{ pickup_date: string; order_count: number }>;
+			};
+			// `rating_average` is `numeric`, and PostgREST sends numeric as a
+			// string rather than a number so it cannot lose precision on the way.
+			// Typed as it actually arrives; getProductRatings parses it.
+			product_rating_summary: {
+				Args: Record<string, never>;
+				Returns: Array<{ product_id: string; rating_count: number; rating_average: string }>;
 			};
 			reorder_products: {
 				Args: { p_ids: string[] };

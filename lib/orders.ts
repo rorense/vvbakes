@@ -61,6 +61,34 @@ export async function feedbackForOrder(orderId: string): Promise<Feedback | null
 }
 
 /**
+ * The stars somebody already gave, keyed by product id, so a second visit to
+ * the feedback link shows what they said rather than an empty row of stars.
+ *
+ * Through the service role like its sibling above: the ratings table has no
+ * read policy for anon, and the token in the URL is what authorises this.
+ *
+ * An empty object covers both "they rated nothing" and "the read failed". The
+ * page treats them the same, which is right: the worst either can do is show
+ * an unrated row that they then rate again.
+ */
+export async function ratingsForFeedback(feedbackId: string): Promise<Record<string, number>> {
+	if (!hasSupabaseConfig()) return {};
+
+	const supabase = createAdminClient();
+	const { data, error } = await supabase
+		.from("feedback_ratings")
+		.select("product_id, rating")
+		.eq("feedback_id", feedbackId);
+
+	if (error) {
+		console.error("[vvbakes] could not read the existing ratings", error);
+		return {};
+	}
+
+	return Object.fromEntries((data ?? []).map((row) => [row.product_id, row.rating]));
+}
+
+/**
  * The private half of settings. Never pass this to a client component whole.
  *
  * Cached per request to match its sibling `getSettings`: several actions read

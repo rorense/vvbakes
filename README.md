@@ -766,8 +766,9 @@ a product name holding a closing script tag would otherwise end the script early
 | `Bakery` | `/` | The business, its address, `areaServed` across Auckland, `priceRange` derived from the real catalogue, and an `OrderAction` while orders are open. Carries `@id` = `<site>/#bakery`. |
 | `FAQPage` | `/` | The questions already on the page. |
 | `ItemList` | `/shop` | The menu in the order it is scrolled, flattened across the category bands. |
-| `Product` | `/shop/[slug]` | Name, photos, category, and an offer. This is the one that can put a price and a stock state in the result instead of a blue link. |
-| `BreadcrumbList` | `/shop/[slug]` | The trail Google prints in place of the bare URL. |
+| `CollectionPage` | `/shop/category/[slug]` | The category and an `ItemList` of what is in it, linked rather than inlined. `isPartOf` points at the bakery. |
+| `Product` | `/shop/[slug]` | Name, photos, category, an offer, and a rating once the product has one. This is the one that can put a price, a stock state and stars in the result instead of a blue link. |
+| `BreadcrumbList` | `/shop/[slug]`, `/shop/category/[slug]` | The trail Google prints in place of the bare URL. |
 
 The product pages' `offers.seller` points at the bakery's `@id`, so a crawler
 reads one business across the site rather than inventing one per page.
@@ -787,34 +788,97 @@ Three things the markup deliberately does **not** claim:
   country place the business in the right city without putting a home address
   on every page.
 
-There is also no `AggregateRating` and no `Review` markup, although the home
-page has real reviews on it. Ratings are not collected, and inventing star
-values to fill the field is against Google's guidelines and would be a lie
-besides. Self-serving reviews on a business's own site are ineligible for rich
-results anyway, so the markup would cost honesty and buy nothing.
+There is no `Review` markup and no rating on the `Bakery`, although the home
+page has real reviews on it. That one is not an oversight and cannot be fixed
+by collecting more reviews, because Google's rule is about who collected them:
+
+> If the entity that's being reviewed controls the reviews about itself, their
+> pages that use `LocalBusiness` or any other type of `Organization` structured
+> data are ineligible for star review feature.
+
+A rating of a *product* is not that, which is why the stars hang off products
+and not off the shop. See **Stars on the products** below.
 
 `FAQPage` is worth being honest about too: Google narrowed FAQ rich results to
 government and health sites in 2023, so it will not draw an accordion under the
 listing. It is still read by Bing and by the assistants that answer from
 structured data, and it costs one script tag over answers that already exist.
 
+### Stars on the products
+
+The feedback form asks for a rating out of five per product in the order, and
+`productJsonLd` turns those into an `aggregateRating` on each `Product` node.
+That is the only shape of rating this site can publish and have shown, for the
+reason quoted above.
+
+The form was built deliberately without a rating, and its comment still says
+why: it is opened by somebody doing the shop a favour and every field that is
+not the favour costs answers. The stars are the one exception. They are all
+optional, they sit under the words, the form sends fine with none of them
+touched, and clearing one puts the field back to sending nothing.
+
+Three rules worth knowing:
+
+- **One rating per product per order**, enforced by a unique constraint. Two
+  lines of the same cake in different flavours is still one opinion of that
+  cake, and letting it count twice would let one order move an average further
+  than the next one.
+- **Unpublished feedback still counts.** The consent box governs quoting
+  somebody's words under their name; a number folded into an average is
+  neither. An average of only the reviews she chose to publish would be a
+  rating of her publishing decisions rather than of the cake.
+- **Anon never reads a row.** `feedback_ratings` has no public select policy.
+  The average and the count come out through `product_rating_summary()`, a
+  `security definer` function shaped after `order_counts_between`, because a
+  row here is (which order, which cake, what they thought) and at this shop's
+  size that is close to naming the customer. `tests/feedback-ratings-schema.test.ts`
+  asserts exactly that: anon gets the average and zero rows.
+
+A product nobody has rated publishes no `aggregateRating` at all rather than an
+empty one. Ratings are shown in `/admin/feedback` beside the words they came
+with.
+
 ### Crawling
 
 `app/robots.ts` disallows `/admin`, `/menu` (the unlisted market card) and
 `/order/` (private to whoever holds the link) and points at the sitemap.
-`app/sitemap.ts` lists the home page, the shop, the order form and every
-product, with terms and privacy ranked last.
+`app/sitemap.ts` lists the home page, the shop, the order form, every category
+and every product, with terms and privacy ranked last. Categories are ranked
+above products on purpose: a category page is the better answer to "cupcakes
+Auckland" than any one cupcake, and the better landing page for somebody still
+choosing.
 
 Note that robots.txt keeps letting crawlers **in** before launch. A
 `Disallow: /` would stop them fetching the pages at all, so they would never
 read the `noindex` tag, and bare URLs could still surface. Blocking the crawl
 and blocking the listing are different things.
 
+### Known: a missing product or category answers 200, not 404
+
+`/shop/<anything>` and `/shop/category/<anything>` render the not-found page
+but reply **HTTP 200**. That is a soft 404, and Google treats it as one: the
+URL is crawled, judged not-found by its content rather than its status, and
+the crawl budget is spent either way. Junk URLs can also linger in the index.
+
+It is caused by the `loading.tsx` boundaries under `/shop`. They make the route
+stream, so the status line is committed before the page function runs and
+`notFound()` can no longer change it. Confirmed on 2026-09-22 by moving both
+`loading.tsx` files aside and rebuilding: bad slugs answered 404, good ones
+still answered 200. The files were put straight back.
+
+This predates the category pages and affects products the same way. Fixing it
+means giving up the loading skeletons on those routes, or resolving the 404
+above the boundary, so it is a real trade rather than an oversight and has been
+left alone.
+
 ### Checking it
 
 `lib/seo.test.ts` covers the builders: the suburb handling, the offer rules
-including every price-on-request case, and the promises above about what is not
-published.
+including every price-on-request case, the category descriptions, and the
+promises above about what is not published.
+`tests/feedback-ratings-schema.test.ts` covers the SQL: the one-per-product
+rule, the 1-to-5 bound, what a deleted product or feedback takes with it, and
+the boundary that gives anon the average and no rows.
 
 To see what a page actually emits, fetch it and parse the blocks out:
 
@@ -836,8 +900,11 @@ markup are absolute.
 4. Create a Google Business Profile. For a local business this outranks
    everything on this page put together: the map pack is a different index, and
    `Bakery` markup supports a profile rather than replacing one.
-5. Run the Rich Results Test over `/`, `/shop` and two product pages, one
-   ordinary and one priced on request.
+5. Run the Rich Results Test over `/`, `/shop`, a category page, and two
+   product pages: one ordinary and one priced on request.
+6. Fill in **Photo description** for each product in the admin. It is empty on
+   every one of them, so the site falls back to the product name and Google
+   Images has nothing to read.
 
 ---
 

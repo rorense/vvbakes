@@ -3,6 +3,7 @@ import {
 	INSTAGRAM_IMAGE_BUCKET,
 	PRODUCT_IMAGE_BUCKET,
 } from "./constants";
+import { SITE_CITY } from "./seo";
 import type { Accent, Product, ProductOption, ProductVariant } from "./types";
 
 /**
@@ -101,9 +102,30 @@ export function fallbackAccent(product: Pick<Product, "slug">, behind?: Accent |
 	return palette[hash % palette.length]!;
 }
 
-/** Alt text for a product photo, falling back to something descriptive. */
-function productImageAlt(product: Pick<Product, "name" | "imageAlt">): string {
-	return product.imageAlt?.trim() || `${product.name} from vvbakes`;
+/**
+ * Alt text for a product photo, falling back to something descriptive.
+ *
+ * `place` adds the city, and only one photo on a page should ever pass it.
+ * Alt text is read aloud, and a screen reader saying "in Auckland" thirteen
+ * times down a grid is worse than useless; it is also what an image-search
+ * crawler reads as stuffing rather than description. So the product page's
+ * main photo carries it and nothing else does.
+ *
+ * None of this is as good as a sentence she writes herself, which is what the
+ * `imageAlt` field is for and which wins here whenever it is filled in. As of
+ * this being written it is filled in for none of the thirteen products, which
+ * is why the fallback is worth improving at all.
+ */
+function productImageAlt(
+	product: Pick<Product, "name" | "imageAlt">,
+	{ place = false }: { place?: boolean } = {},
+): string {
+	const written = product.imageAlt?.trim();
+	if (written) return written;
+
+	return place
+		? `${product.name}, baked to order by vvbakes in ${SITE_CITY}`
+		: `${product.name} from vvbakes`;
 }
 
 /**
@@ -138,12 +160,20 @@ export function variantImageAlt(
 	product: Pick<Product, "name" | "imageAlt" | "imagePath">,
 	variant: Pick<ProductVariant, "name" | "imagePath"> | null,
 	options: ReadonlyArray<Pick<ProductOption, "imagePath">> = [],
+	{ place = false }: { place?: boolean } = {},
 ): string {
-	if (!variant) return productImageAlt(product);
+	if (!variant) return productImageAlt(product, { place });
 
 	const shown = variantImagePath(product, variant, options);
-	if (!shown || shown === product.imagePath) return productImageAlt(product);
-	return `${product.name}, ${variant.name}, from vvbakes`;
+	if (!shown || shown === product.imagePath) return productImageAlt(product, { place });
+
+	// The variant's own photo, so the product's written alt text does not
+	// describe it and the name is all there is to tell them apart. The city
+	// rides along on the same terms as above: this is still the one main photo
+	// on the page.
+	return place
+		? `${product.name}, ${variant.name}, baked to order by vvbakes in ${SITE_CITY}`
+		: `${product.name}, ${variant.name}, from vvbakes`;
 }
 
 /**

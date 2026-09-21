@@ -5,7 +5,13 @@ import { notFound } from "next/navigation";
 import { SITE_NAME, siteUrl } from "@/lib/constants";
 import { productImageUrl } from "@/lib/images";
 import { formatPrice, minOrderQty, unitPriceRange } from "@/lib/pricing";
-import { getCategories, getProductBySlug, getProductSlugs, getSettings } from "@/lib/queries";
+import {
+	getCategories,
+	getProductBySlug,
+	getProductRatings,
+	getProductSlugs,
+	getSettings,
+} from "@/lib/queries";
 import { SITE_CITY, localityLine, productDescription, productJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/site/JsonLd";
 import { Container, Section } from "@/components/ui/Container";
@@ -70,10 +76,11 @@ export async function generateMetadata({
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
 	const { slug } = await params;
-	const [product, categories, settings] = await Promise.all([
+	const [product, categories, settings, ratings] = await Promise.all([
 		getProductBySlug(slug),
 		getCategories(),
 		getSettings(),
+		getProductRatings(),
 	]);
 
 	if (!product) notFound();
@@ -83,9 +90,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 	// One array drives both the visible trail and the structured data below it.
 	// Google wants the markup to describe the path a visitor can see, so the two
 	// are built from the same source rather than written out twice.
+	// The middle crumb points at the category's own page now rather than at an
+	// anchor on the shop page. Google asks that the markup describe a path the
+	// visitor can walk, and a trail whose middle step is a jump back to the same
+	// list the visitor came from was the weaker reading of that even when it was
+	// the only one available.
 	const crumbs: Crumb[] = [
 		{ name: "Shop", href: "/shop" },
-		...(category ? [{ name: category.name, href: `/shop#${category.slug}` }] : []),
+		...(category ? [{ name: category.name, href: `/shop/category/${category.slug}` }] : []),
 		{ name: product.name, href: `/shop/${product.slug}` },
 	];
 
@@ -146,6 +158,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 						category,
 						images,
 						description: productDescription(product),
+						rating: ratings.get(product.id) ?? null,
 					})}
 				/>
 
