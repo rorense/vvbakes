@@ -3,7 +3,13 @@
  * that ends up inside an href. Everything else they send is rendered as text.
  */
 import { describe, expect, it } from "vitest";
-import { isHttpUrl, orderInputSchema, productSchema } from "./validation";
+import {
+	fieldErrorsOf,
+	isHttpUrl,
+	orderDetailsSchema,
+	orderInputSchema,
+	productSchema,
+} from "./validation";
 
 /**
  * The link belongs to the line it describes, not to the order: a basket with
@@ -141,5 +147,96 @@ describe("how many of an extra one item may carry", () => {
 		expect(parseMaxQty("100").success).toBe(false);
 		expect(parseMaxQty("0").success).toBe(false);
 		expect(parseMaxQty("2.5").success).toBe(false);
+	});
+});
+
+/**
+ * The form the owner corrects an order with. Everything arrives as a string,
+ * because it comes off a FormData, so the defaults here are the strings a
+ * browser actually submits for an untouched form.
+ */
+function parseDetails(overrides: Record<string, string> = {}) {
+	return orderDetailsSchema.safeParse({
+		id: "11111111-1111-4111-8111-111111111111",
+		pickupDate: "2026-09-20",
+		pickupTime: "",
+		fulfilment: "pickup",
+		customerName: "Sam Taylor",
+		customerEmail: "sam@example.com",
+		customerPhone: "021 555 0100",
+		deliveryAddress: "",
+		notes: "",
+		...overrides,
+	});
+}
+
+describe("correcting an order's details", () => {
+	it("keeps the date the owner typed", () => {
+		const parsed = parseDetails({ pickupDate: "2026-10-03" });
+		expect(parsed.success && parsed.data.pickupDate).toBe("2026-10-03");
+	});
+
+	it("does not care whether the calendar would have sold that date", () => {
+		// A date long past, on whatever weekday it happens to be. Lead time, the
+		// booking window and capacity are checks on a customer; she is the one
+		// who decides what can be baked, and the order page warns rather than
+		// refuses. See the comment on the schema.
+		expect(parseDetails({ pickupDate: "2020-01-01" }).success).toBe(true);
+	});
+
+	it("refuses something that is not a date at all", () => {
+		expect(parseDetails({ pickupDate: "" }).success).toBe(false);
+		expect(parseDetails({ pickupDate: "3 October" }).success).toBe(false);
+		expect(parseDetails({ pickupDate: "2026-13-40" }).success).toBe(false);
+	});
+
+	it("drops the seconds a time column carries and a time input will not take", () => {
+		const parsed = parseDetails({ pickupTime: "16:30:00" });
+		expect(parsed.success && parsed.data.pickupTime).toBe("16:30");
+	});
+
+	it("reads a cleared time as no time rather than as an empty one", () => {
+		const parsed = parseDetails({ pickupTime: "" });
+		expect(parsed.success && parsed.data.pickupTime).toBeNull();
+	});
+
+	it("clears the address rather than storing an empty string", () => {
+		const parsed = parseDetails({ deliveryAddress: "   " });
+		expect(parsed.success && parsed.data.deliveryAddress).toBeNull();
+	});
+
+	it("will not let a delivery lose its address", () => {
+		const parsed = parseDetails({ fulfilment: "delivery", deliveryAddress: "" });
+		expect(parsed.success).toBe(false);
+		expect(parsed.success || fieldErrorsOf(parsed.error).deliveryAddress).toBe(
+			"A delivery needs an address",
+		);
+	});
+
+	it("takes a delivery that has one", () => {
+		const parsed = parseDetails({
+			fulfilment: "delivery",
+			deliveryAddress: "12 Some Road, Flat Bush",
+		});
+		expect(parsed.success && parsed.data.deliveryAddress).toBe("12 Some Road, Flat Bush");
+	});
+
+	it("refuses an email the confirmation could never reach", () => {
+		expect(parseDetails({ customerEmail: "sam@" }).success).toBe(false);
+		expect(parseDetails({ customerEmail: "" }).success).toBe(false);
+	});
+
+	it("holds the columns' own lengths, so a correction cannot outgrow the row", () => {
+		expect(parseDetails({ customerName: "x".repeat(81) }).success).toBe(false);
+		expect(parseDetails({ customerPhone: "0".repeat(31) }).success).toBe(false);
+		expect(parseDetails({ deliveryAddress: "x".repeat(301) }).success).toBe(false);
+		expect(parseDetails({ notes: "x".repeat(1001) }).success).toBe(false);
+	});
+
+	it("refuses an address one character too long rather than quietly dropping it", () => {
+		// `optionalText` would have caught this into null, which on this form
+		// means "she cleared the address" — the opposite of what she did.
+		const parsed = parseDetails({ fulfilment: "delivery", deliveryAddress: "x".repeat(301) });
+		expect(parsed.success).toBe(false);
 	});
 });

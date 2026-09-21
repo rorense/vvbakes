@@ -207,6 +207,60 @@ export const orderInputSchema = z
 		{ message: "Please add a delivery address", path: ["deliveryAddress"] },
 	);
 
+/**
+ * The same order, as the owner corrects it.
+ *
+ * Customers mistype. A pickup date a day out, an email with the domain wrong,
+ * a phone number a digit short: the order arrives carrying a fact that is
+ * simply not true, and she is the only one who can put it right. So this is
+ * `orderInputSchema` without the items — nothing here re-prices anything — and
+ * with the messages written for the person doing the correcting rather than for
+ * the customer who made the mistake.
+ *
+ * The lengths are `orderInputSchema`'s on purpose and have to stay its: they are
+ * the columns' lengths, and a name the checkout takes and this refuses would be
+ * a name she could not retype after fixing the date beside it.
+ *
+ * What it deliberately does not check is lead time, the booking window or the
+ * day's capacity. Those exist to stop a customer booking a day that cannot be
+ * baked; she is the person who decides what can be baked, and an order she has
+ * already agreed to move to tomorrow is not something the calendar gets a vote
+ * on. The order page tells her when a date is shut or oversubscribed and leaves
+ * the decision where it belongs.
+ */
+export const orderDetailsSchema = z
+	.object({
+		id: z.string().uuid(),
+		pickupDate: isoDate,
+		pickupTime: clockTime,
+		fulfilment: z.enum(["pickup", "delivery"]),
+		customerName: z.string().trim().min(2, "An order needs a name on it").max(80),
+		customerEmail: z
+			.string()
+			.trim()
+			.max(120)
+			.pipe(z.email("That email address doesn't look right")),
+		customerPhone: z.string().trim().min(6, "An order needs a phone number on it").max(30),
+		// Blank clears the field rather than storing an empty string, so an order
+		// moved back to pickup leaves no address trailing behind it. Written out
+		// rather than taken from `optionalText`, whose `catch` would turn an
+		// address one character too long into no address at all.
+		deliveryAddress: z
+			.string()
+			.trim()
+			.max(300, "That address is longer than the box holds")
+			.transform((value) => (value === "" ? null : value)),
+		notes: z
+			.string()
+			.trim()
+			.max(1000, "That is longer than the box holds")
+			.transform((value) => (value === "" ? null : value)),
+	})
+	.refine((value) => value.fulfilment !== "delivery" || value.deliveryAddress !== null, {
+		message: "A delivery needs an address",
+		path: ["deliveryAddress"],
+	});
+
 // --- feedback ---------------------------------------------------------------
 
 /**

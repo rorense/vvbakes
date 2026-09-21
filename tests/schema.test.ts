@@ -1925,6 +1925,64 @@ describe("reordering", () => {
 });
 
 /**
+ * The owner correcting what a customer typed.
+ *
+ * Nothing in the database stops her: `saveOrderDetails` writes plain columns,
+ * deliberately without re-running the lead time, booking window and capacity
+ * checks that `place_order` puts in a customer's way. What the schema does hold
+ * is the trail, so the entry the admin writes has to be a kind the check
+ * constraint accepts and the page knows how to render.
+ */
+describe("correcting an order's details", () => {
+	// A date of its own. Nearly every order in this file is booked for dateIn(7),
+	// which sits close enough to the capacity those tests set that two more would
+	// push a later one into DATE_FULL.
+	async function anOrder() {
+		const cupcakes = await productId("cupcakes");
+		return placeOrder({ items: [{ product_id: cupcakes, qty: 1 }], pickupDate: await dateIn(12) });
+	}
+
+	it("records the correction, with both halves of every field", async () => {
+		const order = await anOrder();
+		const changes = {
+			changes: {
+				pickup_date: { from: "2026-10-02", to: "2026-10-03" },
+				customer_email: { from: "sam@exampl.com", to: "sam@example.com" },
+			},
+		};
+
+		expect(
+			await errorOf(() =>
+				db.query("insert into order_events (order_id, type, data) values ($1, $2, $3)", [
+					order.id,
+					"details_edited",
+					JSON.stringify(changes),
+				]),
+			),
+		).toBeNull();
+
+		const stored = await db.query<{ data: { changes: Record<string, unknown> } }>(
+			"select data from order_events where order_id = $1 and type = 'details_edited'",
+			[order.id],
+		);
+
+		expect(stored.rows[0]!.data.changes).toEqual(changes.changes);
+	});
+
+	it("lets the owner move an order onto a day no customer could have booked", async () => {
+		const order = await anOrder();
+		// A Sunday two years ago: shut, long past its lead time, and nowhere near
+		// the booking window. `place_order` refuses all three; the admin's update
+		// is not `place_order`, and she is the one who decides what can be baked.
+		expect(
+			await errorOf(() =>
+				db.query("update orders set pickup_date = '2024-01-07' where id = $1", [order.id]),
+			),
+		).toBeNull();
+	});
+});
+
+/**
  * A bounce arrives minutes after the send, by webhook, and the only thing tying
  * the two together is Resend's id for the message. The check constraint on
  * `type` is what stops that route quietly writing rows the admin has no way to

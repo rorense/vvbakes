@@ -57,7 +57,7 @@ function indexRules(rules: AvailabilityRule[]): Map<Weekday, AvailabilityRule> {
 }
 
 /** What a weekday rule and any override for the date add up to on that day. */
-interface ResolvedDay {
+export interface ResolvedDay {
 	isOpen: boolean;
 	capacity: number;
 	orderCount: number;
@@ -98,6 +98,32 @@ function resolveDay(
 		note: override?.note ?? null,
 		hasOverride: override !== undefined,
 	};
+}
+
+/**
+ * How one date stands, for a caller that has a single date in mind.
+ *
+ * The three calendars in this file each walk a range; the admin's order page asks
+ * about exactly one day — the day the order it is showing is booked for — so
+ * that it can say out loud when an order has been moved onto a day the shop is
+ * shut, or onto a day that now holds more orders than it can bake.
+ *
+ * It goes through `resolveDay` rather than reading the rule and the override
+ * itself, because the precedence between those two is the thing this file
+ * exists to have in one place.
+ */
+export function dayStanding(options: {
+	date: IsoDate;
+	rules: AvailabilityRule[];
+	overrides: AvailabilityOverride[];
+	counts: Record<IsoDate, number>;
+}): ResolvedDay {
+	return resolveDay(
+		options.date,
+		indexRules(options.rules),
+		indexOverrides(options.overrides),
+		options.counts,
+	);
 }
 
 /**

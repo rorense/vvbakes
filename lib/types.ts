@@ -849,6 +849,7 @@ export interface OrderEvent {
 	type:
 		| "created"
 		| "status_changed"
+		| "details_edited"
 		| "email_sent"
 		| "email_failed"
 		| "email_bounced"

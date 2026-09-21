@@ -2,19 +2,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
 	adminOrder,
+	adminOrderCounts,
 	adminOrderEvents,
 	adminOrderReference,
+	adminOverrides,
+	adminRules,
 	adminSettings,
 } from "@/lib/admin-queries";
+import { dayStanding, type ResolvedDay } from "@/lib/availability";
 import { hasCustomFlavour } from "@/lib/brief";
 import { cn } from "@/lib/cn";
-import { formatDateLong, formatDateLongWithTime } from "@/lib/dates";
+import { formatDateLong } from "@/lib/dates";
 import { allowedTransitions, STATUS_TONES } from "@/lib/order-status";
 import { siteUrl } from "@/lib/constants";
-import { ORDER_STATUS_LABELS } from "@/lib/types";
+import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/types";
 import { AdminCard, AdminHeader } from "@/components/admin/AdminShell";
-import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { OrderActions } from "@/components/admin/OrderActions";
+import { OrderDetails } from "@/components/admin/OrderDetails";
 import { Inspiration } from "@/components/order/Inspiration";
 import { OrderLines } from "@/components/order/OrderLines";
 
@@ -34,6 +38,18 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 	]);
 
 	if (!order) notFound();
+
+	// How the day this order sits on stands, read the same way every calendar in
+	// the shop reads a day. Nothing here blocks anything: she can move an order
+	// onto a Monday she never bakes on if that is what she has agreed with the
+	// customer. It exists so that doing it by accident, or leaving an order on a
+	// date she has since blocked, is something she finds out on the order rather
+	// than on the morning.
+	const [rules, overrides, counts] = await Promise.all([
+		adminRules(),
+		adminOverrides(order.pickupDate, order.pickupDate),
+		adminOrderCounts(order.pickupDate, order.pickupDate),
+	]);
 
 	// Three different problems, one conclusion: do not assume this customer has
 	// been told anything. A send refused by Resend, a message that bounced after
@@ -114,57 +130,38 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 					/>
 				</AdminCard>
 
-				<AdminCard title="Customer">
-					<HairlineList as="dl">
-						<HairlineRow as="div">
-							<dt className="text-cocoa-soft text-sm">Name</dt>
-							<dd className="text-right text-sm font-medium">{order.customerName}</dd>
-						</HairlineRow>
-						<HairlineRow as="div">
-							<dt className="text-cocoa-soft text-sm">Email</dt>
-							<dd className="text-right text-sm font-medium">
-								<a
-									href={`mailto:${order.customerEmail}?subject=${encodeURIComponent(`Your vvbakes order ${order.reference}`)}`}
-									className="underline underline-offset-2">
-									{order.customerEmail}
-								</a>
-							</dd>
-						</HairlineRow>
-						<HairlineRow as="div">
-							<dt className="text-cocoa-soft text-sm">Phone</dt>
-							<dd className="text-right text-sm font-medium">
-								<a
-									href={`tel:${order.customerPhone.replace(/\s/g, "")}`}
-									className="underline underline-offset-2">
-									{order.customerPhone}
-								</a>
-							</dd>
-						</HairlineRow>
-						<HairlineRow as="div">
-							<dt className="text-cocoa-soft text-sm">
-								{order.fulfilment === "delivery" ? "Delivery" : "Pickup"}
-							</dt>
-							<dd className="text-right text-sm font-medium">
-								{formatDateLongWithTime(order.pickupDate, order.pickupTime)}
-							</dd>
-						</HairlineRow>
-						{order.deliveryAddress ? (
-							<HairlineRow as="div">
-								<dt className="text-cocoa-soft text-sm">Address</dt>
-								<dd className="text-right text-sm font-medium">{order.deliveryAddress}</dd>
-							</HairlineRow>
-						) : null}
-					</HairlineList>
-
-					<p className="text-cocoa-soft mt-4 text-xs">
-						Their order page:{" "}
-						<Link
-							href={`/order/${order.token}`}
-							className="underline underline-offset-2">
-							{siteUrl()}/order/{order.token.slice(0, 8)}…
-						</Link>
-					</p>
-				</AdminCard>
+				<OrderDetails
+					orderId={order.id}
+					reference={order.reference}
+					values={{
+						pickupDate: order.pickupDate,
+						pickupTime: order.pickupTime,
+						fulfilment: order.fulfilment,
+						customerName: order.customerName,
+						customerEmail: order.customerEmail,
+						customerPhone: order.customerPhone,
+						deliveryAddress: order.deliveryAddress,
+						notes: order.notes,
+					}}
+					deliveryEnabled={settings.deliveryEnabled}
+					dateWarning={warnAboutDate(
+						order.status,
+						dayStanding({ date: order.pickupDate, rules, overrides, counts }),
+					)}
+					// Rendered here rather than in the client component because
+					// `siteUrl()` reads a Vercel variable that is not public, so the
+					// browser would build a localhost link out of it.
+					orderPageLink={
+						<>
+							Their order page:{" "}
+							<Link
+								href={`/order/${order.token}`}
+								className="underline underline-offset-2">
+								{siteUrl()}/order/{order.token.slice(0, 8)}…
+							</Link>
+						</>
+					}
+				/>
 
 				{order.notes ? (
 					<AdminCard title="What they said">
@@ -199,6 +196,35 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 }
 
 /**
+ * What is wrong with the day this order sits on, in one sentence, or null.
+ *
+ * Said rather than enforced. The calendar's rules exist to stop a *customer*
+ * booking a day that cannot be baked; she is the person who decides what can be
+ * baked, and an order she has already agreed to move to a Monday is not
+ * something the weekday rules get a vote on. What she does need is to not find
+ * out on the morning.
+ *
+ * Cancelled orders say nothing, for the same reason `order_counts_between`
+ * leaves them out: they are not on the day any more in the only sense that
+ * matters.
+ */
+function warnAboutDate(status: OrderStatus, day: ResolvedDay): string | null {
+	if (status === "cancelled") return null;
+
+	if (!day.isOpen) {
+		return day.hasOverride
+			? "That date is blocked off on your calendar."
+			: "You don't usually bake on that weekday.";
+	}
+
+	if (day.orderCount > day.capacity) {
+		return `That date now has ${day.orderCount} order${day.orderCount === 1 ? "" : "s"} on it, against a capacity of ${day.capacity}.`;
+	}
+
+	return null;
+}
+
+/**
  * The banner above the order, for the three events that mean the customer may
  * be sitting there having heard nothing. Keyed loosely, like describeEvent, so
  * an event type the build has not caught up with simply does not match.
@@ -218,6 +244,40 @@ const EMAIL_PROBLEM_ADVICE: Record<string, (email: string) => string> = {
 		"Nothing to do for this order. Worth knowing, because enough of these stop the shop’s mail reaching anyone.",
 };
 
+/** What each correctable column is called in the history, in the order they are shown. */
+const DETAIL_LABELS: Record<string, string> = {
+	pickup_date: "the date",
+	pickup_time: "the time",
+	fulfilment: "pickup or delivery",
+	customer_name: "the name",
+	customer_email: "the email",
+	customer_phone: "the phone",
+	delivery_address: "the address",
+	notes: "the allergies and notes",
+	delivery_fee_cents: "the delivery fee",
+};
+
+/**
+ * One field of a correction, as "the date, 2 October to 3 October".
+ *
+ * Both halves, because the whole point of the entry is that what was
+ * overwritten is what the customer typed. Long values are cut short: the
+ * allergies line can run to a paragraph, and a history row is one line.
+ */
+function describeChange(column: string, change: unknown): string {
+	const label = DETAIL_LABELS[column] ?? column;
+	if (typeof change !== "object" || change === null) return label;
+
+	const { from, to } = change as { from?: unknown; to?: unknown };
+	return `${label}, ${shorten(from)} to ${shorten(to)}`;
+}
+
+function shorten(value: unknown): string {
+	if (value === null || value === undefined || value === "") return "blank";
+	const text = String(value).replace(/\s+/g, " ").trim();
+	return text.length > 40 ? `${text.slice(0, 39)}…` : text;
+}
+
 function describeEvent(type: string, data: Record<string, unknown>): string {
 	switch (type) {
 		case "created":
@@ -226,6 +286,16 @@ function describeEvent(type: string, data: Record<string, unknown>): string {
 			return `Moved from ${String(data.from)} to ${String(data.to)}${
 				data.reason ? `: ${String(data.reason)}` : ""
 			}`;
+		// The owner correcting what a customer typed. `changes` is keyed by column
+		// and carries both halves; anything unrecognised in there is still printed
+		// under its column name rather than dropped.
+		case "details_edited": {
+			const changes = (data.changes ?? {}) as Record<string, unknown>;
+			const described = Object.entries(changes).map(([column, change]) =>
+				describeChange(column, change),
+			);
+			return described.length > 0 ? `Corrected ${described.join("; ")}` : "Corrected the details";
+		}
 		case "email_sent":
 			return `Sent the ${String(data.template)} email to ${String(data.to)}`;
 		case "email_failed":

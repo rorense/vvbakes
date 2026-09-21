@@ -9,9 +9,10 @@ import { getPrivateSettings } from "@/lib/orders";
 import { getSettings } from "@/lib/queries";
 import { allowedTransitions } from "@/lib/order-status";
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/database.types";
 import type { FormState } from "@/lib/action-state";
 import { actionError, actionOk, type OrderStatus } from "@/lib/types";
-import { fieldErrorsOf, quoteSchema } from "@/lib/validation";
+import { fieldErrorsOf, orderDetailsSchema, quoteSchema } from "@/lib/validation";
 
 type State = FormState;
 
@@ -133,6 +134,146 @@ export async function saveQuote(_previous: State, formData: FormData): Promise<S
 	});
 
 	revalidatePath(`/admin/orders/${order.id}`);
+	return { result: actionOk() };
+}
+
+/**
+ * What one field of an order looked like before and after a correction.
+ *
+ * Both halves, always. The thing being overwritten is what the customer typed,
+ * and a trail that keeps only the correction cannot answer the one question
+ * worth asking of it later: what did they actually ask for.
+ */
+type Change = { from: string | number | null; to: string | number | null };
+
+/**
+ * Corrects the details on an order.
+ *
+ * Customers mistype, and until now the only cure was the Supabase table editor.
+ * The date is the one that matters most — it is what the shop's whole week is
+ * planned around — but the same form covers the email the confirmation went to,
+ * the phone number, the address, and the allergies line.
+ *
+ * Three things it deliberately does not do:
+ *
+ * - **Re-check the calendar.** Lead time, the booking window and the day's
+ *   capacity exist to stop a *customer* booking a day that cannot be baked. She
+ *   is the person who decides what can be baked. The order page says out loud
+ *   when a date is shut or oversubscribed and leaves the decision with her.
+ * - **Email anybody.** A correction is usually made because the customer asked
+ *   for it, so an automatic "your order has changed" would be telling them
+ *   something they just said. "Send the latest email again", already on this
+ *   page, is how they are told when they need to be.
+ * - **Touch the lines or the money.** Quantities and prices are the order's
+ *   history and re-pricing them is a different job; the one exception is the
+ *   delivery fee, which is not a price anyone chose but a consequence of
+ *   pickup-or-delivery, so it moves when that does.
+ */
+export async function saveOrderDetails(_previous: State, formData: FormData): Promise<State> {
+	await requireAdmin();
+
+	const parsed = orderDetailsSchema.safeParse({
+		id: formData.get("id") ?? "",
+		pickupDate: String(formData.get("pickupDate") ?? ""),
+		pickupTime: String(formData.get("pickupTime") ?? ""),
+		fulfilment: String(formData.get("fulfilment") ?? "pickup"),
+		customerName: String(formData.get("customerName") ?? ""),
+		customerEmail: String(formData.get("customerEmail") ?? ""),
+		customerPhone: String(formData.get("customerPhone") ?? ""),
+		deliveryAddress: String(formData.get("deliveryAddress") ?? ""),
+		notes: String(formData.get("notes") ?? ""),
+	});
+
+	if (!parsed.success) {
+		const fieldErrors = fieldErrorsOf(parsed.error);
+		return {
+			result: actionError("Please check the highlighted fields and try again.", fieldErrors),
+		};
+	}
+
+	const details = parsed.data;
+	const order = await adminOrder(details.id);
+	if (!order) return { result: actionError("That order no longer exists.") };
+
+	// What the row is about to say, in the database's own names, so that the
+	// comparison below and the update are reading one object rather than two
+	// lists that have to be kept in step.
+	const next = {
+		pickup_date: details.pickupDate,
+		pickup_time: details.pickupTime,
+		fulfilment: details.fulfilment,
+		customer_name: details.customerName,
+		customer_email: details.customerEmail,
+		customer_phone: details.customerPhone,
+		delivery_address: details.deliveryAddress,
+		notes: details.notes,
+	};
+
+	// `pickup_time` is "16:30:00" out of the column and "16:30" out of the form,
+	// so the two are compared at the form's precision. Without this, opening the
+	// form and saving it unchanged would log a change from half four to half
+	// four, every time.
+	const before: Record<keyof typeof next, string | number | null> = {
+		pickup_date: order.pickupDate,
+		pickup_time: order.pickupTime?.slice(0, 5) ?? null,
+		fulfilment: order.fulfilment,
+		customer_name: order.customerName,
+		customer_email: order.customerEmail,
+		customer_phone: order.customerPhone,
+		delivery_address: order.deliveryAddress,
+		notes: order.notes,
+	};
+
+	const changes: Record<string, Change> = {};
+	for (const column of Object.keys(next) as Array<keyof typeof next>) {
+		if (before[column] !== next[column]) {
+			changes[column] = { from: before[column], to: next[column] };
+		}
+	}
+
+	// The write itself: `next`, plus the delivery fee if the block below moves
+	// it. Kept apart from `next` so the comparison above stays a comparison of
+	// the eight fields she actually typed.
+	const update: Database["public"]["Tables"]["orders"]["Update"] = { ...next };
+
+	// The delivery fee is the one piece of money here, and it is not a price
+	// anybody chose: it is what pickup-or-delivery costs. So it moves when that
+	// does, and only when that does. An order placed as a delivery keeps the fee
+	// it was quoted even if the shop's fee has changed since, because that is
+	// what the customer was told they would pay.
+	if (details.fulfilment !== order.fulfilment) {
+		const settings = await getSettings();
+		const fee =
+			details.fulfilment === "delivery" && !settings.deliveryFeeOnRequest
+				? settings.deliveryFeeCents
+				: 0;
+
+		if (fee !== order.deliveryFeeCents) {
+			update.delivery_fee_cents = fee;
+			update.total_cents = order.subtotalCents + fee + order.quoteCents;
+			changes.delivery_fee_cents = { from: order.deliveryFeeCents, to: fee };
+		}
+	}
+
+	if (Object.keys(changes).length === 0) return { result: actionOk() };
+
+	const supabase = await createClient();
+	const { error } = await supabase.from("orders").update(update).eq("id", order.id);
+
+	if (error) {
+		console.error("[vvbakes] could not save order details", error);
+		return { result: actionError("That couldn't be saved. Please try again.") };
+	}
+
+	await supabase.from("order_events").insert({
+		order_id: order.id,
+		type: "details_edited",
+		data: { changes },
+	});
+
+	revalidatePath("/admin/orders");
+	revalidatePath(`/admin/orders/${order.id}`);
+	revalidatePath("/admin");
 	return { result: actionOk() };
 }
 
