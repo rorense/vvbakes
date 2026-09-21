@@ -133,6 +133,89 @@ describe("the feedback_ratings table", () => {
 	});
 });
 
+describe("coming back to the link a second time", () => {
+	/**
+	 * What `submitFeedback` does with the stars: delete every rating on this
+	 * feedback, then insert whatever came in. Merging would be wrong, and these
+	 * cover why.
+	 *
+	 * Worth having as SQL rather than only in the action, because the action
+	 * cannot be driven without a real order in `collected` or `ready`, and
+	 * production had none on 2026-09-22. This is the contract underneath it.
+	 */
+	async function replaceRatings(feedbackId: string, ratings: Array<[string, number]>) {
+		await db.query("delete from feedback_ratings where feedback_id = $1", [feedbackId]);
+		for (const [productId, rating] of ratings) {
+			await db.query(
+				"insert into feedback_ratings (feedback_id, product_id, rating) values ($1, $2, $3)",
+				[feedbackId, productId, rating],
+			);
+		}
+	}
+
+	it("overwrites a rating they changed their mind about", async () => {
+		const feedbackId = await makeFeedback("VV3040");
+		const productId = await makeProduct("cupcakes");
+
+		await replaceRatings(feedbackId, [[productId, 5]]);
+		await replaceRatings(feedbackId, [[productId, 2]]);
+
+		const rows = await db.query<{ rating: number }>("select rating from feedback_ratings");
+		expect(rows.rows).toHaveLength(1);
+		expect(rows.rows[0]!.rating).toBe(2);
+
+		// And the average follows, rather than sitting between the two answers.
+		const summary = await db.query<{ rating_average: string; rating_count: number }>(
+			"select rating_average, rating_count from product_rating_summary()",
+		);
+		expect(summary.rows[0]!.rating_count).toBe(1);
+		expect(Number(summary.rows[0]!.rating_average)).toBe(2);
+	});
+
+	it("lets a rating they cleared disappear entirely", async () => {
+		// The form's Clear button sends nothing for that product, so the second
+		// pass carries one rating where the first carried two. A merge would
+		// leave the cleared star behind, which is an opinion they withdrew.
+		const feedbackId = await makeFeedback("VV3041");
+		const kept = await makeProduct("cookies");
+		const cleared = await makeProduct("brownies");
+
+		await replaceRatings(feedbackId, [
+			[kept, 4],
+			[cleared, 1],
+		]);
+		await replaceRatings(feedbackId, [[kept, 4]]);
+
+		const rows = await db.query<{ product_id: string }>("select product_id from feedback_ratings");
+		expect(rows.rows).toHaveLength(1);
+		expect(rows.rows[0]!.product_id).toBe(kept);
+
+		// The cleared product drops out of the summary rather than keeping a 1.
+		const summary = await db.query<{ product_id: string }>(
+			"select product_id from product_rating_summary()",
+		);
+		expect(summary.rows.map((r) => r.product_id)).toEqual([kept]);
+	});
+
+	it("leaves another order's ratings alone", async () => {
+		// The delete is scoped to one feedback row. If it were not, one customer
+		// revising their answer would wipe everybody else's.
+		const mine = await makeFeedback("VV3042");
+		const theirs = await makeFeedback("VV3043");
+		const productId = await makeProduct("tiramisu");
+
+		await replaceRatings(theirs, [[productId, 5]]);
+		await replaceRatings(mine, [[productId, 3]]);
+		await replaceRatings(mine, [[productId, 1]]);
+
+		const summary = await db.query<{ rating_count: number; rating_average: string }>(
+			"select rating_count, rating_average from product_rating_summary()",
+		);
+		expect(summary.rows[0]!.rating_count).toBe(2);
+		expect(Number(summary.rows[0]!.rating_average)).toBe(3);
+	});
+});
+
 describe("product_rating_summary", () => {
 	it("averages every rating a product has, across orders", async () => {
 		const productId = await makeProduct("cupcakes");

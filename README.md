@@ -853,23 +853,49 @@ Note that robots.txt keeps letting crawlers **in** before launch. A
 read the `noindex` tag, and bare URLs could still surface. Blocking the crawl
 and blocking the listing are different things.
 
-### Known: a missing product or category answers 200, not 404
+### Why there is no loading.tsx under /shop
 
-`/shop/<anything>` and `/shop/category/<anything>` render the not-found page
-but reply **HTTP 200**. That is a soft 404, and Google treats it as one: the
-URL is crawled, judged not-found by its content rather than its status, and
-the crawl budget is spent either way. Junk URLs can also linger in the index.
+There were two, and they made every missing product answer **HTTP 200**
+carrying the not-found page. A loading file is a Suspense boundary, a Suspense
+boundary makes the route stream, and a streamed response has already sent its
+status by the time `notFound()` runs. That is a soft 404: Google crawls the
+URL, works out it is missing from the words rather than the status, and spends
+the budget anyway.
 
-It is caused by the `loading.tsx` boundaries under `/shop`. They make the route
-stream, so the status line is committed before the page function runs and
-`notFound()` can no longer change it. Confirmed on 2026-09-22 by moving both
-`loading.tsx` files aside and rebuilding: bad slugs answered 404, good ones
-still answered 200. The files were put straight back.
+Both were removed. The skeleton cost almost nothing, which is what made the
+trade easy: every real product and category is prerendered by
+`generateStaticParams`, and an expired page is served stale while it
+regenerates behind the visitor, so the skeleton only ever appeared for a slug
+that is not in the build — a product added since the last deploy, or one that
+does not exist. The second is exactly the case that needs the 404.
 
-This predates the category pages and affects products the same way. Fixing it
-means giving up the loading skeletons on those routes, or resolving the 404
-above the boundary, so it is a real trade rather than an oversight and has been
-left alone.
+The loading files under `/order` and `/admin` stay. Those routes are dynamic
+and genuinely wait on a query, and both are `noindex` — `/order/` is
+disallowed in robots.txt outright — so their status code is nobody's crawl
+budget.
+
+### Why the sitemap is force-dynamic
+
+Because as a prerendered route it shipped a stale product list, and did it
+silently. The Supabase read behind it went through Next's persistent fetch
+cache, which lives in `.next/cache` and which **Vercel restores between
+deploys**, so `products?select=slug` was answered from a much older build. On
+2026-09-22 the production build emitted a sitemap naming five products while
+the shop had thirteen: the other eight had pages, were linked from `/shop`,
+and were missing from the one file whose job is to list them.
+
+Nothing failed and nothing warned. Clearing `.next/cache/fetch-cache` and
+rebuilding took it straight back to thirteen, which is what identified the
+cause; a further rebuild on the now-correct cache stayed at thirteen, which
+ruled out caching itself and pinned it on staleness.
+
+`force-dynamic` leaves no prerendered artifact to go stale and uncaches the
+fetches inside it. A sitemap is fetched by crawlers a few times a day and
+costs two small queries.
+
+**If the deployed sitemap still looks short**, it was built before this change:
+clear the build cache on the next Vercel deploy once, or just confirm
+`/sitemap.xml` lists every product.
 
 ### Checking it
 
@@ -877,8 +903,17 @@ left alone.
 including every price-on-request case, the category descriptions, and the
 promises above about what is not published.
 `tests/feedback-ratings-schema.test.ts` covers the SQL: the one-per-product
-rule, the 1-to-5 bound, what a deleted product or feedback takes with it, and
+rule, the 1-to-5 bound, what a deleted product or feedback takes with it, the
+delete-then-insert the action performs when somebody revises their answer, and
 the boundary that gives anon the average and no rows.
+
+That last group is SQL rather than a run of the action for a practical reason:
+the feedback form only opens for an order in `collected` or `ready`, and
+production had none on 2026-09-22, so the write path has never been driven end
+to end against a real order. It is the one part of the ratings feature still
+unproven at runtime. Worth doing by hand the first time an order gets there:
+open the link, set some stars, send, then check `/admin/feedback` shows them
+and the product page picks up an `aggregateRating`.
 
 To see what a page actually emits, fetch it and parse the blocks out:
 

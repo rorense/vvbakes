@@ -30,6 +30,29 @@ import {
 // Same window as the home page, and for the reason written there.
 export const revalidate = 3600;
 
+/**
+ * There is deliberately no `loading.tsx` beside this file, and there used to
+ * be one.
+ *
+ * A loading file is a Suspense boundary, and a Suspense boundary makes the
+ * route stream: the response status is committed and sent before this function
+ * has decided anything, so the `notFound()` below could no longer change it.
+ * Every missing product answered HTTP 200 carrying the not-found page, which
+ * is a soft 404 — Google crawls the URL, works out it is missing from the
+ * words rather than the status, and spends the budget anyway. Confirmed on
+ * 2026-09-22 by moving the two files aside and rebuilding, which turned bad
+ * slugs into real 404s and left good ones untouched.
+ *
+ * Losing the skeleton costs almost nothing here, which is what made the trade
+ * easy. Every real product is prerendered by `generateStaticParams`, and an
+ * expired one is served stale while it regenerates behind the visitor, so the
+ * skeleton was only ever shown for a slug that is not in the build: a product
+ * added since the last deploy, or one that does not exist. The second of those
+ * is exactly the case that needs the 404.
+ *
+ * The same reasoning removed `app/(site)/shop/loading.tsx`, which covered this
+ * route's siblings including the category pages.
+ */
 export async function generateStaticParams() {
 	const slugs = await getProductSlugs();
 	return slugs.map((slug) => ({ slug }));
@@ -42,7 +65,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
 	const { slug } = await params;
 	const product = await getProductBySlug(slug);
-	if (!product) return { title: "Not found" };
+	if (!product) {
+		// Matches the title the not-found page itself sets. Next resolves metadata
+		// before the page calls notFound(), so a different wording here showed up
+		// as the tab title changing under the visitor on a client navigation.
+		return { title: "Page not found" };
+	}
 
 	// The template turns this into "Lapis Legit | vvbakes", which is right for a
 	// page somebody reaches from the menu and useless to somebody searching for

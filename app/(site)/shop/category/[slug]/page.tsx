@@ -18,6 +18,10 @@ import { ProductCard } from "@/components/site/ProductCard";
 // the home page.
 export const revalidate = 3600;
 
+// No `loading.tsx` above this route either, so that the `notFound()` below can
+// answer a real 404 rather than a 200 carrying the not-found page. The reason
+// in full is on `generateStaticParams` in ../../[slug]/page.tsx.
+
 /**
  * Why these live under `/shop/category/` rather than `/shop/`.
  *
@@ -40,7 +44,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
 	const { slug } = await params;
 	const category = await getCategoryBySlug(slug);
-	if (!category) return { title: "Not found" };
+	if (!category) {
+		// Matches the title the not-found page itself sets, for the reason given
+		// on the product page next door.
+		return { title: "Page not found" };
+	}
 
 	// The whole reason this page exists: "Cupcakes in Auckland" is a query, and
 	// until now the only thing the site offered it was the entire menu.
