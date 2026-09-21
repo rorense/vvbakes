@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { buildPublicCalendar, computeAvailability } from "@/lib/availability";
-import { formatDateShort } from "@/lib/dates";
 import { instagramUrl, siteUrl } from "@/lib/constants";
 import {
 	getAvailabilityInputs,
@@ -139,7 +138,6 @@ export default async function HomePage() {
 		overrides,
 		counts,
 	});
-	const nextDate = availability.dates[0] ?? null;
 	const calendarMonths = buildPublicCalendar({ settings, rules, overrides, counts });
 
 	const marqueeItems = products.length > 0 ? products.map((p) => p.name) : [settings.tagline];
@@ -200,9 +198,7 @@ export default async function HomePage() {
 								<ButtonLink
 									href="/order"
 									size="lg">
-									{nextDate
-										? `Start an order for ${formatDateShort(nextDate.date)}`
-										: "Start an order"}
+									Start Order
 								</ButtonLink>
 								<ButtonLink
 									href="/shop"
@@ -421,7 +417,7 @@ export default async function HomePage() {
 					</HairlineList>
 
 					<div className="mt-8">
-						<ButtonLink href="/order">Start an order</ButtonLink>
+						<ButtonLink href="/order">Start Order</ButtonLink>
 					</div>
 				</Container>
 			</Section>
