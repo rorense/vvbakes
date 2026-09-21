@@ -704,6 +704,143 @@ Two other things worth knowing:
 
 ---
 
+## Being found
+
+The shop sells cakes in Auckland, so the queries worth ranking for are the
+local ones: "custom cakes Auckland", "birthday cake Flat Bush", "Indonesian
+cake Auckland". Everything below exists to answer those, and nothing below is
+worth anything until `SEARCH_INDEXING` is flipped. See the launch checklist at
+the bottom of this section.
+
+### Where the city comes from
+
+`lib/seo.ts` holds it. The suburb stays in settings, where the owner changes
+it; the city, the region and the country are constants there, because moving
+the business to another city is not a settings change.
+
+`localityLine()` is the one function to reach for when a page needs to print
+where the shop is. The suburb is typed by hand and the admin's own placeholder
+suggests "Mt Roskill, Auckland", so plenty of real answers already carry the
+city and appending it again gives "Auckland, Auckland". The live setting is
+"Flat Bush, Auckland" and reads correctly through it.
+
+`postalAddress()` does the opposite job, splitting the same setting across
+`addressLocality` and `addressRegion`, which are different fields and must not
+repeat each other.
+
+### What each page says about itself
+
+| Page | Title | Why |
+| --- | --- | --- |
+| `/` | vvbakes \| inspired desserts | The brand line, kept at the client's request. Inherited from the root layout's `title.default`, so the page sets no title of its own. See the note below. |
+| `/shop` | Cake & Bakery Menu in Auckland \| vvbakes | "Shop" alone is a nav label, not a title. |
+| `/shop/[slug]` | *Product* \| Auckland \| vvbakes | A product name plus a place is the whole query. |
+| `/order` | Your order \| vvbakes | A form, not a search result. Only the description carries the city. |
+
+Descriptions all name the city. `keywords` is deliberately absent: Google has
+ignored the meta keywords tag since 2009 and filling it in signals nothing but
+the age of the advice that put it there.
+
+**On the home page's title.** A keyword-led title would be the stronger play
+for "custom cakes Auckland", and the brand line was kept anyway. That is a
+decision, not an oversight, and it costs less than it looks: `/shop` and the
+product pages are the better landing pages for somebody shopping and both of
+those lead with what they sell and where, Google rewrites a title it judges
+unhelpful for the query (often from the H1 and visible copy, which here say
+"Sweet treats, made in Flat Bush, Auckland"), and for the brand query itself
+the brand line is exactly right. If the home page ever needs to fight harder
+for a generic query, change the H1, not the title.
+
+Every page declares its own `alternates.canonical`. That has to be per page:
+Next inherits `alternates` wholesale, so one on the root layout would make
+every page claim to be `/`.
+
+### Structured data
+
+Rendered through `components/site/JsonLd.tsx`, which escapes `<` in the
+serialised JSON. Every one of these blocks is built from admin-editable text, so
+a product name holding a closing script tag would otherwise end the script early.
+
+| Node | Page | What it buys |
+| --- | --- | --- |
+| `Bakery` | `/` | The business, its address, `areaServed` across Auckland, `priceRange` derived from the real catalogue, and an `OrderAction` while orders are open. Carries `@id` = `<site>/#bakery`. |
+| `FAQPage` | `/` | The questions already on the page. |
+| `ItemList` | `/shop` | The menu in the order it is scrolled, flattened across the category bands. |
+| `Product` | `/shop/[slug]` | Name, photos, category, and an offer. This is the one that can put a price and a stock state in the result instead of a blue link. |
+| `BreadcrumbList` | `/shop/[slug]` | The trail Google prints in place of the bare URL. |
+
+The product pages' `offers.seller` points at the bakery's `@id`, so a crawler
+reads one business across the site rather than inventing one per page.
+
+Three things the markup deliberately does **not** claim:
+
+- **No price for a product priced on request.** `unitPriceCents` holds a
+  placeholder the product page itself refuses to show, and publishing it would
+  quote Google a number the shop will not honour. A product with a price guide
+  publishes its floor as `AggregateOffer.lowPrice` and no ceiling, which is
+  exactly what the page says in words. See `offerPrices()` in `lib/seo.ts`.
+- **No opening hours.** The availability calendar is about which days there is
+  capacity to bake, which is a different claim from "the shop is open 9 to 5",
+  and the pickup window is free text. Neither is a promise to publish.
+- **No street address.** This is a home kitchen. The pickup address goes out in
+  the confirmation email to the person who ordered; a locality, a region and a
+  country place the business in the right city without putting a home address
+  on every page.
+
+There is also no `AggregateRating` and no `Review` markup, although the home
+page has real reviews on it. Ratings are not collected, and inventing star
+values to fill the field is against Google's guidelines and would be a lie
+besides. Self-serving reviews on a business's own site are ineligible for rich
+results anyway, so the markup would cost honesty and buy nothing.
+
+`FAQPage` is worth being honest about too: Google narrowed FAQ rich results to
+government and health sites in 2023, so it will not draw an accordion under the
+listing. It is still read by Bing and by the assistants that answer from
+structured data, and it costs one script tag over answers that already exist.
+
+### Crawling
+
+`app/robots.ts` disallows `/admin`, `/menu` (the unlisted market card) and
+`/order/` (private to whoever holds the link) and points at the sitemap.
+`app/sitemap.ts` lists the home page, the shop, the order form and every
+product, with terms and privacy ranked last.
+
+Note that robots.txt keeps letting crawlers **in** before launch. A
+`Disallow: /` would stop them fetching the pages at all, so they would never
+read the `noindex` tag, and bare URLs could still surface. Blocking the crawl
+and blocking the listing are different things.
+
+### Checking it
+
+`lib/seo.test.ts` covers the builders: the suburb handling, the offer rules
+including every price-on-request case, and the promises above about what is not
+published.
+
+To see what a page actually emits, fetch it and parse the blocks out:
+
+```bash
+curl -s http://localhost:3000/shop/custom-cake | grep -o '<script type="application/ld+json">[^<]*' | sed 's/^.*json">//'
+```
+
+Paste the result into Google's Rich Results Test. Do that against the deployed
+site rather than localhost once the domain is live, since half the URLs in the
+markup are absolute.
+
+### The launch checklist
+
+1. Flip `SEARCH_INDEXING` to `true` in `lib/constants.ts`. Every page carries
+   `noindex, nofollow` until you do, and none of the above counts for anything.
+2. Confirm `NEXT_PUBLIC_SITE_URL` is the real domain. Every absolute URL in the
+   structured data and the sitemap is built from it.
+3. Verify the domain in Google Search Console and submit `/sitemap.xml`.
+4. Create a Google Business Profile. For a local business this outranks
+   everything on this page put together: the map pack is a different index, and
+   `Bakery` markup supports a profile rather than replacing one.
+5. Run the Rich Results Test over `/`, `/shop` and two product pages, one
+   ordinary and one priced on request.
+
+---
+
 ## Verifying it works
 
 Start with `npm run check`, which covers the whole setup: keys, tables, seed
@@ -824,4 +961,8 @@ Things the site is ready for but which need content or a decision:
 - **Real pickup details**: suburb, full address, times, and how much notice you
   need. The seeded values are placeholders.
 - **Switch the shop on in search.** `SEARCH_INDEXING` in `lib/constants.ts` is
-  still `false`, so every page carries `noindex`. Flip it and deploy to launch.
+  still `false`, so every page carries `noindex`. Flip it and deploy to launch,
+  then work through the rest of the checklist at the end of [Being
+  found](#being-found): Search Console, the sitemap, and a Google Business
+  Profile, which for a local bakery is worth more than everything on that page
+  put together.

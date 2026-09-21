@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SITE_NAME } from "@/lib/constants";
 import { cn } from "@/lib/cn";
 import { getCatalogue, getSettings } from "@/lib/queries";
+import { SITE_CITY, catalogueItemListJsonLd } from "@/lib/seo";
 import { ACCENT_BG } from "@/lib/types";
+import { JsonLd } from "@/components/site/JsonLd";
 import { ButtonLink } from "@/components/ui/Button";
 import { Container, Section } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
@@ -11,10 +14,17 @@ import { ProductCard } from "@/components/site/ProductCard";
 // Same window as the home page, and for the reason written there.
 export const revalidate = 3600;
 
+/**
+ * "Shop" alone is a navigation label, not a title tag: it says nothing about
+ * what is in the shop or which city it is in, and the template only adds the
+ * brand after it. The absolute title spells both out, which is what somebody
+ * searching for a cake shop near them actually typed.
+ */
 export const metadata: Metadata = {
-	title: "Shop",
-	description:
-		"Cupcakes, cookies and Indonesian cakes baked for the day you collect them, plus custom cakes made to your brief.",
+	title: {
+		absolute: `Cake & Bakery Menu in ${SITE_CITY} | ${SITE_NAME}`,
+	},
+	description: `Cupcakes, cookies and Indonesian cakes baked in ${SITE_CITY} for the day you collect them, plus custom cakes made to your brief.`,
 	alternates: { canonical: "/shop" },
 };
 
@@ -138,6 +148,20 @@ export default async function ShopPage() {
 					</ButtonLink>
 				</Container>
 			</Section>
+
+			{/* The menu in the order a visitor scrolls it, flattened across the
+			    category bands: positions run 1..n over the whole page rather than
+			    restarting per band, because the list describes the page and the
+			    page is one list. Each entry is a link, not an inlined product. The
+			    product's own page already carries the full Product markup, and
+			    repeating it here would ship the catalogue twice. */}
+			<JsonLd
+				data={catalogueItemListJsonLd(
+					catalogue.flatMap((category) =>
+						category.products.map((product) => ({ slug: product.slug, name: product.name })),
+					),
+				)}
+			/>
 		</>
 	);
 }

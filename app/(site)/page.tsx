@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { buildPublicCalendar, computeAvailability } from "@/lib/availability";
-import { instagramUrl, siteUrl } from "@/lib/constants";
+import { instagramUrl } from "@/lib/constants";
+import { SITE_CITY, bakeryJsonLd, cataloguePriceRange, faqJsonLd, localityLine } from "@/lib/seo";
 import {
 	getAvailabilityInputs,
 	getCategories,
@@ -10,8 +11,8 @@ import {
 	getFeaturedProducts,
 	getInstagramPosts,
 	getReviews,
-	getSettings,
 } from "@/lib/queries";
+import { JsonLd } from "@/components/site/JsonLd";
 import { ButtonLink } from "@/components/ui/Button";
 import { Container, Section } from "@/components/ui/Container";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
@@ -37,11 +38,31 @@ import { PublicCalendar } from "@/components/site/PublicCalendar";
 export const revalidate = 3600;
 
 /**
- * The home page inherits its title and description from the root layout, but a
- * canonical has to be declared per page: `alternates` is inherited wholesale in
- * Next, so a single one on the layout would make every page claim to be "/".
+ * No title here, so the home page takes the root layout's default and reads
+ * "vvbakes | inspired desserts". That is deliberate and it is the client's
+ * call, so do not "fix" it back.
+ *
+ * What it gives up: a title tag is one of the strongest things a page can say
+ * about itself, and this one says nothing anybody searches for before they
+ * have heard of the shop. A keyword-led title would have been the stronger
+ * play for a query like "custom cakes Auckland".
+ *
+ * Why it is not much of a loss. The home page is not the page that should win
+ * that query anyway: /shop and the product pages are the better landing pages
+ * for somebody shopping, and both of those do lead with what they sell and
+ * where. Google also rewrites a title it judges unhelpful for the query, often
+ * from the H1 and the visible copy, and both of those are intact. For the
+ * brand query itself, "vvbakes | inspired desserts" is exactly right.
+ *
+ * What carries the local signal here instead: the description below, the
+ * eyebrow above the H1, the footer, and the `Bakery` node at the foot of this
+ * file. If this page ever needs more, the H1 is the lever, not the title.
+ *
+ * The canonical has to be declared per page: `alternates` is inherited wholesale
+ * in Next, so a single one on the layout would make every page claim to be "/".
  */
 export const metadata: Metadata = {
+	description: `Custom cakes, cupcakes, cookies and Indonesian bakes made to order in ${SITE_CITY}. Pick a date, send your brief, and I'll confirm by email with a price.`,
 	alternates: { canonical: "/" },
 };
 
@@ -150,11 +171,12 @@ export default async function HomePage() {
 				<Container width="wide">
 					<div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-16">
 						<div className="flex flex-col gap-6 lg:col-span-7">
-							<SectionLabel>
-								{settings.pickupSuburb
-									? `Sweet treats, made in ${settings.pickupSuburb}`
-									: "Sweet treats, made to order"}
-							</SectionLabel>
+							{/* Through `localityLine` rather than the bare suburb, so this reads
+							    "made in Mt Roskill, Auckland" and not "made in Mt Roskill", which
+							    only helps somebody who already knows where that is. It is also
+							    the one place the city appears in visible copy above the fold,
+							    which is worth more to a search engine than any tag. */}
+							<SectionLabel>{`Sweet treats, made in ${localityLine(settings.pickupSuburb)}`}</SectionLabel>
 
 							{/* text-5xl clamps on viewport *width* and tops out at 88px, which on a
 							    wide but short laptop pushes the buttons under the fold. Cap it on
@@ -545,62 +567,19 @@ export default async function HomePage() {
 				</Section>
 			) : null}
 
-			<BakeryJsonLd
-				settings={settings}
-				open={availability.ordersOpen}
+			{/* Two nodes rather than one. The bakery says who and where, the FAQ
+			    block says what she gets asked, and a crawler that understands only
+			    one of them still gets the other. Both are built in lib/seo.ts, so
+			    the product pages can point their `seller` at the same `@id` this
+			    one publishes and Google reads the whole site as one business. */}
+			<JsonLd
+				data={bakeryJsonLd({
+					settings,
+					ordersOpen: availability.ordersOpen,
+					priceRangeText: cataloguePriceRange(products),
+				})}
 			/>
+			<JsonLd data={faqJsonLd(faqs)} />
 		</>
-	);
-}
-
-function BakeryJsonLd({
-	settings,
-	open,
-}: {
-	settings: Awaited<ReturnType<typeof getSettings>>;
-	open: boolean;
-}) {
-	const data = {
-		"@context": "https://schema.org",
-		"@type": "Bakery",
-		name: settings.businessName,
-		description: settings.tagline,
-		url: siteUrl(),
-		image: `${siteUrl()}/opengraph-image.png`,
-		sameAs: [instagramUrl(settings.instagramHandle)],
-		...(settings.contactEmail ? { email: settings.contactEmail } : {}),
-		...(settings.contactPhone ? { telephone: settings.contactPhone } : {}),
-		...(settings.pickupSuburb
-			? {
-					address: {
-						"@type": "PostalAddress",
-						addressLocality: settings.pickupSuburb,
-						addressCountry: "NZ",
-					},
-				}
-			: {}),
-		potentialAction: open
-			? {
-					"@type": "OrderAction",
-					target: `${siteUrl()}/order`,
-				}
-			: undefined,
-	};
-
-	return (
-		<script
-			type="application/ld+json"
-			// The business name, tagline and contact details are all editable in
-			// the admin, so "our own settings" is still stored text and not a
-			// reason to skip escaping. JSON.stringify leaves "<" intact, and a
-			// tagline holding a closing script tag would end this one early.
-			//
-			// The replacement needs both backslashes. "<" in TypeScript
-			// source is already the character "<", so escaping it with one
-			// backslash compiles to a replace of "<" with "<" and does nothing
-			// at all. Two backslashes emit the six characters <, which is
-			// what a JSON string wants and parses back to the same text.
-			dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }}
-		/>
 	);
 }

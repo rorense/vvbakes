@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { instagramUrl } from "@/lib/constants";
+import { localityLine } from "@/lib/seo";
 import type { SiteSettings } from "@/lib/types";
 import { Container } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
@@ -67,9 +68,13 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
 								{settings.contactPhone}
 							</a>
 						) : null}
-						{settings.pickupSuburb ? (
-							<p className="text-cocoa-soft text-sm">Pickup from {settings.pickupSuburb}</p>
-						) : null}
+						{/* Always printed now, and through `localityLine`, so it reads
+						    "Pickup from Mt Roskill, Auckland". The city belongs in the
+						    footer of every page for the same reason a real shop puts its
+						    address there: it is the one line that says where this is. */}
+						<p className="text-cocoa-soft text-sm">
+							Pickup from {localityLine(settings.pickupSuburb)}
+						</p>
 					</div>
 				</div>
 

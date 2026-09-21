@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Instrument_Sans } from "next/font/google";
 import { SEARCH_INDEXING, SITE_NAME, SITE_TAGLINE, siteUrl } from "@/lib/constants";
+import { SITE_CITY } from "@/lib/seo";
 import { Analytics, SpeedInsights } from "@/components/site/Analytics";
 import "./globals.css";
 
@@ -28,8 +29,10 @@ export const metadata: Metadata = {
 		default: `${SITE_NAME} | ${SITE_TAGLINE}`,
 		template: `%s | ${SITE_NAME}`,
 	},
-	description:
-		"Small-batch cupcakes, cookies and Indonesian-inspired cakes, baked to order. Choose a pickup date and we'll confirm by email.",
+	// The fallback for a page that sets none, and the one place the city is
+	// stated site-wide. Every page worth ranking overrides this with its own,
+	// but a page that forgets still says which Auckland it is talking about.
+	description: `Small-batch cupcakes, cookies and Indonesian-inspired cakes, baked to order in ${SITE_CITY}. Choose a pickup date and we'll confirm by email.`,
 	applicationName: SITE_NAME,
 	openGraph: {
 		type: "website",

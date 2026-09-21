@@ -3,8 +3,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SITE_NAME, siteUrl } from "@/lib/constants";
-import { formatPrice, minOrderQty, priceRule, unitPriceRange } from "@/lib/pricing";
+import { productImageUrl } from "@/lib/images";
+import { formatPrice, minOrderQty, unitPriceRange } from "@/lib/pricing";
 import { getCategories, getProductBySlug, getProductSlugs, getSettings } from "@/lib/queries";
+import { SITE_CITY, localityLine, productDescription, productJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/site/JsonLd";
 import { Container, Section } from "@/components/ui/Container";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { ArchFrame } from "@/components/ui/ArchFrame";
@@ -35,10 +38,16 @@ export async function generateMetadata({
 	const product = await getProductBySlug(slug);
 	if (!product) return { title: "Not found" };
 
+	// The template turns this into "Lapis Legit | vvbakes", which is right for a
+	// page somebody reaches from the menu and useless to somebody searching for
+	// the thing itself. The city goes in the title rather than only the
+	// description, because a product name plus a place is the whole query.
+	const title = `${product.name} | ${SITE_CITY} | ${SITE_NAME}`;
+	const description = productDescription(product);
+
 	return {
-		title: product.name,
-		description:
-			product.description ?? `${product.name} from vvbakes. ${priceRule(product)}. Baked to order.`,
+		title: { absolute: title },
+		description,
 		alternates: { canonical: `/shop/${product.slug}` },
 		// Metadata is merged a field at a time, not deeply, so an `openGraph`
 		// declared here replaces the root layout's outright rather than adding to
@@ -53,7 +62,7 @@ export async function generateMetadata({
 			siteName: SITE_NAME,
 			locale: "en_NZ",
 			title: `${product.name} from ${SITE_NAME}`,
-			description: product.description ?? priceRule(product),
+			description,
 			url: `${siteUrl()}/shop/${product.slug}`,
 		},
 	};
@@ -79,6 +88,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 		...(category ? [{ name: category.name, href: `/shop#${category.slug}` }] : []),
 		{ name: product.name, href: `/shop/${product.slug}` },
 	];
+
+	// Main photo first, then the strip under it, because Google takes the first
+	// one it can crop and the main photo is the one chosen to represent the
+	// product. Paths with no bucket configured come back null and drop out.
+	const images = [product.imagePath, ...product.galleryImagePaths]
+		.map(productImageUrl)
+		.filter((url): url is string => url !== null);
 
 	return (
 		<Section
@@ -113,6 +129,25 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 					</ol>
 				</nav>
 				<BreadcrumbJsonLd crumbs={crumbs} />
+
+				{/* The product as a product, which is what earns a price and a stock
+				    state in the result rather than a blue link. The offer's `seller`
+				    points at the bakery `@id` the home page publishes, so the two
+				    pages describe one business instead of two.
+
+				    A product priced on request publishes no price at all unless it
+				    has a price guide, in which case only the floor goes out. See
+				    `offerPrices` in lib/seo.ts: quoting the placeholder sitting in
+				    `unitPriceCents` would put a number in Google that this very page
+				    refuses to show a customer. */}
+				<JsonLd
+					data={productJsonLd({
+						product,
+						category,
+						images,
+						description: productDescription(product),
+					})}
+				/>
 
 				{/* The photo and the picker sit in opposite columns and have to agree
 				    on which variant is showing, so the choice lives in a provider
@@ -264,7 +299,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 								<p className="text-cocoa-soft text-sm">
 									Needs {settings.leadTimeDays} day
 									{settings.leadTimeDays === 1 ? "" : "s"} notice.
-									{settings.pickupSuburb ? ` Pickup from ${settings.pickupSuburb}.` : ""}
+									{` Pickup from ${localityLine(settings.pickupSuburb)}.`}
 								</p>
 							) : null}
 						</div>

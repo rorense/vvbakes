@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { buildPublicCalendar, computeAvailability } from "@/lib/availability";
 import { getAvailabilityInputs } from "@/lib/queries";
+import { SITE_CITY } from "@/lib/seo";
 import { ButtonLink } from "@/components/ui/Button";
 import { Container, Section } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
@@ -13,10 +14,15 @@ import { OrderForm } from "@/components/order/OrderForm";
  */
 export const dynamic = "force-dynamic";
 
+/**
+ * The one public page that is a form rather than something to be found. It is
+ * kept in the sitemap because it is a real destination, but it is nobody's
+ * search result, so the title stays the plain one and only the description
+ * picks up the city.
+ */
 export const metadata: Metadata = {
 	title: "Your order",
-	description:
-		"Check what you've picked, choose a day, and send it through. I'll confirm by email with a price and where to send it.",
+	description: `Check what you've picked, choose a pickup day in ${SITE_CITY}, and send it through. I'll confirm by email with a price and where to send it.`,
 	alternates: { canonical: "/order" },
 };
 
