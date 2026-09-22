@@ -5,7 +5,7 @@ import { saveOrderDetails } from "@/app/admin/(dashboard)/orders/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
 import { formatDateLongWithTime } from "@/lib/dates";
 import type { Fulfilment } from "@/lib/types";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, FormError, Input, Select, Textarea } from "@/components/ui/Form";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { Notice } from "@/components/ui/Notice";
@@ -67,6 +67,7 @@ export function OrderDetails({
 	orderPageLink: React.ReactNode;
 }) {
 	const [editing, setEditing] = useState(false);
+	const mailto = `mailto:${values.customerEmail}?subject=${encodeURIComponent(`Your vvbakes order ${reference}`)}`;
 
 	return (
 		<AdminCard title="Customer">
@@ -90,7 +91,7 @@ export function OrderDetails({
 							<dt className="text-cocoa-soft text-sm">Email</dt>
 							<dd className="text-right text-sm font-medium">
 								<a
-									href={`mailto:${values.customerEmail}?subject=${encodeURIComponent(`Your vvbakes order ${reference}`)}`}
+									href={mailto}
 									className="underline underline-offset-2">
 									{values.customerEmail}
 								</a>
@@ -122,7 +123,15 @@ export function OrderDetails({
 						) : null}
 					</HairlineList>
 
-					<div className="mt-5">
+					<div className="mt-5 flex flex-wrap gap-3">
+						{/* For asking about whatever the order left out. It opens her own
+						    mail app rather than sending from the shop, so their answer
+						    lands in her inbox under the same subject as her question. */}
+						<ButtonLink
+							href={mailto}
+							variant="secondary">
+							Email the customer
+						</ButtonLink>
 						<Button
 							variant="secondary"
 							onClick={() => setEditing(true)}>
