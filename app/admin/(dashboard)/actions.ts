@@ -15,7 +15,7 @@ import {
 	settingsSchema,
 } from "@/lib/validation";
 import { eachDay } from "@/lib/dates";
-import { getProductSlugs } from "@/lib/queries";
+import { getCategorySlugs, getProductSlugs } from "@/lib/queries";
 import { syncRows } from "@/lib/sync-rows";
 import { refusedRemoval } from "@/lib/variant-guard";
 
@@ -47,8 +47,8 @@ import { refusedRemoval } from "@/lib/variant-guard";
  *
  * Without a type, the path is matched against the URL the visitor asked for,
  * which has no route group in it and cannot go stale against one. So every
- * fixed page below is named by its own URL, and the product pages are named one
- * slug at a time.
+ * fixed page below is named by its own URL, and the product and category pages
+ * are named one slug at a time.
  *
  * Verified against a production build on 2026-09-17: "page" purged none of `/`,
  * `/shop`, `/shop/[slug]` or `/terms`, and the plain form purged all four.
@@ -82,6 +82,21 @@ async function revalidateCatalogue(): Promise<void> {
 		revalidatePath(`/shop/${slug}`);
 	}
 	revalidatePath("/(site)/shop/[slug]", "page");
+
+	// The category pages, the same way and for the same reasons. They carry the
+	// footer, the notice period and a card for every product in them, and were
+	// added after this list was written, so until now a save reached none of them.
+	//
+	// The backstop earns more here than it does for products. This list is read
+	// after the save, and a category drops out of it not only when it is renamed
+	// or deleted but when its last product is moved or deleted, and the "More
+	// treats" group drops out once nothing is orphaned. Each of those leaves a
+	// cached page behind that the loop cannot name. The product pattern above does
+	// not reach them: the tag is the whole route, so this route needs its own.
+	for (const slug of await getCategorySlugs()) {
+		revalidatePath(`/shop/category/${slug}`);
+	}
+	revalidatePath("/(site)/shop/category/[slug]", "page");
 }
 
 type State = FormState;
