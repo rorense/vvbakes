@@ -853,6 +853,55 @@ Note that robots.txt keeps letting crawlers **in** before launch. A
 read the `noindex` tag, and bare URLs could still surface. Blocking the crawl
 and blocking the listing are different things.
 
+### /llms.txt
+
+The structured data above is written for search engines. `/llms.txt` is the
+same shop written for the assistants people increasingly ask instead: one
+markdown file, about 12 KB, holding the summary, how an order works, pickup and
+delivery, every product with its price, flavours, minimums, extras and
+allergens, and the questions with their answers. The format is the convention
+proposed at [llmstxt.org](https://llmstxt.org): an H1, a blockquote summary,
+prose, then sections of links with a note on each.
+
+`lib/llms.ts` builds it and `app/llms.txt/route.ts` serves it. Both are covered
+by `lib/llms.test.ts`.
+
+It is a route rather than a file in `public/` because every sentence comes out
+of the database. The prices, flavours, allergens, pickup suburb and questions
+are all hers to change in the admin, and a copy checked into the repo would
+start lying the first time she changed one. It is `force-dynamic` for the same
+reason `app/sitemap.ts` is, and that is not a precaution: the stale-sitemap
+defect described below would hit this file too, and a stale copy of this one
+quotes money that is no longer charged.
+
+What it deliberately does not say, which is the same list the structured data
+refuses plus one:
+
+- **No price for a product priced on request.** The price guide's starting
+  prices are published as starting prices, and `unitPriceCents` never appears.
+- **No pickup address.** The suburb and the city, and a sentence saying the
+  address goes out with the confirmation email.
+- **No links to `/admin`, `/menu` or `/order/`**, matching robots.txt. The file
+  names those routes in prose to say they are private, and links none of them.
+- **Nothing about allergens it has not been told.** A product with none listed
+  carries no allergen sentence at all, and a line near the top explains that
+  this means none are declared yet rather than none are present. The list on a
+  product is the union across every flavour and option, because one line about
+  a whole product cannot say which flavour holds the walnuts, and
+  under-declaring is the failure that hurts somebody.
+
+Two things worth knowing if you change how it reads. The minimums are two
+different rules and the file states whichever applies: a product's own is met
+across every flavour, while a combination carrying `minPerOrder` is counted
+alone, so the pandan chiffon says both and the cookies (where every topping
+carries its own) say only the second. And while `SEARCH_INDEXING` is false the
+route sends `X-Robots-Tag: noindex`, because a route handler renders no layout
+and so cannot inherit the `noindex` the root layout puts on every page.
+
+```bash
+curl -s http://localhost:3000/llms.txt
+```
+
 ### Why there is no loading.tsx under /shop
 
 There were two, and they made every missing product answer **HTTP 200**
@@ -1032,6 +1081,7 @@ app/
   admin/         sign-in, dashboard, products, categories, calendar, orders, settings
   api/cron/      the daily keep-alive, which also sweeps spent rate-limit rows
   api/webhooks/  what Resend says about an email after it accepted it
+  llms.txt/      the whole shop as one markdown file, for assistants to read
 components/
   ui/            buttons, fields, the arch photo frame, the hairline list
   site/          header, footer, product cards
