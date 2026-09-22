@@ -22,7 +22,7 @@ export const metadata: Metadata = {
  * When the wording below last changed. Bump it whenever a clause changes in a
  * way a customer would care about — not for a typo.
  */
-const LAST_UPDATED = "18 September 2026";
+const LAST_UPDATED = "22 September 2026";
 
 export default async function PrivacyPage() {
 	const settings = await getSettings();
@@ -183,17 +183,19 @@ export default async function PrivacyPage() {
 					<Clause title="If you leave feedback">
 						<p>
 							The day after you collect an order I send one email asking how it went. It links to a
-							short form: your name, whatever you&rsquo;d like to say, and a tick box. Answering is
-							entirely up to you, and nothing happens if you don&rsquo;t.
+							short form: your name, whatever you&rsquo;d like to say, a mark out of five for each
+							thing you ordered, and a tick box. Answering is entirely up to you, and nothing
+							happens if you don&rsquo;t. The marks are optional on their own, so you can write
+							something and leave them alone.
 						</p>
 						<p>
-							What you write is kept with your order and read by me. Nothing you send goes on the
-							website on its own.
+							What you write is kept with your order and read by me. Nothing you <em>write</em> goes
+							on the website on its own.
 						</p>
 						<Points>
 							<li>
-								<Term>Leave the box unticked</Term> and it stays between us. I&rsquo;ll still read
-								it, and it will never be quoted anywhere.
+								<Term>Leave the box unticked</Term> and what you wrote stays between us. I&rsquo;ll
+								still read it, and it will never be quoted anywhere.
 							</li>
 							<li>
 								<Term>Tick it</Term> and I may quote what you wrote on the site, under the name you
@@ -202,8 +204,23 @@ export default async function PrivacyPage() {
 							</li>
 						</Points>
 						<p>
-							I choose which ones go up, and I read them before they do. Changed your mind, either
+							I choose which words go up, and I read them before they do. Changed your mind, either
 							way? Email {contact} and I&rsquo;ll take it down.
+						</p>
+						{/* The tick box governs the words and not the marks, and saying so
+						    is not optional: the paragraph above promises I read things
+						    before they go up, and that is not true of a number folded into
+						    an average. A policy that quietly covered both would be making a
+						    promise the site does not keep. */}
+						<p>
+							<Term>The marks out of five work differently</Term>, and the form says so where it
+							asks for them. They are never quoted and never carry your name, so the tick box does
+							not decide anything about them. Each is added to an average shown on that
+							product&rsquo;s page, and that happens on its own, without me reading it first. While
+							a product has only been marked once or twice the average sits very close to the marks
+							behind it, so treat it as public rather than hidden in a crowd. Email {contact} if you
+							would rather yours were not counted and I&rsquo;ll remove it, along with the words it
+							came with.
 						</p>
 						<p>
 							That email has a link at the bottom that stops me asking again, and your own mail

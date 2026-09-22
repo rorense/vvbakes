@@ -104,9 +104,13 @@ export default async function OrderFeedbackPage({
 			/>
 
 			<div className="border-line flex flex-col gap-2 border-t pt-6">
+				{/* "Nothing you write" rather than "nothing you send", because the
+				    stars do go up on their own. Saying otherwise here would
+				    contradict both the form above and the privacy page. */}
 				<p className="text-cocoa-soft text-xs">
 					Nothing you write here goes up on its own. I read it first, and only what you&rsquo;ve
-					said I can use is ever quoted.
+					said I can use is ever quoted. The stars are counted into a product&rsquo;s average either
+					way, without your name on them.
 				</p>
 				{settings.contactEmail ? (
 					<p className="text-cocoa-soft text-xs">

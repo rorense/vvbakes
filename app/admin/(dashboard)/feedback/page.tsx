@@ -78,6 +78,16 @@ export default async function AdminFeedbackPage() {
 				in Settings, which is where the wording, the order and the line under the name are yours to
 				change, and the only place a review comes back down.
 			</p>
+
+			{/* Said out loud because it is the one thing on this page that is not
+			    waiting on her. Everything else here is private until she presses a
+			    button; the stars are already out. */}
+			<p className="text-cocoa-soft mt-2 text-xs">
+				The stars work the other way round: they are already on the product pages, folded into an
+				average, whether or not the customer let you quote them. Nobody&rsquo;s name goes with them.
+				Deleting a piece of feedback takes its stars out of the average too, and that is the only
+				way to remove one.
+			</p>
 		</>
 	);
 }
