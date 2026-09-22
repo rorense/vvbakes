@@ -355,25 +355,25 @@ function FeedbackRequestEmail(ctx: EmailContext) {
 			unsubscribeUrl={unsubscribeUrl(ctx)}>
 			<Paragraph>
 				Hi {firstName(order.customerName)}, thank you for your order on{" "}
-				{formatDateLong(order.pickupDate)}. If you have a minute, I&rsquo;d love to know how it
-				went.
+				{formatDateLong(order.pickupDate)}. I&rsquo;d love to know how it went.
 			</Paragraph>
 
-			{/* This paragraph walks through the form field by field, so it has to
-			    be checked whenever the form changes. It described two boxes and a
-			    tick box for a while after the stars landed between them. */}
+			{/* One line, and it earns its place by naming the stars: the form asks
+			    for something the email did not mention for a while. It is a list of
+			    what is on the form and not an explanation of it, deliberately. The
+			    rules — that the tick box covers the words and not the marks, and
+			    that a mark is only ever shown inside an average — are stated on the
+			    form itself, next to the fields they govern, which is where somebody
+			    deciding what to fill in will actually read them. Repeating them
+			    here is what turned this into a paragraph nobody finished. */}
 			<Paragraph>
-				There are two boxes: your name, and whatever you&rsquo;d like to say. Under them you can
-				give each thing you ordered a mark out of five, which is optional and only ever shown as an
-				average. Last is a tick box asking whether I may put your words on the website, with the
-				name you give. They stay between us unless you tick it.
+				A few words, stars if you feel like it, and a tick box if I may quote you.
 			</Paragraph>
 
 			<ActionLink href={feedbackUrl(ctx)}>Tell me how it went</ActionLink>
 
 			<Paragraph>
-				And if something wasn&rsquo;t right, please tell me that too. Replying to this email reaches
-				me just the same.
+				If something wasn&rsquo;t right, tell me that too. Replying reaches me just the same.
 			</Paragraph>
 		</EmailLayout>
 	);
