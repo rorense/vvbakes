@@ -359,10 +359,14 @@ function FeedbackRequestEmail(ctx: EmailContext) {
 				went.
 			</Paragraph>
 
+			{/* This paragraph walks through the form field by field, so it has to
+			    be checked whenever the form changes. It described two boxes and a
+			    tick box for a while after the stars landed between them. */}
 			<Paragraph>
-				There are two boxes: your name, and whatever you&rsquo;d like to say. Underneath them is a
-				tick box asking whether I may put it on the website, with the name you give. It stays
-				between us unless you tick it.
+				There are two boxes: your name, and whatever you&rsquo;d like to say. Under them you can
+				give each thing you ordered a mark out of five, which is optional and only ever shown as an
+				average. Last is a tick box asking whether I may put your words on the website, with the
+				name you give. They stay between us unless you tick it.
 			</Paragraph>
 
 			<ActionLink href={feedbackUrl(ctx)}>Tell me how it went</ActionLink>
