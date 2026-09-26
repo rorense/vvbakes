@@ -796,14 +796,100 @@ export function priceRange(product: Product): string {
  * "$17.50 / box of 12" in the price column would say "box of 12" twice.
  */
 export function unitPriceRange(product: Product): string {
-	if (!hasVariants(product)) return formatPrice(product.unitPriceCents);
+	const { low, high } = unitPriceBounds(product);
+	return priceSpan(low, high);
+}
+
+/** The cheapest and the dearest one of this, among what can be bought. */
+function unitPriceBounds(product: Product): { low: number; high: number } {
+	if (!hasVariants(product)) return { low: product.unitPriceCents, high: product.unitPriceCents };
 
 	const choices = availableVariants(product);
 	const prices = (choices.length > 0 ? choices : product.variants).map((v) => v.unitPriceCents);
-	const low = Math.min(...prices);
-	const high = Math.max(...prices);
+	return { low: Math.min(...prices), high: Math.max(...prices) };
+}
 
+/** "$35", or "$34 – $40" where the two ends differ. */
+function priceSpan(low: number, high: number): string {
 	return low === high ? formatPrice(low) : `${formatPrice(low)} – ${formatPrice(high)}`;
+}
+
+/** One row of the price table on a product page. */
+export interface PriceTableRow {
+	label: string;
+	price: string;
+}
+
+/**
+ * The price table's rows for a product priced "the first few, then the rest",
+ * or null for any other product.
+ *
+ *   "First two boxes (total)"   $35
+ *   "Additional box"            $15
+ *
+ * The first row is what the minimum comes to, not one unit of it, because the
+ * minimum is the smallest order: nobody is buying the first box of minis on its
+ * own. It is totalled from the flavours, for the reason `unitPriceRange` reads
+ * them, and a genuine spread between them comes out as two totals and a dash.
+ *
+ * The words are made from the unit label and the minimum rather than written
+ * in, so another product priced this way reads as itself: "slice" gives "First
+ * four slices (total)" and "Additional slice". "each" counts nothing by name,
+ * so it keeps the wording this table had before.
+ */
+export function afterMinimumRows(
+	product: Product,
+): { first: PriceTableRow; after: PriceTableRow } | null {
+	if (product.priceOnRequest || product.extraUnitPriceCents === null) return null;
+
+	const minimum = minOrderQty(product);
+	const noun = unitNoun(product.unitLabel);
+	const { low, high } = unitPriceBounds(product);
+	// Spelled out while it is a small number, the way she says it.
+	const count = NUMBER_WORDS[minimum] ?? String(minimum);
+
+	return {
+		first: {
+			// One is not a total of anything, so it is simply the first.
+			label:
+				minimum === 1
+					? `First ${noun ?? "one"}`
+					: `First ${count}${noun ? ` ${pluralOf(noun)}` : ""} (total)`,
+			price: priceSpan(low * minimum, high * minimum),
+		},
+		after: {
+			label: noun ? `Additional ${noun}` : "Each one after that",
+			price: formatPrice(product.extraUnitPriceCents),
+		},
+	};
+}
+
+const NUMBER_WORDS: Readonly<Record<number, string>> = {
+	2: "two",
+	3: "three",
+	4: "four",
+	5: "five",
+	6: "six",
+	7: "seven",
+	8: "eight",
+	9: "nine",
+	10: "ten",
+};
+
+/**
+ * The thing a unit label counts, singular: "box" out of "box of 12", "slice"
+ * out of "slice". Null for "each", which names nothing to count.
+ */
+function unitNoun(unitLabel: string): string | null {
+	const noun = unitLabel.trim().toLowerCase().split(" of ")[0]!.trim();
+	return noun === "" || noun === "each" ? null : noun;
+}
+
+/** "boxes", "slices", "trays", "pastries": the regular plurals a unit label uses. */
+function pluralOf(noun: string): string {
+	if (/(s|x|z|ch|sh)$/.test(noun)) return `${noun}es`;
+	if (/[^aeiou]y$/.test(noun)) return `${noun.slice(0, -1)}ies`;
+	return `${noun}s`;
 }
 
 /**

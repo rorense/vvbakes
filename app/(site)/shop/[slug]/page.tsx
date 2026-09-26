@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SITE_NAME, siteUrl } from "@/lib/constants";
 import { productImageUrl } from "@/lib/images";
-import { formatPrice, minOrderQty, unitPriceRange } from "@/lib/pricing";
+import { afterMinimumRows, formatPrice } from "@/lib/pricing";
 import {
 	getCategories,
 	getProductBySlug,
@@ -114,6 +114,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 	if (!product) notFound();
 
 	const category = categories.find((c) => c.id === product.categoryId) ?? null;
+
+	// "First two boxes (total)" and "Additional box" for the minis; null for
+	// every product not priced that way.
+	const afterMinimum = afterMinimumRows(product);
 
 	// One array drives both the visible trail and the structured data below it.
 	// Google wants the markup to describe the path a visitor can see, so the two
@@ -288,32 +292,30 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 										    the pills carry the prices and a single number here could
 										    only be one of them. A product with a cheaper rate past the
 										    minimum is the exception, because the row underneath makes
-										    no sense on its own: "$15 after the first two" with no
-										    first-two price beside it reads as the whole price. */}
-										{product.variants.length === 0 || product.extraUnitPriceCents !== null ? (
+										    no sense on its own: "Additional box $15" with no price for
+										    the first two beside it reads as the whole price. */}
+										{product.variants.length === 0 || afterMinimum ? (
 											<HairlineRow as="div">
 												<dt className="text-sm">
-													{product.extraUnitPriceCents !== null
-														? `Each of the first ${minOrderQty(product)}`
+													{afterMinimum
+														? afterMinimum.first.label
 														: product.qtyStep > 1
 															? `Per ${product.qtyStep}`
 															: `Per ${product.unitLabel}`}
 												</dt>
 												<dd className="font-display text-lg italic">
-													{product.extraUnitPriceCents !== null
-														? unitPriceRange(product)
+													{afterMinimum
+														? afterMinimum.first.price
 														: product.qtyStep > 1
 															? formatPrice(product.unitPriceCents * product.qtyStep)
 															: formatPrice(product.unitPriceCents)}
 												</dd>
 											</HairlineRow>
 										) : null}
-										{product.extraUnitPriceCents !== null ? (
+										{afterMinimum ? (
 											<HairlineRow as="div">
-												<dt className="text-sm">Each one after that</dt>
-												<dd className="font-display text-lg italic">
-													{formatPrice(product.extraUnitPriceCents)}
-												</dd>
+												<dt className="text-sm">{afterMinimum.after.label}</dt>
+												<dd className="font-display text-lg italic">{afterMinimum.after.price}</dd>
 											</HairlineRow>
 										) : null}
 										{product.tiers.map((tier) => (

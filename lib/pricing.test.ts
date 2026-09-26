@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	afterMinimumRows,
 	defaultSelection,
 	defaultVariant,
 	findVariant,
@@ -301,6 +302,82 @@ describe("unitPriceRange", () => {
 			),
 		).toBe("$16 – $30");
 		expect(unitPriceRange(product({ unitPriceCents: 500 }))).toBe("$5");
+	});
+});
+
+describe("afterMinimumRows", () => {
+	it("prices the minis the way she asked: the first two as one total, then each box", () => {
+		expect(afterMinimumRows(product({ ...MINIS, unitLabel: "box of 12" }))).toEqual({
+			first: { label: "First two boxes (total)", price: "$35" },
+			after: { label: "Additional box", price: "$15" },
+		});
+	});
+
+	it("totals the flavours, not the product row they sit on", () => {
+		// The live minis again: $16.00 on the product, $17.50 on every flavour.
+		const live = product({
+			...MINIS,
+			unitPriceCents: 1600,
+			unitLabel: "box of 12",
+			variants: ["Vanilla", "Ube"].map((name) => variant({ name, unitPriceCents: 1750 })),
+		});
+		expect(afterMinimumRows(live)!.first.price).toBe("$35");
+
+		// A genuine spread is two totals, the cheapest pair and the dearest.
+		const spread = product({
+			...MINIS,
+			unitLabel: "box of 12",
+			variants: [
+				variant({ name: "Vanilla", unitPriceCents: 1750 }),
+				variant({ name: "Gold leaf", unitPriceCents: 2000 }),
+			],
+		});
+		expect(afterMinimumRows(spread)!.first.price).toBe("$35 – $40");
+	});
+
+	it("reads as whatever the product is counted in", () => {
+		const slices = afterMinimumRows(product({ ...MINIS, minPerOrder: 4, unitLabel: "slice" }));
+		expect(slices!.first.label).toBe("First four slices (total)");
+		expect(slices!.after.label).toBe("Additional slice");
+
+		expect(afterMinimumRows(product({ ...MINIS, unitLabel: "Tray of 6" }))!.first.label).toBe(
+			"First two trays (total)",
+		);
+		expect(afterMinimumRows(product({ ...MINIS, unitLabel: "batch" }))!.first.label).toBe(
+			"First two batches (total)",
+		);
+		expect(afterMinimumRows(product({ ...MINIS, unitLabel: "pastry" }))!.first.label).toBe(
+			"First two pastries (total)",
+		);
+	});
+
+	it("keeps the old wording for a product counted in each", () => {
+		expect(afterMinimumRows(product({ ...MINIS, unitLabel: "each" }))).toEqual({
+			first: { label: "First two (total)", price: "$35" },
+			after: { label: "Each one after that", price: "$15" },
+		});
+	});
+
+	it("spells out a small minimum and leaves a large one as a number", () => {
+		expect(afterMinimumRows(product({ ...MINIS, minPerOrder: 10 }))!.first.label).toBe(
+			"First ten (total)",
+		);
+		expect(
+			afterMinimumRows(product({ ...MINIS, minPerOrder: 12, unitLabel: "box of 12" }))!.first,
+		).toEqual({ label: "First 12 boxes (total)", price: "$210" });
+	});
+
+	it("calls a minimum of one the first, not a total", () => {
+		// No minimum at all counts from the step, which is one.
+		const p = product({ unitPriceCents: 1750, extraUnitPriceCents: 1500, unitLabel: "box of 12" });
+		expect(afterMinimumRows(p)!.first).toEqual({ label: "First box", price: "$17.50" });
+	});
+
+	it("is null for every product not priced this way", () => {
+		expect(afterMinimumRows(product())).toBeNull();
+		expect(afterMinimumRows(product({ tiers: FOUR_FOR_TWELVE }))).toBeNull();
+		// Nothing to quote on a cake with no price, whatever the rate says.
+		expect(afterMinimumRows(product({ ...MINIS, priceOnRequest: true }))).toBeNull();
 	});
 });
 
