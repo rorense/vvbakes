@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	afterMinimumRows,
+	afterMinimumSentence,
 	defaultSelection,
 	defaultVariant,
 	findVariant,
@@ -259,13 +260,13 @@ describe("a price after the minimum", () => {
 		expect(priceProduct(p, 3, p.variants[0]!).totalCents).toBe(2000 * 2 + 1500);
 	});
 
-	it("says so on the menu line instead of listing every quantity", () => {
+	it("says so on the menu line the way the price table does", () => {
 		expect(priceRule(product({ ...MINIS, unitLabel: "box of 12" }))).toBe(
-			"$17.50 / box of 12 · $15 each after 2",
+			"$35 for the first two boxes · $15 per additional box",
 		);
 		// The card has room for one price only, and it is still the first one.
 		expect(priceRule(product({ ...MINIS, unitLabel: "box of 12" }), { bundles: false })).toBe(
-			"$17.50 / box of 12",
+			"$35 for the first two boxes",
 		);
 	});
 
@@ -351,10 +352,10 @@ describe("afterMinimumRows", () => {
 		);
 	});
 
-	it("keeps the old wording for a product counted in each", () => {
+	it("counts in ones for a product counted each, which names nothing to count", () => {
 		expect(afterMinimumRows(product({ ...MINIS, unitLabel: "each" }))).toEqual({
 			first: { label: "First two (total)", price: "$35" },
-			after: { label: "Each one after that", price: "$15" },
+			after: { label: "Additional one", price: "$15" },
 		});
 	});
 
@@ -378,6 +379,53 @@ describe("afterMinimumRows", () => {
 		expect(afterMinimumRows(product({ tiers: FOUR_FOR_TWELVE }))).toBeNull();
 		// Nothing to quote on a cake with no price, whatever the rate says.
 		expect(afterMinimumRows(product({ ...MINIS, priceOnRequest: true }))).toBeNull();
+	});
+});
+
+describe("afterMinimumSentence", () => {
+	it("says the minis' price as a sentence, in the table's words", () => {
+		expect(afterMinimumSentence(product({ ...MINIS, unitLabel: "box of 12" }))).toBe(
+			"The first two boxes are $35 in total and every additional box is $15.",
+		);
+	});
+
+	it("does not call a single first one a total", () => {
+		const p = product({ unitPriceCents: 1750, extraUnitPriceCents: 1500, unitLabel: "box of 12" });
+		expect(afterMinimumSentence(p)).toBe(
+			"The first box is $17.50 and every additional box is $15.",
+		);
+	});
+
+	it("is null for every product not priced this way", () => {
+		expect(afterMinimumSentence(product({ tiers: FOUR_FOR_TWELVE }))).toBeNull();
+		expect(afterMinimumSentence(product({ ...MINIS, priceOnRequest: true }))).toBeNull();
+	});
+});
+
+describe("the minis' price, wherever it is said", () => {
+	it("is the same two things in the same words on the table, the card, the menu and the flavours", () => {
+		// The live row: $16.00 on the product, $17.50 on every flavour. Every
+		// place has to quote the flavours' $35, never the row's $32.
+		const minis = product({
+			...MINIS,
+			unitPriceCents: 1600,
+			unitLabel: "box of 12",
+			variants: ["Vanilla", "Ube"].map((name) => variant({ name, unitPriceCents: 1750 })),
+		});
+
+		const said = [
+			...Object.values(afterMinimumRows(minis)!).map((row) => `${row.label} ${row.price}`),
+			priceRule(minis),
+			priceRule(minis, { bundles: false }),
+			afterMinimumSentence(minis)!,
+		];
+
+		for (const text of said) {
+			expect(text.toLowerCase()).toMatch(/first two boxes|additional box/);
+			expect(text).not.toContain("$32");
+		}
+		expect(said.join(" ")).toContain("$35");
+		expect(said.filter((text) => text.includes("$15"))).toHaveLength(3);
 	});
 });
 

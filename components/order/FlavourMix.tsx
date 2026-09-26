@@ -3,11 +3,10 @@
 import Image from "next/image";
 import { productImageUrl } from "@/lib/images";
 import {
+	afterMinimumSentence,
 	availableVariants,
-	formatPrice,
 	minOrderQty,
 	priceProductLines,
-	unitPriceRange,
 } from "@/lib/pricing";
 import type { Product, ProductVariant } from "@/lib/types";
 import { Stepper } from "@/components/ui/Stepper";
@@ -107,6 +106,7 @@ export function FlavourMix({
 	const lines = mixLines(product, counts, alreadyCounted);
 	const total = mixQty(lines);
 	const minimum = minOrderQty(product);
+	const rule = afterMinimumSentence(product);
 
 	/**
 	 * How far up a flavour goes on its first press.
@@ -192,20 +192,21 @@ export function FlavourMix({
 				})}
 			</ul>
 
-			{/* The rule, said once, in the words she uses. The last sentence is the
-			    whole of the change 20260918000013 made and the thing a customer
-			    filling in this list most wants to know: moving a box from one row
-			    to another does not move the price. */}
-			{product.extraUnitPriceCents !== null ? (
+			{/* The rule, said once, in the words she uses and the price table above
+			    uses: the first two boxes as a total, then each additional box. The
+			    last sentence is the whole of the change 20260918000013 made and the
+			    thing a customer filling in this list most wants to know: moving a
+			    box from one row to another does not move the price.
+
+			    The total is the flavours' price, not the product row's. They are
+			    not the same number: the minis carry $16.00 on the product and
+			    $17.50 on every one of their six flavours, and it is the flavour
+			    that is charged. Reading the row here once printed "$16 each" under
+			    a price table saying $17.50, which is the one thing a price may
+			    never do. */}
+			{rule ? (
 				<p className="text-cocoa-soft mt-1 text-xs">
-					{/* The flavours' price, not the product row's. They are not the same
-					    number: the minis carry $16.00 on the product and $17.50 on every
-					    one of their six flavours, and it is the flavour that is charged.
-					    Reading the row here printed "$16 each" under a price table
-					    saying $17.50, which is the one thing a price may never do. */}
-					The first {minimum} are {unitPriceRange(product)} each and every one after that is{" "}
-					{formatPrice(product.extraUnitPriceCents)}. However many {groupName.toLowerCase()}s you
-					split them across comes to the same.
+					{rule} However many {groupName.toLowerCase()}s you split them across comes to the same.
 				</p>
 			) : null}
 

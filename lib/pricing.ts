@@ -736,6 +736,7 @@ export function extraLabel(name: string, qty: number): string {
  *   item with tiers   "$3 each · 4 for $12"
  *   stepped item      "2 for $5"        (cookies: sold in pairs, no tier row)
  *   flavoured item    "$45 – $55 each"  (one price shown when they all match)
+ *   first few, then   "$35 for the first two boxes · $15 per additional box"
  *
  * Pass `bundles: false` where the line has room for one price only, as a card
  * in a four-up grid does. The bundles are still priced and still applied; the
@@ -749,14 +750,17 @@ export function priceRule(
 	// branch below would be quoting the placeholder in `unitPriceCents`.
 	if (product.priceOnRequest) return PRICE_ON_REQUEST_LABEL;
 
-	const base = priceRange(product);
-
-	// Said before the bundles because a product has one or the other, never both,
-	// and this is the one that has no row of its own in the price table on the
-	// product page when the product is sold by the flavour.
-	if (bundles && product.extraUnitPriceCents !== null) {
-		return `${base} · ${formatPrice(product.extraUnitPriceCents)} each after ${minOrderQty(product)}`;
+	// Before the bundles, because a product has one or the other, never both, and
+	// before the base price, because this replaces it: said in the words of the
+	// product page's table, the first few as one total and then each additional
+	// one. The card has room for one price only, and it is the first of the two.
+	const terms = afterMinimumTerms(product);
+	if (terms) {
+		const lead = `${terms.firstPrice} for the ${terms.first}`;
+		return bundles ? `${lead} · ${terms.additionalPrice} per ${terms.additional}` : lead;
 	}
+
+	const base = priceRange(product);
 
 	if (bundles && product.tiers.length > 0) {
 		const tiers = [...product.tiers]
@@ -821,25 +825,40 @@ export interface PriceTableRow {
 }
 
 /**
- * The price table's rows for a product priced "the first few, then the rest",
- * or null for any other product.
+ * How a product priced "the first few, then the rest" is said, in the pieces
+ * every place that says it is built from.
  *
- *   "First two boxes (total)"   $35
- *   "Additional box"            $15
+ *   first            "first two boxes"
+ *   firstPrice       "$35"
+ *   additional       "additional box"
+ *   additionalPrice  "$15"
  *
- * The first row is what the minimum comes to, not one unit of it, because the
+ * Four places say it: the price table on the product page, the line on its
+ * card, the menu line, and the sentence under the flavour counts. They used to
+ * say it four ways, and she asked for one: the first two boxes as a total, then
+ * each additional box. Building every one of them from these pieces is what
+ * keeps them saying the same thing.
+ *
+ * The first is what the minimum comes to, not one unit of it, because the
  * minimum is the smallest order: nobody is buying the first box of minis on its
  * own. It is totalled from the flavours, for the reason `unitPriceRange` reads
  * them, and a genuine spread between them comes out as two totals and a dash.
  *
  * The words are made from the unit label and the minimum rather than written
- * in, so another product priced this way reads as itself: "slice" gives "First
- * four slices (total)" and "Additional slice". "each" counts nothing by name,
- * so it keeps the wording this table had before.
+ * in, so another product priced this way reads as itself: "slice" gives "first
+ * four slices" and "additional slice". A product counted "each" names nothing
+ * to count, so it has "first two" and "additional one".
  */
-export function afterMinimumRows(
-	product: Product,
-): { first: PriceTableRow; after: PriceTableRow } | null {
+interface AfterMinimumTerms {
+	first: string;
+	firstPrice: string;
+	/** More than one, so `firstPrice` is a total rather than the price of one. */
+	firstIsTotal: boolean;
+	additional: string;
+	additionalPrice: string;
+}
+
+function afterMinimumTerms(product: Product): AfterMinimumTerms | null {
 	if (product.priceOnRequest || product.extraUnitPriceCents === null) return null;
 
 	const minimum = minOrderQty(product);
@@ -849,19 +868,57 @@ export function afterMinimumRows(
 	const count = NUMBER_WORDS[minimum] ?? String(minimum);
 
 	return {
-		first: {
-			// One is not a total of anything, so it is simply the first.
-			label:
-				minimum === 1
-					? `First ${noun ?? "one"}`
-					: `First ${count}${noun ? ` ${pluralOf(noun)}` : ""} (total)`,
-			price: priceSpan(low * minimum, high * minimum),
-		},
-		after: {
-			label: noun ? `Additional ${noun}` : "Each one after that",
-			price: formatPrice(product.extraUnitPriceCents),
-		},
+		// One is not a total of anything, so it is simply the first.
+		first:
+			minimum === 1
+				? `first ${noun ?? "one"}`
+				: `first ${count}${noun ? ` ${pluralOf(noun)}` : ""}`,
+		firstPrice: priceSpan(low * minimum, high * minimum),
+		firstIsTotal: minimum > 1,
+		additional: `additional ${noun ?? "one"}`,
+		additionalPrice: formatPrice(product.extraUnitPriceCents),
 	};
+}
+
+/**
+ * The price table's rows for a product priced "the first few, then the rest",
+ * or null for any other product.
+ *
+ *   "First two boxes (total)"   $35
+ *   "Additional box"            $15
+ */
+export function afterMinimumRows(
+	product: Product,
+): { first: PriceTableRow; after: PriceTableRow } | null {
+	const terms = afterMinimumTerms(product);
+	if (!terms) return null;
+
+	return {
+		first: {
+			label: `${capitalise(terms.first)}${terms.firstIsTotal ? " (total)" : ""}`,
+			price: terms.firstPrice,
+		},
+		after: { label: capitalise(terms.additional), price: terms.additionalPrice },
+	};
+}
+
+/**
+ * The same price as a sentence, for under the flavour counts, or null for any
+ * other product: "The first two boxes are $35 in total and every additional box
+ * is $15."
+ */
+export function afterMinimumSentence(product: Product): string | null {
+	const terms = afterMinimumTerms(product);
+	if (!terms) return null;
+
+	const first = terms.firstIsTotal
+		? `The ${terms.first} are ${terms.firstPrice} in total`
+		: `The ${terms.first} is ${terms.firstPrice}`;
+	return `${first} and every ${terms.additional} is ${terms.additionalPrice}.`;
+}
+
+function capitalise(text: string): string {
+	return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 const NUMBER_WORDS: Readonly<Record<number, string>> = {
