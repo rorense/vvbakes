@@ -343,6 +343,29 @@
 	}
 
 	/*
+	 * The rise the phone's basket bar arrives on. See
+	 * components/site/MiniCart.tsx for what it says.
+	 *
+	 * It travels for the toast's reason: the first thing added to a basket
+	 * brings the bar up at the foot of the screen, nowhere near the button that
+	 * added it, and the movement is what ties the two together. It does not fade,
+	 * for the menu sheet's reason below: a browser that is not drawing the page
+	 * does not advance an animation, and a bar caught on its first frame should
+	 * be a bar sitting a little low, not an invisible one.
+	 */
+	@media (prefers-reduced-motion: no-preference) {
+		.basket-rise {
+			animation: basket-rise 180ms ease-out;
+		}
+	}
+
+	@keyframes basket-rise {
+		from {
+			translate: 0 0.75rem;
+		}
+	}
+
+	/*
 	 * The drop the phone's navigation sheet arrives on. See
 	 * components/site/MobileNav.tsx for what is in it.
 	 *

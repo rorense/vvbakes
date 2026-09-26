@@ -25,6 +25,7 @@ import {
 	toRule,
 	toSettings,
 } from "./mappers";
+import { isOrderable } from "./pricing";
 import { createPublicClient } from "./supabase/public";
 import { hasSupabaseConfig } from "./supabase/env";
 import type {
@@ -333,6 +334,26 @@ export async function getCategorySlugs(): Promise<string[]> {
 	const catalogue = await getCatalogue();
 	return catalogue.map((category) => category.slug);
 }
+
+/**
+ * What the bar at the foot of a phone's screen prices the basket against.
+ *
+ * The site layout reads this for every page, because the basket lives in the
+ * visitor's browser and the server drawing the page cannot see what is in it.
+ * Only what can still be bought: a saved line naming anything else is dropped
+ * before it is priced, by the order form and the bar alike, so the rest would
+ * be bytes every visitor downloads to throw away.
+ *
+ * Read in the page's own render rather than fetched by the browser from a
+ * route of its own. That keeps the bar exactly as fresh as the prices printed
+ * on the page around it, and `revalidateCatalogue()` already purges every page
+ * that carries it. A catalogue cached somewhere else is a second copy that can
+ * go stale without anyone noticing; app/sitemap.ts says how that went.
+ */
+export const getOrderableProducts = cache(async (): Promise<Product[]> => {
+	const products = await getProducts();
+	return products.filter(isOrderable);
+});
 
 export const getFeaturedProducts = cache(async (): Promise<Product[]> => {
 	const products = await getProducts();

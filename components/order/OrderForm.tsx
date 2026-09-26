@@ -5,26 +5,14 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { placeOrder } from "@/app/(site)/order/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
-import { briefPhotoIds, frostingLabel, hasCustomFlavour } from "@/lib/brief";
-import { cartLineKey, clearCart, lineExtras, useCart } from "@/lib/cart";
+import { priceBasket, type BasketLine } from "@/lib/basket";
+import { briefPhotoIds, frostingLabel } from "@/lib/brief";
+import { clearCart, useCart } from "@/lib/cart";
 import { cn } from "@/lib/cn";
 import { MAX_ORDER_INSPIRATION_PHOTOS } from "@/lib/constants";
 import { formatDateShort, type IsoDate } from "@/lib/dates";
 import { loadPhotos, sweepPhotos } from "@/lib/photo-store";
-import {
-	extraLabel,
-	extrasTotalCents,
-	findExtras,
-	findVariant,
-	formatMoney,
-	hasVariants,
-	isValidQty,
-	isVariantAvailable,
-	minOrderQty,
-	normaliseExtras,
-	priceProductLines,
-	type PricedQuantity,
-} from "@/lib/pricing";
+import { extraLabel, formatMoney, minOrderQty } from "@/lib/pricing";
 import type {
 	CartBrief,
 	PickableDate,
@@ -38,6 +26,7 @@ import { Notice } from "@/components/ui/Notice";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { Stepper } from "@/components/ui/Stepper";
 import { ProductImage } from "@/components/site/ProductCard";
+import { BarTotal } from "./BarTotal";
 import { PickupCalendar } from "./PickupCalendar";
 
 /**
@@ -96,147 +85,13 @@ export function OrderForm({
 
 	const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
-	// Cart lines resolved against the live catalogue. A product that has since
-	// been deleted or sold out drops out here rather than failing on submit, and
-	// so does a flavour that has: the basket outlives the menu it was filled
-	// from, and the two have to be reconciled somewhere.
-	//
-	// An extra that has gone is the one thing that does *not* take its line with
-	// it. Someone who wanted candles on a cake still wants the cake, so the extra
-	// is dropped, counted, and said out loud below. A brief is never dropped: it
-	// is the customer's own words, and there is nothing in it to go stale.
-	const resolved = useMemo(
-		() =>
-			cart.lines
-				.map((line) => {
-					const product = byId.get(line.productId);
-					if (!product || !product.isAvailable) return null;
-					if (!isValidQty(product, line.qty)) return null;
-
-					const variant = findVariant(product, line.variantId);
-					// A flavoured product needs one that still exists and is still on
-					// sale, answers included: a combination whose flavour has since
-					// sold out is gone even though its own switch is still on. A plain
-					// product is checked against the id the cart actually holds, not
-					// against `variant`, which is null either way: a saved line naming
-					// a flavour the owner has since removed altogether would otherwise
-					// sail through here and be refused on submit.
-					if (
-						hasVariants(product)
-							? !variant || !isVariantAvailable(product, variant)
-							: Boolean(line.variantId)
-					) {
-						return null;
-					}
-
-					// Resolved against this product's own list, not a shop-wide one: an
-					// id that belongs to another product names nothing here, which is
-					// the same answer `place_order` gives it.
-					//
-					// `findExtras` hands them back in the owner's order rather than in
-					// whatever order the cart's ids sort into. That is the order the
-					// product page offered them in and the order the confirmation email
-					// and the order page list them in, so the basket now agrees with
-					// all three instead of being the one place they came out shuffled.
-					const wanted = normaliseExtras(lineExtras(line));
-					const chosen = findExtras(product.extras, wanted).filter(
-						({ extra }) => extra.isAvailable,
-					);
-
-					return {
-						// What the cart itself holds, stale ids and all. Removing or
-						// re-counting a line has to match on this, not on what survived.
-						source: {
-							variantId: line.variantId ?? null,
-							extras: lineExtras(line),
-							brief: line.brief,
-						},
-						product,
-						variant,
-						extras: chosen,
-						lostExtras: wanted.length - chosen.length,
-						brief: line.brief,
-						qty: line.qty,
-					};
-				})
-				.filter((line): line is NonNullable<typeof line> => line !== null),
+	// The cart resolved against the live catalogue, merged and priced. Written
+	// once in lib/basket.ts, because the bar a phone carries on every other page
+	// shows the same total and must never show a different one.
+	const { lines, dropped, subtotalCents, hasUnpriced, mayCostMore } = useMemo(
+		() => priceBasket(cart.lines, byId),
 		[cart.lines, byId],
 	);
-
-	// Two saved lines can land on the same thing once a dropped extra is taken
-	// off one of them — a cake with candles the owner has since deleted is now
-	// just a cake, and the basket may already hold one of those.
-	//
-	// They are merged rather than listed twice, because `place_order` groups the
-	// items it is handed the same way and prices the total quantity as one line.
-	// Left unmerged, a bundle price would apply there and not here, and the
-	// number on this page would be the one number it must never be: different
-	// from the one charged.
-	//
-	// The brief is part of the key, so two cakes described differently never
-	// merge however alike the rest of the line looks. `place_order` groups by it
-	// too, which is what keeps the two counts the same.
-	const lines = useMemo(() => {
-		type Line = (typeof resolved)[number] & {
-			key: string;
-			sources: Array<(typeof resolved)[number]["source"]>;
-		};
-		const merged = new Map<string, Line>();
-
-		for (const entry of resolved) {
-			const key = cartLineKey(
-				entry.product.id,
-				entry.variant?.id,
-				entry.extras.map(({ extra, qty }) => ({ id: extra.id, qty })),
-				entry.brief,
-			);
-			const found = merged.get(key);
-
-			if (found) {
-				found.qty += entry.qty;
-				found.lostExtras += entry.lostExtras;
-				found.sources.push(entry.source);
-			} else {
-				merged.set(key, { ...entry, key, sources: [entry.source] });
-			}
-		}
-
-		const all = [...merged.values()];
-
-		// Priced a product at a time rather than a line at a time, because the
-		// rule that needs it is a rule about the order: three boxes of minis is
-		// $50 whether that is three of one flavour or one each of three, and a
-		// line priced on its own would start the allowance over and charge
-		// $52.50. `place_order` groups and allocates exactly the same way, which
-		// is what keeps the figure here and the figure charged the same figure.
-		//
-		// Products with no cheaper rate past the minimum come back out of this
-		// priced one line at a time, which is what they have always been.
-		const priced = new Map<string, PricedQuantity>();
-		for (const productId of new Set(all.map((line) => line.product.id))) {
-			const forProduct = all.filter((line) => line.product.id === productId);
-			const results = priceProductLines(forProduct[0]!.product, forProduct);
-			forProduct.forEach((line, index) => priced.set(line.key, results[index]!));
-		}
-
-		return all.map((line) => {
-			const menu = priced.get(line.key)!;
-			const extrasCents = extrasTotalCents(line.extras, line.qty);
-
-			return {
-				...line,
-				// `note` explains the menu price and only the menu price, exactly as
-				// `pricing_note` does on the order it becomes. The extras are named
-				// under the line with their own totals.
-				note: menu.note,
-				// True for a cake nobody has priced yet. Its `totalCents` is zero and
-				// must not be rendered as money.
-				onRequest: menu.onRequest,
-				extrasCents,
-				totalCents: menu.totalCents + extrasCents,
-			};
-		});
-	}, [resolved]);
 
 	/** Every photo the basket still names, in the order the lines are listed. */
 	const photoIds = useMemo(() => lines.flatMap((line) => briefPhotoIds(line.brief)), [lines]);
@@ -270,14 +125,14 @@ export function OrderForm({
 	};
 
 	/** Empties every saved line that fed this one, merged or not. */
-	const removeLine = (line: (typeof lines)[number]) => {
+	const removeLine = (line: BasketLine) => {
 		for (const source of line.sources) {
 			remove(line.product.id, source.variantId, source.extras, source.brief);
 		}
 	};
 
 	/** Puts the whole new quantity on the first saved line and drops the rest. */
-	const setLineQty = (line: (typeof lines)[number], next: number) => {
+	const setLineQty = (line: BasketLine, next: number) => {
 		const [first, ...rest] = line.sources;
 		if (!first) return;
 		setQty(line.product.id, next, first.variantId, first.extras, first.brief);
@@ -295,7 +150,7 @@ export function OrderForm({
 	// that count and holds it to its own rule: eight is about chiffon slices, and
 	// the whole cake beside them is one cake. The same split `place_order` makes.
 	const shortfalls = useMemo(() => {
-		const totals = new Map<string, { line: (typeof lines)[number]; qty: number }>();
+		const totals = new Map<string, { line: BasketLine; qty: number }>();
 		for (const line of lines) {
 			const own = line.variant?.minPerOrder != null;
 			const key = own ? `variant:${line.variant!.id}` : `product:${line.product.id}`;
@@ -316,7 +171,7 @@ export function OrderForm({
 			.filter((entry) => entry.qty < entry.minimum);
 	}, [lines]);
 
-	const droppedCount = ready ? cart.lines.length - resolved.length : 0;
+	const droppedCount = ready ? dropped : 0;
 	// Counted separately from the dropped lines: an extra going is a smaller thing
 	// than a cake going, and rolling the two together would tell someone their
 	// cake had been removed when it is sitting right there.
@@ -326,7 +181,6 @@ export function OrderForm({
 	// because the customer chose them and would otherwise never learn.
 	const lostPhotos = ready ? photoIds.filter((id) => !photos.has(id)).length : 0;
 
-	const subtotal = lines.reduce((total, line) => total + line.totalCents, 0);
 	// Nothing is charged for delivery while she is quoting the fee by hand. The
 	// database holds the column at 0 to match, so this is belt and braces rather
 	// than the only thing keeping the total honest; `feeToCome` is what says so
@@ -334,15 +188,7 @@ export function OrderForm({
 	const deliveryFee =
 		fulfilment === "delivery" && !settings.deliveryFeeOnRequest ? settings.deliveryFeeCents : 0;
 	const deliveryFeeToCome = fulfilment === "delivery" && settings.deliveryFeeOnRequest;
-	const total = subtotal + deliveryFee;
-	// Something in the basket has no price yet, so the figure above is a subtotal
-	// of everything else and has to say so wherever it appears.
-	const hasUnpriced = lines.some((line) => line.onRequest);
-	// And something in it was asked for in a flavour of its own, which is a real
-	// price the owner may add to rather than half of one. A different sentence,
-	// said in the same place. Repeated on the order page once it is placed, where
-	// it stops the moment she decides what it costs.
-	const mayCostMore = lines.some((line) => line.brief && hasCustomFlavour(line.brief));
+	const total = subtotalCents + deliveryFee;
 
 	const attachedPhotos = photoIds.filter((id) => photos.has(id)).length;
 	const tooManyPhotos = attachedPhotos > MAX_ORDER_INSPIRATION_PHOTOS;
@@ -805,7 +651,7 @@ export function OrderForm({
 			<div className="flex flex-col gap-4">
 				<div className="hidden flex-col gap-4 sm:flex">
 					<Total
-						subtotal={subtotal}
+						subtotal={subtotalCents}
 						deliveryFee={deliveryFee}
 						deliveryFeeToCome={deliveryFeeToCome}
 						total={total}
@@ -842,20 +688,14 @@ export function OrderForm({
 					<span className="text-cocoa-soft text-xs">
 						{chosenDate ? formatDateShort(chosenDate.date) : "Choose a date"}
 					</span>
-					<span className="flex items-baseline gap-2">
-						{total > 0 ? <span className="font-display text-xl">{formatMoney(total)}</span> : null}
-						{/* The desktop summary says all of this in sentences; there is no
-						    room for one here, so the bar carries the shortest true
-						    version. A cake with no price at all is the bigger caveat of
-						    the two, so it wins when an order somehow holds both. */}
-						{hasUnpriced ? (
-							<span className="text-cocoa-soft text-xs">
-								{total > 0 ? "+ your cake" : "Price to follow"}
-							</span>
-						) : mayCostMore ? (
-							<span className="text-cocoa-soft text-xs">may change</span>
-						) : null}
-					</span>
+					{/* The same words the bar on every other page uses, because it is
+					    the same basket. This one's figure includes delivery, the one
+					    thing that bar cannot know about. */}
+					<BarTotal
+						totalCents={total}
+						hasUnpriced={hasUnpriced}
+						mayCostMore={mayCostMore}
+					/>
 				</div>
 				<Button
 					type="submit"

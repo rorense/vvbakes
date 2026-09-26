@@ -261,6 +261,28 @@ Prices are also computed in the browser so the form can show a running total.
 so a test runs both across many quantities and tier shapes and fails if they
 ever disagree on a single cent.
 
+### The basket on a phone
+
+Below 40rem the header's links are behind the hamburger, so once something is
+in the basket a phone gets a bar at the foot of every page instead: how many
+items, what they come to, and a **View order** button. It is not shown on
+`/order`, which has a bar of its own with the same figure and the button that
+sends it, nor on the order pages under it, and never for an empty basket.
+
+The figure is the order form's own. Both come from `priceBasket` in
+`lib/basket.ts`, which resolves the saved lines against the live catalogue,
+merges any that have come to the same thing, and prices each product's lines
+together, so the bar and the form cannot disagree by a cent. The bar leaves out
+delivery, which is chosen on the form, so what it shows is the items.
+
+The catalogue it prices against is read by the site layout, so every public page
+carries the orderable products whether or not the visitor has a basket: 2–3 KB
+gzipped for the demo catalogue, more for one with a lot of flavour combinations.
+That is deliberate. The alternative, a route the browser asks for once there is a
+basket, is a second cached copy of the catalogue that can go stale on its own, as
+the sitemap once did; the layout's copy is purged by `revalidateCatalogue()` with
+the page it is on.
+
 ### What a customer says about one item
 
 Every product asks for a note. Products that want more can ask for two other
@@ -1031,6 +1053,12 @@ exactly `$25.00`, and the cupcake line should read
 `1 x 4 for $12.00 + 1 x $3.00 each`.
 Submit it, then check that you got the notification email and the customer got
 the acknowledgement.
+
+**The bar on a phone.** In a phone-sized window, add five cupcakes. The bar at
+the foot of the page should read `$15.00`, and **View order** should open the
+form showing the same figure in its own bar, with the other one gone. Add the
+custom cake and both should read `$15.00 + your cake`. Remove everything and the
+bar should go.
 
 **A cake with a picture.** Open `/shop/custom-cake`, pick a size, attach two
 photos and a Pinterest link, and add it to the order alongside a box of

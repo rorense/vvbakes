@@ -35,15 +35,20 @@ export function NavLink({
 /**
  * Has to be a child of the `Link` it reports on — that is how `useLinkStatus`
  * finds which navigation it belongs to.
+ *
+ * Exported for a link that is not a `NavLink`, such as one shaped like a
+ * button, which also needs `relative` for the mark to sit inside it. The
+ * `className` is for when the rose it is drawn in would not show against what
+ * it sits on.
  */
-function NavLinkPending() {
+export function NavLinkPending({ className }: { className?: string }) {
 	const { pending } = useLinkStatus();
 	if (!pending) return null;
 
 	return (
 		<span
 			aria-hidden="true"
-			className="nav-pending"
+			className={cn("nav-pending", className)}
 		/>
 	);
 }
