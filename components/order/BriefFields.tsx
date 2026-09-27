@@ -4,6 +4,7 @@ import { useId } from "react";
 import { MAX_BRIEF_FLAVOUR, MAX_BRIEF_FROSTING, MAX_BRIEF_NOTE } from "@/lib/brief";
 import type { Product } from "@/lib/types";
 import { Checkbox, Input, Textarea } from "@/components/ui/Form";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { InspirationPicker, type InspirationPhoto } from "./InspirationPicker";
 
 /** The brief as the product page holds it, photos still as files. */
@@ -191,13 +192,15 @@ export function BriefFields({
 					    colour with it, a colour asked for on its own comes out vanilla, and
 					    NZ butter is yellow. All true whichever way the box above is set, so
 					    the note sits under the box rather than inside either branch. */}
-					<p className="text-cocoa-soft text-xs">
-						Please note that flavours will colour the frosting e.g. matcha flavoured frosting will
-						be green. If coloured frosting for decorating the {noun}s is required, then the flavour
-						needs to match the colour, or it will be vanilla flavoured. Due to the yellow colour of
-						NZ butter, it is difficult to achieve a white frosting naturally so please bear in mind
-						plain frosting will have a yellow tinge.
-					</p>
+					<InfoTip label="About frosting colour">
+						<p>
+							Please note that flavours will colour the frosting e.g. matcha flavoured frosting will
+							be green. If coloured frosting for decorating the {noun}s is required, then the
+							flavour needs to match the colour, or it will be vanilla flavoured. Due to the yellow
+							colour of NZ butter, it is difficult to achieve a white frosting naturally so please
+							bear in mind plain frosting will have a yellow tinge.
+						</p>
+					</InfoTip>
 
 					{value.frostingMatchesFlavour ? null : (
 						<div className="flex flex-col gap-2">
@@ -229,7 +232,15 @@ export function BriefFields({
 							{product.wantsBrief ? "" : " (optional)"}
 						</span>
 					</label>
-					<p className="text-cocoa-soft text-xs">{noteHint}</p>
+					{/* The short hint on a plain product is one line and stays out; the
+					    brief's is a paragraph and goes behind a tap. */}
+					{product.wantsBrief ? (
+						<InfoTip label="What to include">
+							<p>{noteHint}</p>
+						</InfoTip>
+					) : (
+						<p className="text-cocoa-soft text-xs">{noteHint}</p>
+					)}
 					<Textarea
 						id={noteId}
 						rows={product.wantsBrief ? 7 : 2}

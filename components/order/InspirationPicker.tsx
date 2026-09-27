@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import { MAX_INSPIRATION_PHOTOS } from "@/lib/constants";
+import { InfoTip } from "@/components/ui/InfoTip";
 
 /** A chosen photo and the object URL showing it back. */
 export interface InspirationPhoto {
@@ -173,22 +174,27 @@ export function InspirationPicker({
 				</button>
 			) : null}
 
-			<p className="text-cocoa-soft text-xs">
-				{photos.length > 0
-					? `${photos.length} of ${MAX_INSPIRATION_PHOTOS} added. Big files are fine, they get resized here before sending.`
-					: (hint ??
-						"A cake you've seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture.")}
-			</p>
+			{photos.length > 0 ? (
+				<p className="text-cocoa-soft text-xs">
+					{`${photos.length} of ${MAX_INSPIRATION_PHOTOS} added. Big files are fine, they get resized here before sending.`}
+				</p>
+			) : null}
 
 			{/* Said here, once, rather than in a reply to somebody already holding
 			    the cake: a reference is a starting point, and anything that has to
 			    come out exactly the same needs naming while there is still time to
-			    do it. */}
-			<p className="text-cocoa-soft text-xs">
-				{
-					"I'll get as close to your references as I can, though it won't come out an exact copy of the photos. If there's an element you want exactly the same, say which one in the notes."
-				}
-			</p>
+			    do it. Behind a tap so the page stays short; still one tap away. */}
+			<InfoTip label="Tips for photos">
+				<p>
+					{hint ??
+						"A cake you've seen and loved, the colour, design, etc. Please be specific in the notes section to say what exactly you want from each picture."}
+				</p>
+				<p>
+					{
+						"I'll get as close to your references as I can, though it won't come out an exact copy of the photos. If there's an element you want exactly the same, say which one in the notes."
+					}
+				</p>
+			</InfoTip>
 
 			{(message ?? error) ? (
 				<p

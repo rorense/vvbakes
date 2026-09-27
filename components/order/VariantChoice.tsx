@@ -119,10 +119,6 @@ export function VariantAllergens({ product }: { product: Product }) {
 		<div className="flex flex-col gap-2">
 			<SectionLabel as="h2">Contains</SectionLabel>
 			<AllergenChips allergens={allergens} />
-			<p className="text-cocoa-soft text-xs">
-				Baked in a home kitchen that also handles nuts, dairy, egg, gluten and sesame. Tell me about
-				any allergies when you order.
-			</p>
 		</div>
 	);
 }
