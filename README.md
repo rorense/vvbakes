@@ -731,7 +731,7 @@ Two other things worth knowing:
 The shop sells cakes in Auckland, so the queries worth ranking for are the
 local ones: "custom cakes Auckland", "birthday cake Flat Bush", "Indonesian
 cake Auckland". Everything below exists to answer those, and nothing below is
-worth anything until `SEARCH_INDEXING` is flipped. See the launch checklist at
+worth anything while `SEARCH_INDEXING` is off. See the launch checklist at
 the bottom of this section.
 
 ### Where the city comes from
@@ -998,8 +998,9 @@ markup are absolute.
 
 ### The launch checklist
 
-1. Flip `SEARCH_INDEXING` to `true` in `lib/constants.ts`. Every page carries
-   `noindex, nofollow` until you do, and none of the above counts for anything.
+1. Flip `SEARCH_INDEXING` to `true` in `lib/constants.ts`. Done on 2026-09-28.
+   While it is `false` every page carries `noindex, nofollow`, and none of the
+   above counts for anything.
 2. Confirm `NEXT_PUBLIC_SITE_URL` is the real domain. Every absolute URL in the
    structured data and the sitemap is built from it.
 3. Verify the domain in Google Search Console and submit `/sitemap.xml`.
@@ -1140,9 +1141,8 @@ Things the site is ready for but which need content or a decision:
 - **Descriptions and allergens** for each product.
 - **Real pickup details**: suburb, full address, times, and how much notice you
   need. The seeded values are placeholders.
-- **Switch the shop on in search.** `SEARCH_INDEXING` in `lib/constants.ts` is
-  still `false`, so every page carries `noindex`. Flip it and deploy to launch,
-  then work through the rest of the checklist at the end of [Being
-  found](#being-found): Search Console, the sitemap, and a Google Business
-  Profile, which for a local bakery is worth more than everything on that page
-  put together.
+- **Finish the search launch.** `SEARCH_INDEXING` has been on since
+  2026-09-28. The rest of the checklist at the end of [Being
+  found](#being-found) is not code: Search Console, the sitemap, and a Google
+  Business Profile, which for a local bakery is worth more than everything on
+  that page put together.

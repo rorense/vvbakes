@@ -89,7 +89,7 @@ export const MAX_INSPIRATION_PHOTO_BYTES = 1_500_000;
 /**
  * Whether search engines may list the public pages.
  *
- * Off until the shop is ready to be found. While it is off every page carries
+ * On since the shop launched on 2026-09-28. While it is off every page carries
  * `noindex, nofollow`, applied once on the root layout.
  *
  * robots.txt deliberately keeps letting crawlers in meanwhile. A `Disallow: /`
@@ -97,9 +97,9 @@ export const MAX_INSPIRATION_PHOTO_BYTES = 1_500_000;
  * and the bare URLs could still show up in results. Blocking the crawl and
  * blocking the listing are different things; only the tag does the second one.
  *
- * Flip to true to launch. Nothing else has to change.
+ * Flip to false to hide it from search again. Nothing else has to change.
  */
-export const SEARCH_INDEXING: boolean = false;
+export const SEARCH_INDEXING: boolean = true;
 
 /**
  * Canonical origin. Vercel sets VERCEL_PROJECT_PRODUCTION_URL on every deploy, so
