@@ -341,6 +341,24 @@ export function bakeryJsonLd({
 }
 
 /**
+ * The site's name, for the line Google prints above every result's title.
+ *
+ * Without this node that line reads "vvbakes.co.nz". Google takes the name from
+ * `WebSite` markup on the home page first and falls back to the domain when it
+ * has none it trusts. `SITE_NAME` rather than the admin's business name, so it
+ * agrees with the title tag and `og:site_name`, the signals it checks against.
+ */
+export function websiteJsonLd() {
+	return {
+		"@context": "https://schema.org",
+		"@type": "WebSite",
+		name: SITE_NAME,
+		// Google's documented form is the home page with its trailing slash.
+		url: `${siteUrl()}/`,
+	};
+}
+
+/**
  * The cheapest and dearest thing on the menu, as `priceRange` wants it.
  *
  * Derived from the catalogue rather than typed in, so it cannot drift from what

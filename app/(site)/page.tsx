@@ -3,7 +3,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { buildPublicCalendar, computeAvailability } from "@/lib/availability";
 import { instagramUrl } from "@/lib/constants";
-import { SITE_CITY, bakeryJsonLd, cataloguePriceRange, faqJsonLd, localityLine } from "@/lib/seo";
+import {
+	SITE_CITY,
+	bakeryJsonLd,
+	cataloguePriceRange,
+	faqJsonLd,
+	localityLine,
+	websiteJsonLd,
+} from "@/lib/seo";
 import {
 	getAvailabilityInputs,
 	getCategories,
@@ -567,11 +574,13 @@ export default async function HomePage() {
 				</Section>
 			) : null}
 
-			{/* Two nodes rather than one. The bakery says who and where, the FAQ
+			{/* Separate nodes rather than one. The bakery says who and where, the FAQ
 			    block says what she gets asked, and a crawler that understands only
 			    one of them still gets the other. Both are built in lib/seo.ts, so
 			    the product pages can point their `seller` at the same `@id` this
-			    one publishes and Google reads the whole site as one business. */}
+			    one publishes and Google reads the whole site as one business. The
+			    `WebSite` node names the site itself, and belongs on this page only. */}
+			<JsonLd data={websiteJsonLd()} />
 			<JsonLd
 				data={bakeryJsonLd({
 					settings,
