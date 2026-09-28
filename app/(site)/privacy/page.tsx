@@ -74,28 +74,28 @@ export default async function PrivacyPage() {
 						<p>The order form asks for a few details to help me get everything just right:</p>
 						<Points>
 							<li>
-								<Term>Your name</Term> — so I know who your order is for.
+								<Term>Your name</Term>: so I know who your order is for.
 							</li>
 							<li>
-								<Term>Your email address</Term> — this is where I&rsquo;ll send your order
+								<Term>Your email address</Term>: this is where I&rsquo;ll send your order
 								confirmation and any updates.
 							</li>
 							<li>
-								<Term>Your phone number</Term> — just in case I need to reach you on the day.
+								<Term>Your phone number</Term>: just in case I need to reach you on the day.
 							</li>
 							<li>
-								<Term>Your delivery address</Term> — only if you choose delivery.
+								<Term>Your delivery address</Term>: only if you choose delivery.
 							</li>
 							<li>
-								<Term>Your notes or custom request</Term> — tell me anything that will help, such as
+								<Term>Your notes or custom request</Term>: tell me anything that will help, such as
 								allergies, the occasion, or how you&rsquo;d like your bake to look.
 							</li>
 							<li>
-								<Term>Inspiration photos or links</Term> — always welcome if you have something in
+								<Term>Inspiration photos or links</Term>: always welcome if you have something in
 								mind.
 							</li>
 							<li>
-								<Term>Your order and preferred date</Term> — so I know exactly what you&rsquo;d like
+								<Term>Your order and preferred date</Term>: so I know exactly what you&rsquo;d like
 								and when you need it.
 							</li>
 						</Points>
@@ -144,7 +144,7 @@ export default async function PrivacyPage() {
 						<p>
 							This site sets no cookies on a customer&rsquo;s browser. The only one it sets anywhere
 							is the login session for the back office, which is mine. That is why there is no
-							consent banner in your way — there is nothing to consent to.
+							consent banner in your way: there is nothing to consent to.
 						</p>
 					</Clause>
 
@@ -268,7 +268,7 @@ export default async function PrivacyPage() {
 							Anything that changes is posted here with a new date. Last updated {LAST_UPDATED}.
 						</p>
 						<p>
-							Anything here you want explained, just ask — {contact}, or{" "}
+							Anything here you want explained, just ask: {contact}, or{" "}
 							<Link
 								href="/order"
 								className="text-cocoa underline">

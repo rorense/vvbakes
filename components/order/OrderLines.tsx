@@ -152,7 +152,7 @@ export function OrderLines({
 							{/* A line nobody has priced yet is a dash, not a zero: "$0.00"
 							    beside a custom cake reads as one she is giving away. */}
 							<span className={silent ? "text-cocoa-soft shrink-0 text-sm" : "shrink-0"}>
-								{silent ? "—" : formatMoney(money)}
+								{silent ? "–" : formatMoney(money)}
 							</span>
 						</HairlineRow>
 					);

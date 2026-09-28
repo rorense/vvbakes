@@ -8,7 +8,7 @@ import { OG_CONTENT_TYPE, OG_SIZE, shareCard } from "@/lib/og";
  * of their own — which is the point. Those links get pasted into group chats,
  * and the preview must give away no more than the brand.
  */
-export const alt = `${SITE_NAME} — ${SITE_TAGLINE}`;
+export const alt = `${SITE_NAME}, ${SITE_TAGLINE}`;
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 

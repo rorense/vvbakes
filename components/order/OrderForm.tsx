@@ -346,7 +346,7 @@ export function OrderForm({
 				{lostPhotos > 0 ? (
 					<Notice className="mb-4">
 						{lostPhotos === 1 ? "A photo" : `${lostPhotos} photos`} you added{" "}
-						{lostPhotos === 1 ? "isn't" : "aren't"} on this device any more — photos stay in the
+						{lostPhotos === 1 ? "isn't" : "aren't"} on this device any more. Photos stay in the
 						browser they were chosen in until the order is sent. Everything you typed is still here,
 						and you can add {lostPhotos === 1 ? "it" : "them"} again from the product page.
 					</Notice>
@@ -432,7 +432,7 @@ export function OrderForm({
 									{line.onRequest
 										? line.extrasCents > 0
 											? formatMoney(line.extrasCents)
-											: "—"
+											: "–"
 										: formatMoney(line.totalCents)}
 								</p>
 							</div>

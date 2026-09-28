@@ -102,7 +102,7 @@ export default async function TermsPage() {
 						<p>
 							The order form sends me a request, not a booking. I check the day against what else is
 							in the oven and email you back with a price and where to send it. That reply is the
-							point where we have an agreement — not the moment you press the button.
+							point where we have an agreement, not the moment you press the button.
 						</p>
 						<p>
 							Sending the form does hold a place on that day while I look at it, so please only send
@@ -139,14 +139,14 @@ export default async function TermsPage() {
 					<Clause title="Paying">
 						<p>
 							Payment is by bank transfer. The account and the reference are on your order page and
-							in the email confirming it. Please use that reference — it is how a payment is matched
-							to an order.
+							in the email confirming it. Please use that reference, because it is how a payment is
+							matched to an order.
 						</p>
 						<p>
 							Card details are never asked for, by me or by this site. Nobody from{" "}
 							{settings.businessName} will ever email you new bank details part-way through an
-							order. If a message like that arrives, it is not from me — check with {contact} before
-							sending anything.
+							order. If a message like that arrives, it is not from me, so check with {contact}{" "}
+							before sending anything.
 						</p>
 						<p>
 							If payment has not arrived by the time I need to shop for your order, I will chase it
@@ -194,7 +194,7 @@ export default async function TermsPage() {
 							moment I know and refund every cent you have paid.
 						</p>
 						<p>
-							That refund is the whole of what I can put right in that situation — I cannot cover
+							That refund is the whole of what I can put right in that situation. I cannot cover
 							what you spent on the rest of the occasion.
 						</p>
 					</Clause>
@@ -219,8 +219,9 @@ export default async function TermsPage() {
 							you. If you are running behind, a text is all it takes.
 						</p>
 						<p>
-							An order nobody collects on the day cannot be kept — fresh baking does not wait. I
-							will try the number on your order first, but after that day I cannot refund it.
+							An order nobody collects on the day cannot be kept, because fresh baking does not
+							wait. I will try the number on your order first, but after that day I cannot refund
+							it.
 						</p>
 					</Clause>
 
@@ -295,8 +296,8 @@ export default async function TermsPage() {
 						</p>
 						<p>
 							Your bake will always be at its best when it&rsquo;s fresh, so I&rsquo;ll let you know
-							how to store it properly — whether it needs to be kept in the fridge, what&rsquo;s
-							best at room temperature, and how long it will stay fresh.
+							how to store it properly: whether it needs to be kept in the fridge, what&rsquo;s best
+							at room temperature, and how long it will stay fresh.
 						</p>
 					</Clause>
 
@@ -343,7 +344,7 @@ export default async function TermsPage() {
 							wording that was up when I confirmed it. Last updated {LAST_UPDATED}.
 						</p>
 						<p>
-							Anything here you want explained, just ask — {contact}, or{" "}
+							Anything here you want explained, just ask: {contact}, or{" "}
 							<Link
 								href="/order"
 								className="text-cocoa underline">

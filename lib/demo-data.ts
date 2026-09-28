@@ -103,7 +103,7 @@ export const DEMO_PRODUCTS: Product[] = [
 		name: "Custom cake",
 		categoryId: "demo-cat-3",
 		description:
-			"Tell me what you are after and I will come back to you with a price. The occasion, roughly how many people, flavours and colours — and a picture, if you have one.",
+			"Tell me what you are after and I will come back to you with a price. The occasion, roughly how many people, flavours and colours, and a picture, if you have one.",
 		unitPriceCents: 0,
 		unitLabel: "cake",
 		isFeatured: true,

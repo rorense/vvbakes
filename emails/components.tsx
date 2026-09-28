@@ -344,7 +344,7 @@ export function OrderItemsTable({
 								{/* A line nobody has priced yet is a dash, not a zero. Beside
 							    a custom cake "$0.00" reads as one she is giving away. */}
 								{item.priceOnRequest && lineTotalWithExtras(item) === 0
-									? "—"
+									? "–"
 									: formatMoney(lineTotalWithExtras(item))}
 							</Text>
 						</Column>
