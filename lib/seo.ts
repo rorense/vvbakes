@@ -322,7 +322,9 @@ export function bakeryJsonLd({
 		name: settings.businessName,
 		description: `${settings.tagline}. Custom cakes, cupcakes, cookies and Indonesian bakes made to order in ${localityLine(settings.pickupSuburb)}.`,
 		url: base,
-		image: `${base}/opengraph-image.png`,
+		// The card app/opengraph-image.tsx draws. Next serves it with no extension,
+		// so `/opengraph-image.png` is a 404.
+		image: `${base}/opengraph-image`,
 		logo: `${base}/icon-512.png`,
 		sameAs: [instagramUrl(settings.instagramHandle)],
 		address: postalAddress(settings),
