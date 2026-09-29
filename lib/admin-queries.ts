@@ -172,6 +172,8 @@ export interface OrderFilters {
 	status?: OrderStatus | "all" | "open";
 	date?: IsoDate;
 	search?: string;
+	/** "newest" (the default) by when it was placed; "pickup" soonest collection first. */
+	sort?: "newest" | "pickup";
 	/** How many to a page. */
 	limit?: number;
 	/** Zero-based. Out-of-range pages come back empty rather than throwing. */
@@ -204,11 +206,19 @@ export async function adminOrders(filters: OrderFilters = {}): Promise<OrderPage
 	const page = Math.max(0, filters.page ?? 0);
 	const from = page * perPage;
 
-	let query = supabase
-		.from("orders")
-		.select("*, order_items (id)")
-		.order("created_at", { ascending: false })
-		.range(from, from + perPage); // One extra row, to see if there is a next page.
+	let query = supabase.from("orders").select("*, order_items (id)");
+
+	// A time is optional, so the orders without one go after the day's timed ones.
+	query =
+		filters.sort === "pickup"
+			? query
+					.order("pickup_date", { ascending: true })
+					.order("pickup_time", { ascending: true, nullsFirst: false })
+					.order("created_at", { ascending: true })
+			: query.order("created_at", { ascending: false });
+
+	// The id breaks any tie left, so a row cannot slip between two pages.
+	query = query.order("id").range(from, from + perPage); // One extra row, to see if there is a next page.
 
 	if (filters.status && filters.status !== "all") {
 		if (filters.status === "open") {

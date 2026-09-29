@@ -20,14 +20,25 @@ const FILTERS: Array<{ value: string; label: string }> = [
 	{ value: "all", label: "Everything" },
 ];
 
+const SORTS = [
+	{ value: "newest", label: "Newest orders" },
+	{ value: "pickup", label: "Pickup date" },
+] as const;
+
 const STATUSES: OrderStatus[] = ["new", "confirmed", "ready", "collected", "cancelled"];
 
 export default async function AdminOrdersPage({
 	searchParams,
 }: {
-	searchParams: Promise<{ status?: string; date?: string; q?: string; page?: string }>;
+	searchParams: Promise<{
+		status?: string;
+		date?: string;
+		q?: string;
+		page?: string;
+		sort?: string;
+	}>;
 }) {
-	const { status, date, q, page } = await searchParams;
+	const { status, date, q, page, sort } = await searchParams;
 
 	const activeStatus: OrderStatus | "all" | "open" =
 		status === "all" || status === "open" || STATUSES.includes(status as OrderStatus)
@@ -36,6 +47,7 @@ export default async function AdminOrdersPage({
 
 	const activeDate = isIsoDate(date ?? "") ? date : undefined;
 	const search = q?.trim() || undefined;
+	const activeSort = sort === "pickup" ? "pickup" : "newest";
 
 	// A junk or negative ?page= lands on the first page rather than an error.
 	const parsedPage = Number.parseInt(page ?? "", 10);
@@ -49,15 +61,17 @@ export default async function AdminOrdersPage({
 			status: activeStatus,
 			date: activeDate,
 			search,
+			sort: activeSort,
 			page: activePage,
 		}),
 	]);
 
 	/** A link back to this same list, keeping every filter, on another page. */
-	function pageHref(target: number): string {
+	function pageHref(target: number, sortBy: string = activeSort): string {
 		const params = new URLSearchParams({ status: activeStatus });
 		if (activeDate) params.set("date", activeDate);
 		if (search) params.set("q", search);
+		if (sortBy !== "newest") params.set("sort", sortBy);
 		if (target > 0) params.set("page", String(target));
 		return `/admin/orders?${params}`;
 	}
@@ -87,7 +101,7 @@ export default async function AdminOrdersPage({
 					{FILTERS.map((filter) => (
 						<Link
 							key={filter.value}
-							href={`/admin/orders?status=${filter.value}`}
+							href={`/admin/orders?status=${filter.value}${activeSort === "pickup" ? "&sort=pickup" : ""}`}
 							aria-current={filter.value === activeStatus ? "page" : undefined}
 							className={cn(
 								"rounded-pill shrink-0 border px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors",
@@ -108,6 +122,13 @@ export default async function AdminOrdersPage({
 						name="status"
 						value={activeStatus}
 					/>
+					{activeSort === "pickup" ? (
+						<input
+							type="hidden"
+							name="sort"
+							value="pickup"
+						/>
+					) : null}
 					<input
 						name="q"
 						defaultValue={q ?? ""}
@@ -128,6 +149,26 @@ export default async function AdminOrdersPage({
 						Search
 					</button>
 				</form>
+
+				<nav
+					aria-label="Sort orders"
+					className="flex items-center gap-2 text-sm">
+					<span className="text-cocoa-soft">Sort by</span>
+					{SORTS.map((option) => (
+						<Link
+							key={option.value}
+							href={pageHref(0, option.value)}
+							aria-current={option.value === activeSort ? "page" : undefined}
+							className={cn(
+								"rounded-pill border px-3 py-1 font-medium whitespace-nowrap transition-colors",
+								option.value === activeSort
+									? "border-cocoa bg-paper-deep"
+									: "border-line hover:border-cocoa",
+							)}>
+							{option.label}
+						</Link>
+					))}
+				</nav>
 			</div>
 
 			{orders.length === 0 ? (
@@ -205,7 +246,7 @@ export default async function AdminOrdersPage({
 							href={pageHref(activePage - 1)}
 							rel="prev"
 							className="border-line hover:border-cocoa rounded-pill tap-safe border px-4 py-2 text-sm font-medium">
-							&larr; Newer
+							&larr; {activeSort === "pickup" ? "Sooner" : "Newer"}
 						</Link>
 					) : (
 						// Holds the gap so "Older" does not slide left on the first page.
@@ -217,7 +258,7 @@ export default async function AdminOrdersPage({
 							href={pageHref(activePage + 1)}
 							rel="next"
 							className="border-line hover:border-cocoa rounded-pill tap-safe border px-4 py-2 text-sm font-medium">
-							Older &rarr;
+							{activeSort === "pickup" ? "Later" : "Older"} &rarr;
 						</Link>
 					) : (
 						<span />
