@@ -108,6 +108,8 @@ export function ProductCard({
 	/** The band colour this card sits on. */
 	behind?: Accent | null;
 }) {
+	const orderable = isOrderable(product);
+
 	return (
 		<article className="group flex flex-col gap-3">
 			<Link
@@ -116,14 +118,14 @@ export function ProductCard({
 				<div
 					className={cn(
 						"arch-soft bg-paper-deep relative aspect-4/5",
-						!isOrderable(product) && "opacity-60 saturate-50",
+						!orderable && "opacity-60 saturate-50",
 					)}>
 					<ProductImage
 						product={product}
 						priority={priority}
 						behind={behind}
 					/>
-					{!isOrderable(product) ? (
+					{!orderable ? (
 						<div className="absolute top-3 left-3">
 							<AvailabilityBadge product={product} />
 						</div>
@@ -141,10 +143,16 @@ export function ProductCard({
 				</h3>
 				{/* Name and one price only. A card in a four-up grid is an invitation to
 				    open the product, not the place to sell the bundle or tell the story;
-				    both are on the product page, where there is room to read them. */}
-				<p className="font-display text-cocoa-soft text-base italic">
-					{priceRule(product, { bundles: false })}
-				</p>
+				    both are on the product page, where there is room to read them.
+
+				    No price at all on one that cannot be ordered. The badge already says
+				    why, and with every flavour off the range would be quoted from
+				    combinations nobody can buy. */}
+				{orderable ? (
+					<p className="font-display text-cocoa-soft text-base italic">
+						{priceRule(product, { bundles: false })}
+					</p>
+				) : null}
 			</div>
 		</article>
 	);
