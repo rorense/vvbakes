@@ -203,11 +203,9 @@ const getProducts = cache(async (): Promise<Product[]> => {
 });
 
 /**
- * Product slugs for `generateStaticParams`.
- *
- * Deliberately separate from `getProducts`: this runs at build time, where
- * there is no request and therefore no cookies, so it uses the cookie-free
- * client. Using the request-scoped one here fails the build outright.
+ * Product slugs for `generateStaticParams`: one narrow column rather than the
+ * whole catalogue join, since that is all a build needs to know. Anything that
+ * also wants the categories should read `getCatalogue` once and take both.
  */
 export async function getProductSlugs(): Promise<string[]> {
 	if (isDemoMode()) return DEMO_PRODUCTS.map((product) => product.slug);

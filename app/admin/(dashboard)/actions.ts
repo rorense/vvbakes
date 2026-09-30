@@ -15,7 +15,7 @@ import {
 	settingsSchema,
 } from "@/lib/validation";
 import { eachDay } from "@/lib/dates";
-import { getCategorySlugs, getProductSlugs } from "@/lib/queries";
+import { getCatalogue } from "@/lib/queries";
 import { syncRows } from "@/lib/sync-rows";
 import { refusedRemoval } from "@/lib/variant-guard";
 
@@ -78,7 +78,11 @@ async function revalidateCatalogue(): Promise<void> {
 	// is why it is the backstop rather than the mechanism — if the `(site)` group
 	// is ever renamed this stops matching and every product that still exists is
 	// still purged by the loop.
-	for (const slug of await getProductSlugs()) {
+	//
+	// Both lists come out of one read of the catalogue, which holds every product
+	// (an orphaned one in its "More treats" group) and every category worth a page.
+	const catalogue = await getCatalogue();
+	for (const slug of catalogue.flatMap((category) => category.products.map((p) => p.slug))) {
 		revalidatePath(`/shop/${slug}`);
 	}
 	revalidatePath("/(site)/shop/[slug]", "page");
@@ -93,7 +97,7 @@ async function revalidateCatalogue(): Promise<void> {
 	// treats" group drops out once nothing is orphaned. Each of those leaves a
 	// cached page behind that the loop cannot name. The product pattern above does
 	// not reach them: the tag is the whole route, so this route needs its own.
-	for (const slug of await getCategorySlugs()) {
+	for (const slug of catalogue.map((category) => category.slug)) {
 		revalidatePath(`/shop/category/${slug}`);
 	}
 	revalidatePath("/(site)/shop/category/[slug]", "page");

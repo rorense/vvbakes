@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { siteUrl } from "@/lib/constants";
-import { getCategorySlugs, getProductSlugs } from "@/lib/queries";
+import { getCatalogue } from "@/lib/queries";
 
 /**
  * Built per request rather than at build time, which is not the obvious choice
@@ -19,7 +19,7 @@ import { getCategorySlugs, getProductSlugs } from "@/lib/queries";
  *
  * `force-dynamic` removes the prerendered artifact altogether, so there is no
  * build-time copy left to go stale and the fetches inside are uncached. A
- * sitemap is read by crawlers a few times a day and costs two small queries,
+ * sitemap is read by crawlers a few times a day and costs one catalogue read,
  * which is a price worth paying for a file that cannot quietly describe a shop
  * that no longer exists.
  *
@@ -30,8 +30,12 @@ export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 	const base = siteUrl();
-	// The cookie-free client, because nothing here depends on who is asking.
-	const [slugs, categories] = await Promise.all([getProductSlugs(), getCategorySlugs()]);
+	// The cookie-free client, because nothing here depends on who is asking. One
+	// read gives both lists: every product sits in some group, an orphaned one in
+	// "More treats", and only a category with something in it has a page.
+	const catalogue = await getCatalogue();
+	const categories = catalogue.map((category) => category.slug);
+	const slugs = catalogue.flatMap((category) => category.products.map((product) => product.slug));
 
 	return [
 		{ url: base, changeFrequency: "weekly", priority: 1 },
