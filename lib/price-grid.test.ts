@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { cellKey, hangCells } from "./price-grid";
+import {
+	cellKey,
+	deriveVariantSubmission,
+	EMPTY_CELL,
+	hangCells,
+	type CellDraft,
+	type GroupDraft,
+	type OptionDraft,
+	type VariantDraftInput,
+} from "./price-grid";
+import type { Product } from "./types";
 
 interface Cell {
 	id: string;
@@ -134,5 +144,102 @@ describe("hangCells", () => {
 		);
 
 		expect(JSON.stringify(cells)).toBe(before);
+	});
+});
+
+describe("deriveVariantSubmission", () => {
+	const opt = (key: string, name: string): OptionDraft => ({
+		key,
+		id: "",
+		name,
+		imagePath: "",
+		allergens: [],
+		isAvailable: true,
+	});
+	const priced = (price: string, id = ""): CellDraft => ({ ...EMPTY_CELL, id, price });
+
+	// Two flavours in two sizes: four combinations, keyed by their options.
+	const groups: GroupDraft[] = [
+		{
+			key: "g1",
+			id: "",
+			name: "Flavour",
+			options: [opt("choc", "Chocolate"), opt("lemon", "Lemon")],
+		},
+		{ key: "g2", id: "", name: "Size", options: [opt("s", "Small"), opt("l", "Large")] },
+	];
+	const saved = { variants: [{ id: "v-choc-s" }, { id: "v-lemon-l" }] } as Pick<
+		Product,
+		"variants"
+	>;
+	const derive = (overrides: Partial<VariantDraftInput>) =>
+		deriveVariantSubmission({
+			product: saved,
+			groups,
+			cells: {},
+			sellsVariants: true,
+			priceOnRequest: false,
+			unitPrice: "",
+			...overrides,
+		});
+
+	it("offers only the priced combinations, and names the saved ones it drops", () => {
+		const out = derive({
+			cells: { "choc|s": priced("40", "v-choc-s"), "choc|l": priced("55"), "lemon|l": priced("") },
+		});
+
+		expect(out.combinations).toHaveLength(4);
+		expect(JSON.parse(out.variantsJson)).toMatchObject([
+			{ id: "v-choc-s", name: "Chocolate · Small", unitPriceCents: "40", options: [0, 0] },
+			{ name: "Chocolate · Large", unitPriceCents: "55", options: [0, 1] },
+		]);
+		// Lemon · Large lost its price, so the save would delete its row, and says so.
+		expect(out.removedVariants.map((variant) => variant.id)).toEqual(["v-lemon-l"]);
+		// No price of the product's own typed: the cheapest combination stands in.
+		expect(out.submittedUnitPrice).toBe("40");
+		expect(out.submittedVariantLabel).toBe("Flavour");
+	});
+
+	it("saves as a plain product until something is priced", () => {
+		const out = derive({ product: null, unitPrice: "12" });
+
+		expect(JSON.parse(out.optionGroupsJson)).toEqual([]);
+		expect(JSON.parse(out.variantsJson)).toEqual([]);
+		expect(out.submittedUnitPrice).toBe("12");
+	});
+
+	it("offers every combination priced on request, and warns about the ones it creates", () => {
+		const out = derive({ priceOnRequest: true, cells: { "choc|s": priced("", "v-choc-s") } });
+
+		expect(
+			JSON.parse(out.variantsJson).map((v: { unitPriceCents: string }) => v.unitPriceCents),
+		).toEqual(["0", "0", "0", "0"]);
+		expect(out.addedVariants).toHaveLength(3);
+		expect(out.removedVariants.map((variant) => variant.id)).toEqual(["v-lemon-l"]);
+		// Nothing to warn about on a product that had no combinations to begin with.
+		expect(derive({ priceOnRequest: true, product: null }).addedVariants).toEqual([]);
+	});
+
+	it("submits no groups with the switch off, which removes every saved combination", () => {
+		const out = derive({
+			sellsVariants: false,
+			unitPrice: "9",
+			cells: { "choc|s": priced("40", "v-choc-s") },
+		});
+
+		expect(out.filledGroups).toEqual([]);
+		expect(JSON.parse(out.variantsJson)).toEqual([]);
+		expect(out.removedVariants).toHaveLength(2);
+		expect(out.submittedUnitPrice).toBe("9");
+	});
+
+	it("ignores a group or option left with no name", () => {
+		const half: GroupDraft[] = [
+			{ ...groups[0]!, options: [...groups[0]!.options, opt("blank", "  ")] },
+			{ key: "g3", id: "", name: " ", options: [opt("x", "X")] },
+		];
+		const out = derive({ groups: half, cells: { choc: priced("30") } });
+
+		expect(out.combinations.map((combination) => cellKey(combination))).toEqual(["choc", "lemon"]);
 	});
 });

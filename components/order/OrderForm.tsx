@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { placeOrder } from "@/app/(site)/order/actions";
 import { EMPTY_FORM_STATE, errorFrom, fieldErrorsFrom } from "@/lib/action-state";
-import { priceBasket, type BasketLine } from "@/lib/basket";
+import { basketShortfalls, priceBasket, type BasketLine } from "@/lib/basket";
 import { briefPhotoIds, frostingLabel } from "@/lib/brief";
 import { clearCart, useCart } from "@/lib/cart";
 import { cn } from "@/lib/cn";
 import { MAX_ORDER_INSPIRATION_PHOTOS } from "@/lib/constants";
 import { formatDateShort, type IsoDate } from "@/lib/dates";
 import { loadPhotos, sweepPhotos } from "@/lib/photo-store";
-import { deliveryFeeFor, extraLabel, formatMoney, minOrderQty } from "@/lib/pricing";
+import { deliveryFeeFor, extraLabel, formatMoney } from "@/lib/pricing";
 import type {
 	CartBrief,
 	PickableDate,
@@ -141,35 +141,7 @@ export function OrderForm({
 		}
 	};
 
-	// A minimum is a rule about the whole product, not about one line: six
-	// cupcakes is met by three chocolate and three vanilla. So the lines are
-	// counted back together here, the way `place_order` counts them, rather than
-	// being checked one at a time — which would drop half a legitimate basket.
-	//
-	// Unless the combination carries a minimum of its own, which takes it out of
-	// that count and holds it to its own rule: eight is about chiffon slices, and
-	// the whole cake beside them is one cake. The same split `place_order` makes.
-	const shortfalls = useMemo(() => {
-		const totals = new Map<string, { line: BasketLine; qty: number }>();
-		for (const line of lines) {
-			const own = line.variant?.minPerOrder != null;
-			const key = own ? `variant:${line.variant!.id}` : `product:${line.product.id}`;
-			const counted = totals.get(key);
-			if (counted) counted.qty += line.qty;
-			else totals.set(key, { line, qty: line.qty });
-		}
-
-		return [...totals.values()]
-			.map(({ line, qty }) => ({
-				product: line.product,
-				// Named in the warning only where it is the thing being counted, so a
-				// basket short of cupcakes is not told which flavour to add.
-				variant: line.variant?.minPerOrder != null ? line.variant : null,
-				qty,
-				minimum: minOrderQty(line.product, line.variant),
-			}))
-			.filter((entry) => entry.qty < entry.minimum);
-	}, [lines]);
+	const shortfalls = useMemo(() => basketShortfalls(lines), [lines]);
 
 	const droppedCount = ready ? dropped : 0;
 	// Counted separately from the dropped lines: an extra going is a smaller thing

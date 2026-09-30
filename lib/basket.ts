@@ -7,6 +7,7 @@ import {
 	hasVariants,
 	isValidQty,
 	isVariantAvailable,
+	minOrderQty,
 	normaliseExtras,
 	priceProductLines,
 	type ChosenExtra,
@@ -236,4 +237,38 @@ export function priceBasket(
 		// stored brief of null through, whatever the type says.
 		mayCostMore: lines.some((line) => Boolean(line.brief && hasCustomFlavour(line.brief))),
 	};
+}
+
+/**
+ * Whatever in the basket is still under its minimum, and by how much.
+ *
+ * A minimum is a rule about the whole product, not about one line: six
+ * cupcakes is met by three chocolate and three vanilla. So the lines are
+ * counted back together here, the way `place_order` counts them, rather than
+ * being checked one at a time, which would drop half a legitimate basket.
+ *
+ * Unless the combination carries a minimum of its own, which takes it out of
+ * that count and holds it to its own rule: eight is about chiffon slices, and
+ * the whole cake beside them is one cake. The same split `place_order` makes.
+ */
+export function basketShortfalls(lines: readonly BasketLine[]) {
+	const totals = new Map<string, { line: BasketLine; qty: number }>();
+	for (const line of lines) {
+		const own = line.variant?.minPerOrder != null;
+		const key = own ? `variant:${line.variant!.id}` : `product:${line.product.id}`;
+		const counted = totals.get(key);
+		if (counted) counted.qty += line.qty;
+		else totals.set(key, { line, qty: line.qty });
+	}
+
+	return [...totals.values()]
+		.map(({ line, qty }) => ({
+			product: line.product,
+			// Named in the warning only where it is the thing being counted, so a
+			// basket short of cupcakes is not told which flavour to add.
+			variant: line.variant?.minPerOrder != null ? line.variant : null,
+			qty,
+			minimum: minOrderQty(line.product, line.variant),
+		}))
+		.filter((entry) => entry.qty < entry.minimum);
 }

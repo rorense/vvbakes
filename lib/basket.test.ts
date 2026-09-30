@@ -9,7 +9,7 @@
  * of one product are priced together rather than one at a time.
  */
 import { describe, expect, it } from "vitest";
-import { priceBasket } from "./basket";
+import { basketShortfalls, priceBasket } from "./basket";
 import type { CartLine, Extra, Product, ProductVariant } from "./types";
 
 function product(overrides: Partial<Product> & Pick<Product, "id">): Product {
@@ -303,5 +303,49 @@ describe("priceBasket", () => {
 
 		expect(basket.lines).toHaveLength(1);
 		expect(basket.mayCostMore).toBe(false);
+	});
+});
+
+describe("basketShortfalls", () => {
+	const short = (saved: CartLine[], shop = catalogue) =>
+		basketShortfalls(priceBasket(saved, shop).lines).map((entry) => ({
+			product: entry.product.id,
+			variant: entry.variant?.id ?? null,
+			qty: entry.qty,
+			minimum: entry.minimum,
+		}));
+
+	it("counts one product's flavours together against its minimum", () => {
+		// One vanilla and one chocolate is two boxes: the minimum, met.
+		expect(
+			short([
+				{ productId: "minis", variantId: "vanilla", qty: 1 },
+				{ productId: "minis", variantId: "chocolate", qty: 1 },
+			]),
+		).toEqual([]);
+		expect(short([{ productId: "minis", variantId: "vanilla", qty: 1 }])).toEqual([
+			{ product: "minis", variant: null, qty: 1, minimum: 2 },
+		]);
+	});
+
+	it("holds a flavour with a minimum of its own to that, apart from the rest", () => {
+		const cakeAndSlices = product({
+			id: "chiffon",
+			variants: [
+				variant({ id: "whole", sortOrder: 1 }),
+				variant({ id: "slice", sortOrder: 2, minPerOrder: 8 }),
+			],
+		});
+		const shop = new Map([[cakeAndSlices.id, cakeAndSlices]]);
+
+		expect(
+			short(
+				[
+					{ productId: "chiffon", variantId: "whole", qty: 1 },
+					{ productId: "chiffon", variantId: "slice", qty: 7 },
+				],
+				shop,
+			),
+		).toEqual([{ product: "chiffon", variant: "slice", qty: 7, minimum: 8 }]);
 	});
 });

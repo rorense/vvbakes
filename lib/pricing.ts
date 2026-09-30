@@ -983,7 +983,10 @@ function pluralOf(noun: string): string {
  * about slices, and the whole cake beside them is one cake. Pass the
  * combination being asked about, or leave it out to ask about the product.
  */
-export function minOrderQty(product: Product, variant?: ProductVariant | null): number {
+export function minOrderQty(
+	product: Pick<Product, "minPerOrder" | "qtyStep">,
+	variant?: ProductVariant | null,
+): number {
 	const minimum = variant?.minPerOrder ?? product.minPerOrder;
 	if (minimum === null) return product.qtyStep;
 	const steps = Math.ceil(minimum / product.qtyStep);
