@@ -85,10 +85,12 @@ export const getSettings = cache(async (): Promise<SiteSettings> => {
 	const { data, error } = await supabase.from("site_settings").select("*").eq("id", 1).single();
 
 	if (error || !data) {
-		// The settings row is created by the seed. If it is missing something is
-		// badly wrong, but the site should still render rather than 500.
-		console.error("[vvbakes] could not read site settings", error);
-		return DEMO_SETTINGS;
+		// Throw rather than fall back to the demo settings. Those carry no contact
+		// details, a zero delivery fee and orders open, and they reached customer
+		// emails, the feedback cron and an admin's delivery-fee edit as if they were
+		// the shop's own. A cached page that fails to regenerate keeps serving its
+		// last good render, and a build fails rather than baking the demo in.
+		throw new Error("[vvbakes] could not read site settings", { cause: error });
 	}
 	return toSettings(data);
 });

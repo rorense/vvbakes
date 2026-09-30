@@ -7,7 +7,15 @@ import typescript from "eslint-config-next/typescript";
  */
 const eslintConfig = [
 	{
-		ignores: [".next/**", "node_modules/**", "next-env.d.ts", ".email-preview/**"],
+		ignores: [
+			".next/**",
+			"node_modules/**",
+			"next-env.d.ts",
+			".email-preview/**",
+			// Other sessions' git worktrees: a second full copy of the repo.
+			".claude/**",
+			"supabase/.temp/**",
+		],
 	},
 	...coreWebVitals,
 	...typescript,

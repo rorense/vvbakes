@@ -15,7 +15,7 @@
 		"format:check": "prettier --check .",
 		"icons": "node scripts/build-icons.mjs",
 		"og:fonts": "node scripts/fetch-og-fonts.mjs",
-		"db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > lib/supabase/database.types.ts",
+		"db:types": "npx supabase gen types typescript --linked --schema public > supabase/.temp/database.types.ts",
 		"check": "node scripts/check-setup.mjs",
 		"emails:preview": "tsx scripts/preview-emails.mts",
 		"emails:test": "tsx scripts/send-test-email.mts",

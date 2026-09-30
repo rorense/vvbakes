@@ -1,10 +1,13 @@
 /**
  * Types for the public schema.
  *
- * Hand-written to match supabase/migrations. Once the hosted project exists,
- * regenerate instead of editing by hand:
+ * Hand-written to match supabase/migrations. To regenerate from the linked
+ * project instead of editing by hand:
  *
  *   npm run db:types
+ *
+ * That writes supabase/.temp/database.types.ts, never this file, so a failed
+ * run cannot leave this one empty. Diff the two and copy it over.
  *
  * If a query starts complaining about a column that plainly exists, this file is
  * stale, regenerate it rather than widening a type.
