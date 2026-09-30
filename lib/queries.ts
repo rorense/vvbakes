@@ -95,7 +95,8 @@ export const getSettings = cache(async (): Promise<SiteSettings> => {
 	return toSettings(data);
 });
 
-export const getCategories = cache(async (): Promise<Category[]> => {
+/** The categories, or a thrown error. Pages want `getCategories`, which cannot throw. */
+async function readCategories(): Promise<Category[]> {
 	if (isDemoMode()) return DEMO_CATEGORIES;
 
 	const supabase = createPublicClient();
@@ -104,11 +105,17 @@ export const getCategories = cache(async (): Promise<Category[]> => {
 		.select("*")
 		.order("sort_order", { ascending: true });
 
-	if (error) {
-		console.error("[vvbakes] could not read categories", error);
+	if (error) throw new Error("[vvbakes] could not read categories", { cause: error });
+	return (data ?? []).map(toCategory);
+}
+
+export const getCategories = cache(async (): Promise<Category[]> => {
+	try {
+		return await readCategories();
+	} catch (error) {
+		console.error(error);
 		return [];
 	}
-	return (data ?? []).map(toCategory);
 });
 
 /**
@@ -186,7 +193,8 @@ export const getInstagramPosts = cache(async (): Promise<InstagramPost[]> => {
 // Extras have no query of their own: they belong to a product and ride in on
 // `PRODUCT_SELECT`, the same way a product's bundle prices and flavours do.
 
-const getProducts = cache(async (): Promise<Product[]> => {
+/** Every product, or a thrown error. Pages want `getProducts`, which cannot throw. */
+async function readProducts(): Promise<Product[]> {
 	if (isDemoMode()) return DEMO_PRODUCTS;
 
 	const supabase = createPublicClient();
@@ -195,11 +203,17 @@ const getProducts = cache(async (): Promise<Product[]> => {
 		.select(PRODUCT_SELECT)
 		.order("sort_order", { ascending: true });
 
-	if (error) {
-		console.error("[vvbakes] could not read products", error);
+	if (error) throw new Error("[vvbakes] could not read products", { cause: error });
+	return (data ?? []).map(toProduct);
+}
+
+const getProducts = cache(async (): Promise<Product[]> => {
+	try {
+		return await readProducts();
+	} catch (error) {
+		console.error(error);
 		return [];
 	}
-	return (data ?? []).map(toProduct);
 });
 
 /**
@@ -238,7 +252,24 @@ export const getProductBySlug = cache(async (slug: string): Promise<Product | nu
 /** Categories with their products attached, ready for the shop page. */
 export const getCatalogue = cache(async (): Promise<CategoryWithProducts[]> => {
 	const [categories, products] = await Promise.all([getCategories(), getProducts()]);
+	return groupCatalogue(categories, products);
+});
 
+/**
+ * The same catalogue, except that a failed read throws instead of reading as a
+ * shop with nothing in it.
+ *
+ * For the sitemap. A page that renders an empty shop during an outage is a bad
+ * minute; a sitemap that answers 200 with no products tells every crawler that
+ * reads it the shop has none, and they act on that. A thrown error answers 500,
+ * which crawlers retry rather than believe.
+ */
+export async function readCatalogue(): Promise<CategoryWithProducts[]> {
+	const [categories, products] = await Promise.all([readCategories(), readProducts()]);
+	return groupCatalogue(categories, products);
+}
+
+function groupCatalogue(categories: Category[], products: Product[]): CategoryWithProducts[] {
 	const grouped = categories.map((category) => ({
 		...category,
 		products: products.filter((product) => product.categoryId === category.id),
@@ -261,7 +292,7 @@ export const getCatalogue = cache(async (): Promise<CategoryWithProducts[]> => {
 	}
 
 	return grouped.filter((group) => group.products.length > 0);
-});
+}
 
 /**
  * One category and everything in it, for its own page.

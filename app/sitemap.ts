@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { siteUrl } from "@/lib/constants";
-import { getCatalogue } from "@/lib/queries";
+import { readCatalogue } from "@/lib/queries";
 
 /**
  * Built per request rather than at build time, which is not the obvious choice
@@ -33,7 +33,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 	// The cookie-free client, because nothing here depends on who is asking. One
 	// read gives both lists: every product sits in some group, an orphaned one in
 	// "More treats", and only a category with something in it has a page.
-	const catalogue = await getCatalogue();
+	// `readCatalogue`, not `getCatalogue`: an unreachable database has to fail
+	// this rather than list a shop with nothing in it.
+	const catalogue = await readCatalogue();
 	const categories = catalogue.map((category) => category.slug);
 	const slugs = catalogue.flatMap((category) => category.products.map((product) => product.slug));
 
