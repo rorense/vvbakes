@@ -1508,7 +1508,7 @@ function PriceGuideFieldset({
 				<span className="text-cocoa-soft text-xs">The line underneath (optional)</span>
 				<Input
 					value={note}
-					placeholder="Custom designs and premium flavours may cost extra."
+					placeholder="Custom designs & premium flavours may incur extra costs"
 					onChange={(event) => setNote(event.target.value)}
 					invalid={Boolean(noteError)}
 				/>

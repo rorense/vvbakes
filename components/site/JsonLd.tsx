@@ -8,10 +8,12 @@
  * its unicode escape closes that, and JSON parses the escape back to the same
  * character, so nothing downstream sees a difference.
  *
- * The replacement needs both backslashes. "<" in TypeScript source is
- * already the single character "<", so escaping with one backslash compiles to
- * a replace of "<" with "<" and does nothing at all. Two backslashes emit the
- * six characters <, which is what a JSON string wants.
+ * The replacement needs both backslashes. With one, TypeScript reads the escape
+ * itself and the string is already the single character "<", so the call
+ * replaces "<" with "<" and does nothing at all. With two, the string is the six
+ * characters backslash, u, 0, 0, 3, c, which is what a JSON string wants.
+ * (Spelled out rather than written as the escape, because editors and tools
+ * have resolved the escape in this comment into a literal "<" before.)
  *
  * This lived in two files with a paragraph of that explanation each, and one of
  * the two had the single-backslash bug for a while. One copy is harder to get

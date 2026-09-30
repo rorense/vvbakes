@@ -120,7 +120,7 @@ export const DEMO_PRODUCTS: Product[] = [
 			{ label: '8" - 3 layers', priceCents: 7500, isAddition: false },
 			{ label: "Additional layers", priceCents: 1000, isAddition: true },
 		],
-		priceGuideNote: "Custom designs and premium flavours may cost extra.",
+		priceGuideNote: "Custom designs & premium flavours may incur extra costs",
 		// A different list at a different price, which is the whole reason these
 		// belong to a product rather than to the shop: candles for a tiered cake
 		// are not the candles that go on a cupcake.
@@ -600,14 +600,7 @@ export const DEMO_REVIEWS: Review[] = [];
  */
 export const DEMO_INSTAGRAM_POSTS: InstagramPost[] = [];
 
-/**
- * Stand-in extras, so a fresh clone shows the picker rather than a product page
- * that looks like the feature was never built.
- *
- * The real table is seeded with nothing on purpose — a price the owner never
- * agreed to charge has no business on a live page — but this catalogue is fake
- * from top to bottom and says so on every page that uses it.
- */
+/** Open Friday and Saturday, five orders each: enough for the calendar to show both states. */
 export const DEMO_RULES: AvailabilityRule[] = ([0, 1, 2, 3, 4, 5, 6] as Weekday[]).map(
 	(weekday) => ({
 		weekday,

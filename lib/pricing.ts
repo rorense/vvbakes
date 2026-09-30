@@ -601,8 +601,8 @@ export function couldCostMore(
 /**
  * The extras a customer may actually pick right now.
  *
- * One list for the whole shop, so this is the same answer on every product
- * page. An empty result hides the picker rather than showing an empty heading.
+ * Takes the product's own list: extras belong to a product, not the shop. An
+ * empty result hides the picker rather than showing an empty heading.
  */
 export function availableExtras(extras: readonly Extra[]): Extra[] {
 	return extras.filter((extra) => extra.isAvailable);

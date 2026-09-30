@@ -183,7 +183,7 @@ export function OrderForm({
 
 	// Nothing is charged for delivery while she is quoting the fee by hand. The
 	// database holds the column at 0 to match, so this is belt and braces rather
-	// than the only thing keeping the total honest; `feeToCome` is what says so
+	// than the only thing keeping the total honest; `deliveryFeeToCome` is what says so
 	// out loud, next to the number.
 	const deliveryFee =
 		fulfilment === "delivery" && !settings.deliveryFeeOnRequest ? settings.deliveryFeeCents : 0;

@@ -72,7 +72,7 @@ function logo() {
 	return logoOnce;
 }
 
-/** The dot field from globals.css, inlined — Satori cannot follow a relative URL. */
+/** A dot field, inlined as a data URL: Satori cannot follow a relative one. */
 const DOTS = `data:image/svg+xml;utf8,${encodeURIComponent(
 	`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">` +
 		`<circle cx="4" cy="4" r="1.5" fill="${COCOA}"/>` +

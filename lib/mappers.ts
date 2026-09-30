@@ -269,9 +269,6 @@ function toProductOptionGroup(row: OptionGroupColumns): ProductOptionGroup {
  * at the type level to work out what a row comes back as, and it can only do
  * that with a literal: build it by joining an array and every query typed off
  * it degrades to `GenericStringError` with no explanation worth reading.
- */
-/**
- * Everything a product page needs, in one round trip.
  *
  * The combinations ask for `*` rather than naming their columns, and that is
  * deliberate: PostgREST refuses the whole query for a column it cannot find, so
@@ -451,7 +448,7 @@ function toOrderItem(row: OrderItemColumns): OrderItem {
  * carried.
  *
  * Kept beside `toOrder` for the reason `PRODUCT_SELECT` is kept beside
- * `toProduct`: the four places that read an order have to ask for the same
+ * `toProduct`: every place that reads an order have to ask for the same
  * columns, and a nested table added to one of them and forgotten in the others
  * is an array that silently reads as empty.
  */

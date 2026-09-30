@@ -1,5 +1,5 @@
 /**
- * Sends two real order emails to an address you name, so a new sending setup
+ * Sends three real emails to an address you name, so a new sending setup
  * can be proven before a customer is on the other end of it.
  *
  *   npm run emails:test -- you@example.com

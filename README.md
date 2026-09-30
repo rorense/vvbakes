@@ -25,20 +25,24 @@ enough to work on the design. Ordering and the admin need a real database.
 | `npm run check` | Verifies your Supabase setup end to end, without printing any keys |
 | `npm run make-admin -- <email>` | Gives an existing Supabase user access to the admin |
 | `npm test` | Runs the test suite, including real SQL against an in-process Postgres |
+| `npm run test:watch` | The same, rerunning on every save |
 | `npm run test:race` | Proves two customers can't take the same last slot (writes real orders) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier over the whole repo |
+| `npm run format:check` | The same, reporting rather than rewriting |
 | `npm run icons` | Regenerates every icon from `assets/logo-source.png` |
 | `npm run og:fonts` | Re-downloads the two brand fonts the share cards draw with |
-| `npm run emails:preview` | Renders all five emails to `.email-preview/` |
+| `npm run emails:preview` | Renders all six emails to `.email-preview/` |
+| `npm run emails:test -- <email>` | Sends three real emails to an address you name (see Verifying it works) |
+| `npm run db:types` | Generates types from the linked project into `supabase/.temp/`, to diff against `lib/supabase/database.types.ts` |
 
 ---
 
 ## First-time setup
 
-You need three accounts: Supabase (database), Vercel (hosting) and a Gmail
-address (sending email). All three have free tiers that comfortably cover a
+You need three accounts: Supabase (database), Vercel (hosting) and Resend
+(sending email). All three have free tiers that comfortably cover a
 home bakery.
 
 ### 1. Supabase
@@ -110,8 +114,9 @@ would see nothing.
 
 ### 4. Email
 
-The site sends five emails: one to you when an order arrives, and four to the
-customer as their order moves along. They go out through
+The site sends six emails: one to you when an order arrives, four to the
+customer as their order moves along, and one asking how it was once it has been
+collected. They go out through
 [Resend](https://resend.com), from an address on a domain you own.
 
 1. Add the bare domain at **Resend → Domains**. There is no need to verify a
@@ -1034,9 +1039,9 @@ Email is the one thing none of those can prove, because it leaves the machine.
 npm run emails:test -- you@example.com
 ```
 
-That sends the customer's confirmation and the owner's new-order alert to an
-address you name, through the real templates and the real sending setup. Check
-that both arrive in the inbox rather than spam, that the header badge loads, and
+That sends the customer's confirmation, the owner's new-order alert and the
+feedback request to an address you name, through the real templates and the real
+sending setup. Check that all three arrive in the inbox rather than spam, that the header badge loads, and
 that Reply on each goes where it should: the confirmation to the contact email,
 the alert to the customer. Worth running after any change to how mail is sent,
 and never at a customer's address.
@@ -1106,9 +1111,11 @@ account number. It should not be there.
 ```
 app/
   (site)/        the public site: home, shop, product pages, order form, thanks, status page
-  (menu)/menu/   the unlisted market card, unchanged from the original
-  admin/         sign-in, dashboard, products, categories, calendar, orders, settings
-  api/cron/      the daily keep-alive, which also sweeps spent rate-limit rows
+  (menu)/menu/   the unlisted market card, the first page this repo had
+  admin/         sign-in, dashboard, products, categories, availability, orders, feedback, settings
+  api/cron/      three daily jobs: keep-alive (which also sweeps spent rate-limit rows),
+                 the Instagram sync, and the feedback requests
+  api/unsubscribe/ the one-click unsubscribe a mail client posts to
   api/webhooks/  what Resend says about an email after it accepted it
   llms.txt/      the whole shop as one markdown file, for assistants to read
 components/
@@ -1116,7 +1123,7 @@ components/
   site/          header, footer, product cards
   order/         the order form and its parts
   admin/         the admin's own components
-emails/          the five transactional emails
+emails/          the six transactional emails
 lib/             pricing, availability, dates, Supabase clients, validation
 scripts/         setup check, icon build, email preview and test send
 supabase/        migrations and the seed
