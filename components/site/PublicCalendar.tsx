@@ -31,12 +31,10 @@ export function PublicCalendar({
 	months,
 	leadTimeDays,
 	bookingWindowDays,
-	className,
 }: {
 	months: PublicCalendarMonth[];
 	leadTimeDays: number;
 	bookingWindowDays: number;
-	className?: string;
 }) {
 	const hasAnyAvailable = months.some((month) =>
 		month.days.some((day) => day.inMonth && day.state === "available"),
@@ -57,7 +55,7 @@ export function PublicCalendar({
 			: "";
 
 	return (
-		<div className={cn("flex flex-col gap-8", className)}>
+		<div className="flex flex-col gap-8">
 			<div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
 				{months.map((month) => (
 					<section

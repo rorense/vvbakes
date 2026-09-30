@@ -71,9 +71,7 @@ export default async function OrderThanksPage({ params }: { params: Promise<{ to
 						</ArchFrame>
 
 						<div className="absolute -right-6 -bottom-5 sm:-right-10">
-							<Sticker
-								tone="rose-deep"
-								size="sm">
+							<Sticker>
 								order
 								<br />
 								<span className="font-display text-sm">{order.reference}</span>

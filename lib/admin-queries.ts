@@ -174,8 +174,6 @@ export interface OrderFilters {
 	search?: string;
 	/** "newest" (the default) by when it was placed; "pickup" soonest collection first. */
 	sort?: "newest" | "pickup";
-	/** How many to a page. */
-	limit?: number;
 	/** Zero-based. Out-of-range pages come back empty rather than throwing. */
 	page?: number;
 }
@@ -199,12 +197,11 @@ export interface OrderPage {
  * a page holds is how `hasMore` is known without a second `count` query, which
  * on a filtered `or` search is not free.
  */
-export async function adminOrders(filters: OrderFilters = {}): Promise<OrderPage> {
+export async function adminOrders(filters: OrderFilters): Promise<OrderPage> {
 	const supabase = await createClient();
 
-	const perPage = filters.limit ?? ORDERS_PER_PAGE;
 	const page = Math.max(0, filters.page ?? 0);
-	const from = page * perPage;
+	const from = page * ORDERS_PER_PAGE;
 
 	let query = supabase.from("orders").select("*, order_items (id)");
 
@@ -218,7 +215,7 @@ export async function adminOrders(filters: OrderFilters = {}): Promise<OrderPage
 			: query.order("created_at", { ascending: false });
 
 	// The id breaks any tie left, so a row cannot slip between two pages.
-	query = query.order("id").range(from, from + perPage); // One extra row, to see if there is a next page.
+	query = query.order("id").range(from, from + ORDERS_PER_PAGE); // One extra row, to see if there is a next page.
 
 	if (filters.status && filters.status !== "all") {
 		if (filters.status === "open") {
@@ -245,11 +242,11 @@ export async function adminOrders(filters: OrderFilters = {}): Promise<OrderPage
 	const { data } = await query;
 
 	const rows = data ?? [];
-	const hasMore = rows.length > perPage;
+	const hasMore = rows.length > ORDERS_PER_PAGE;
 
 	return {
 		hasMore,
-		orders: rows.slice(0, perPage).map(toOrderSummary),
+		orders: rows.slice(0, ORDERS_PER_PAGE).map(toOrderSummary),
 	};
 }
 

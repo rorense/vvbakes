@@ -1,13 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
-import {
-	fallbackAccent,
-	galleryImageAlt,
-	productImageUrl,
-	variantImageAlt,
-	variantImagePath,
-} from "@/lib/images";
+import { fallbackAccent, productImageUrl, variantImageAlt, variantImagePath } from "@/lib/images";
 import { isOrderable, priceRule, variantOptions } from "@/lib/pricing";
 import {
 	ACCENT_BG,
@@ -36,14 +30,6 @@ export function ProductImage({
 	 * product whose variants differ only by size wants. See `variantImagePath`.
 	 */
 	variant = null,
-	/**
-	 * A photo picked out of the strip underneath, which wins over the variant's.
-	 * The position is 1-based and counts the main photo as the first, because
-	 * that number is all the alt text has to tell three views of one cake apart.
-	 * Null everywhere but the product page.
-	 */
-	picked = null,
-	className,
 	sizes,
 	priority,
 	/** The colour behind this image, so the no-photo tile never matches it. */
@@ -51,27 +37,21 @@ export function ProductImage({
 }: {
 	product: Product;
 	variant?: ProductVariant | null;
-	picked?: { path: string; position: number } | null;
-	className?: string;
 	sizes?: string;
 	priority?: boolean;
 	behind?: Accent | null;
 }) {
 	const options = variant ? variantOptions(product, variant) : [];
-	const url = productImageUrl(picked?.path ?? variantImagePath(product, variant, options));
+	const url = productImageUrl(variantImagePath(product, variant, options));
 
 	if (url) {
 		return (
 			<Image
 				src={url}
-				alt={
-					picked
-						? galleryImageAlt(product, picked.position)
-						: variantImageAlt(product, variant, options)
-				}
+				alt={variantImageAlt(product, variant, options)}
 				fill
 				sizes={sizes ?? "(min-width: 640px) 33vw, 50vw"}
-				className={cn("object-cover", className)}
+				className="object-cover"
 				priority={priority}
 			/>
 		);
@@ -82,7 +62,6 @@ export function ProductImage({
 			className={cn(
 				"flex h-full w-full items-center justify-center overflow-hidden",
 				ACCENT_BG[fallbackAccent(product, behind)],
-				className,
 			)}
 			aria-hidden="true">
 			<Image
@@ -99,7 +78,7 @@ export function ProductImage({
 /** Only rendered for a product that is off; the caller does that check. */
 function AvailabilityBadge({ product }: { product: Product }) {
 	// "Sold out" also covers a product whose every flavour is switched off.
-	return <Badge tone="cocoa">{product.availabilityNote ?? "Sold out"}</Badge>;
+	return <Badge>{product.availabilityNote ?? "Sold out"}</Badge>;
 }
 
 /**
@@ -122,17 +101,15 @@ export function AllergenChips({ allergens }: { allergens: readonly Allergen[] })
 export function ProductCard({
 	product,
 	priority,
-	className,
 	behind,
 }: {
 	product: Product;
 	priority?: boolean;
-	className?: string;
 	/** The band colour this card sits on. */
 	behind?: Accent | null;
 }) {
 	return (
-		<article className={cn("group flex flex-col gap-3", className)}>
+		<article className="group flex flex-col gap-3">
 			<Link
 				href={`/shop/${product.slug}`}
 				className="rounded-lg focus-visible:outline-offset-4">

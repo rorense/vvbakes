@@ -30,18 +30,14 @@ export function Section({
 	size = "default",
 	...rest
 }: React.ComponentPropsWithoutRef<"section"> & {
-	tone?: "paper" | "paper-deep" | "blush" | "rose" | "butter" | "mint" | "peach" | "none";
+	tone?: "paper" | "blush" | "rose" | "butter";
 	size?: "default" | "tight" | "loose";
 }) {
 	const tones = {
 		paper: "bg-paper",
-		"paper-deep": "bg-paper-deep",
 		blush: "bg-blush",
 		rose: "bg-rose",
 		butter: "bg-butter",
-		mint: "bg-mint",
-		peach: "bg-peach",
-		none: "",
 	} as const;
 
 	const sizes = {

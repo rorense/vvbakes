@@ -1,14 +1,12 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANTS: Record<ButtonVariant, string> = {
 	primary: "bg-rose text-cocoa hover:bg-rose-deep border border-transparent",
 	secondary: "bg-transparent text-cocoa border border-line hover:border-cocoa hover:bg-paper-deep",
-	ghost:
-		"bg-transparent text-cocoa-soft border border-transparent hover:text-cocoa hover:bg-paper-deep",
 	danger: "bg-danger text-paper border border-transparent hover:opacity-90",
 };
 

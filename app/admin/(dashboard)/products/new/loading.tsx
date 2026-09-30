@@ -5,10 +5,5 @@ import { ProductFormSkeleton } from "@/components/admin/ProductFormSkeleton";
  * the owner watches a page of rows turn into a page of fields.
  */
 export default function NewProductLoading() {
-	return (
-		<ProductFormSkeleton
-			label="Loading the product form"
-			back
-		/>
-	);
+	return <ProductFormSkeleton label="Loading the product form" />;
 }

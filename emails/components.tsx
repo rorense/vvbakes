@@ -229,7 +229,6 @@ export function OrderItemsTable({
 	deliveryFeeCents,
 	totalCents,
 	quoteCents,
-	unpricedNote,
 	customFlavourNote,
 }: {
 	items: OrderItem[];
@@ -238,8 +237,6 @@ export function OrderItemsTable({
 	totalCents: number;
 	/** What the owner has quoted for the custom work. Zero means not priced yet. */
 	quoteCents: number;
-	/** The line under the total when the order holds priced items and custom work both. */
-	unpricedNote?: string;
 	/**
 	 * The line under the total when something was asked for in a flavour of its
 	 * own, where the figure above is a real price she is nonetheless allowed to
@@ -396,7 +393,7 @@ export function OrderItemsTable({
 			{hasUnpriced && totalCents > 0 ? (
 				<Row>
 					<Column style={{ padding: "0 0 12px", fontSize: "12px", color: COCOA_SOFT }}>
-						{unpricedNote ?? "Plus whatever the custom work comes to, once it is priced."}
+						Plus whatever the custom work comes to, once it is priced.
 					</Column>
 				</Row>
 			) : null}

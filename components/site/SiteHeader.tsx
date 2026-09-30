@@ -8,16 +8,9 @@ import { NavLink } from "@/components/ui/NavLink";
 import { MobileNav, type NavItem } from "@/components/site/MobileNav";
 
 /** The lowercase serif wordmark. Text, not an image, so it stays crisp and selectable. */
-export function Wordmark({
-	className,
-	size = "md",
-}: {
-	className?: string;
-	size?: "sm" | "md" | "lg";
-}) {
+export function Wordmark({ className, size }: { className?: string; size: "sm" | "lg" }) {
 	const sizes = {
 		sm: "text-xl",
-		md: "text-2xl",
 		lg: "text-4xl",
 	} as const;
 

@@ -7,6 +7,7 @@ const CARDS: ReadonlyArray<{ title: string; fields: number }> = [
 	{ title: "w-20", fields: 2 },
 	{ title: "w-14", fields: 4 },
 	{ title: "w-16", fields: 1 },
+	{ title: "w-16", fields: 1 },
 	{ title: "w-28", fields: 2 },
 	{ title: "w-24", fields: 2 },
 ];
@@ -14,15 +15,15 @@ const CARDS: ReadonlyArray<{ title: string; fields: number }> = [
 /**
  * The product editor, which both the add and the edit page draw.
  *
- * Six stacked cards — Basics, Variants, Price, Photo, Availability, Allergens —
- * so the wait has the same height and rhythm as the form that replaces it, and
+ * Seven stacked cards (Basics, Variants, Price, Extras, Photo, Availability,
+ * Allergens) so the wait has the same height and rhythm as the form that replaces it, and
  * nothing below the fold jumps when it arrives.
  */
-export function ProductFormSkeleton({ label, back }: { label: string; back: boolean }) {
+export function ProductFormSkeleton({ label }: { label: string }) {
 	return (
 		<SkeletonScreen label={label}>
 			<div className="mb-6 flex flex-col gap-3">
-				{back ? <Skeleton className="h-4 w-24" /> : null}
+				<Skeleton className="h-4 w-24" />
 				<div className="flex flex-col gap-1.5">
 					<Skeleton className="h-8 w-52" />
 					<Skeleton className="h-4 w-36" />

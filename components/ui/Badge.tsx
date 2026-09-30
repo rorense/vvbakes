@@ -1,27 +1,11 @@
 import { cn } from "@/lib/cn";
 
 /** A small rotated label sitting on a product card. */
-export function Badge({
-	className,
-	children,
-	tone = "cocoa",
-}: {
-	className?: string;
-	children: React.ReactNode;
-	tone?: "cocoa" | "peach" | "mint" | "rose";
-}) {
-	const tones = {
-		cocoa: "bg-cocoa text-paper",
-		peach: "bg-peach text-cocoa",
-		mint: "bg-mint text-cocoa",
-		rose: "bg-rose text-cocoa",
-	} as const;
-
+export function Badge({ className, children }: { className?: string; children: React.ReactNode }) {
 	return (
 		<span
 			className={cn(
-				"rounded-pill text-2xs inline-block -rotate-3 px-3 py-1 font-medium tracking-wide",
-				tones[tone],
+				"rounded-pill text-2xs bg-cocoa text-paper inline-block -rotate-3 px-3 py-1 font-medium tracking-wide",
 				className,
 			)}>
 			{children}
@@ -29,7 +13,7 @@ export function Badge({
 	);
 }
 
-/** An outlined pill, used for allergens and filters. */
+/** An outlined pill, used for allergens. */
 export function Chip({ className, children }: { className?: string; children: React.ReactNode }) {
 	return (
 		<span

@@ -1,5 +1,3 @@
-import { cn } from "@/lib/cn";
-
 /**
  * A scrolling band of short phrases, the bakery-window strip of what's in today.
  *
@@ -9,15 +7,7 @@ import { cn } from "@/lib/cn";
  * seamless. The animation is gated behind prefers-reduced-motion in globals.css,
  * where it degrades to a static row.
  */
-export function Marquee({
-	items,
-	className,
-	separator = "✦",
-}: {
-	items: string[];
-	className?: string;
-	separator?: string;
-}) {
+export function Marquee({ items }: { items: string[] }) {
 	if (items.length === 0) return null;
 
 	const run = (key: string) => (
@@ -34,7 +24,7 @@ export function Marquee({
 					<span
 						className="text-cocoa-soft/60 text-xs"
 						aria-hidden="true">
-						{separator}
+						✦
 					</span>
 				</span>
 			))}
@@ -43,7 +33,7 @@ export function Marquee({
 
 	return (
 		<div
-			className={cn("overflow-hidden py-4", className)}
+			className="overflow-hidden py-4"
 			aria-hidden="true">
 			<div className="marquee-track">
 				{run("a")}
