@@ -19,7 +19,7 @@ import {
 	isOrderable,
 	minOrderQty,
 	optionGroups,
-	priceProduct,
+	priceProductLines,
 	variantFor,
 } from "@/lib/pricing";
 import type { CartExtra, Product } from "@/lib/types";
@@ -154,7 +154,8 @@ export function AddToOrder({ product }: { product: Product }) {
 	// Mixing has no single selection to be wrong: nothing picked is simply
 	// nothing to add yet.
 	const picked = mixing ? lines.length > 0 : !hasVariants(product) || variant !== null;
-	const menu = mixing || !picked ? null : priceProduct(product, qty, variant);
+	const menu =
+		mixing || !picked ? null : priceProductLines(product, [{ variant, qty }], alreadyCounted)[0]!;
 
 	// How many of the product this add is for, which is what the extras are
 	// priced against: one set of candles per cake, however the cakes were

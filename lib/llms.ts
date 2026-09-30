@@ -24,6 +24,7 @@ import {
 	availableExtras,
 	extraPriceLabel,
 	formatPrice,
+	isOrderable,
 	minOrderQty,
 	optionGroups,
 	priceRule,
@@ -321,7 +322,7 @@ function productLine(product: Product, base: string): string {
 		product.wantsBrief
 			? "Ordered with a brief: what you are picturing, and photos if you have them."
 			: null,
-		product.isAvailable ? null : "Sold out at the moment.",
+		isOrderable(product) ? null : "Sold out at the moment.",
 		product.availabilityNote ? sentence(product.availabilityNote) : null,
 	].filter(present);
 

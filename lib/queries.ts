@@ -359,9 +359,10 @@ export const getOrderableProducts = cache(async (): Promise<Product[]> => {
 
 export const getFeaturedProducts = cache(async (): Promise<Product[]> => {
 	const products = await getProducts();
-	const featured = products.filter((product) => product.isFeatured && product.isAvailable);
+	const orderable = products.filter(isOrderable);
+	const featured = orderable.filter((product) => product.isFeatured);
 	// Always show something on the home page, even before anything is featured.
-	return (featured.length > 0 ? featured : products.filter((p) => p.isAvailable)).slice(0, 3);
+	return (featured.length > 0 ? featured : orderable).slice(0, 3);
 });
 
 const getAvailabilityRules = cache(async (): Promise<AvailabilityRule[]> => {

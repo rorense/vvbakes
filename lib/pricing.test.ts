@@ -554,6 +554,19 @@ describe("pricing a product's lines together", () => {
 		// changed.
 		expect(priced.map((line) => line.totalCents)).toEqual([1200, 1200]);
 	});
+
+	it("quotes a later add at the rate past the minimum when the basket already holds it", () => {
+		// What the product page asks when the basket already has two boxes: the
+		// third costs the rate past the minimum, and the basket will agree.
+		const p = minis();
+		const [v] = p.variants;
+		const basket = totalOf(priceProductLines(p, [{ variant: v!, qty: 3 }]));
+		const already = totalOf(priceProductLines(p, [{ variant: v!, qty: 2 }]));
+		const quoted = priceProductLines(p, [{ variant: v!, qty: 1 }], 2)[0]!.totalCents;
+
+		expect(quoted).toBe(basket - already);
+		expect(quoted).not.toBe(priceProduct(p, 1, v!).totalCents);
+	});
 });
 
 describe("isValidQty", () => {

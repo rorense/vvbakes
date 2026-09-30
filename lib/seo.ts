@@ -14,7 +14,7 @@
  */
 
 import { SITE_NAME, instagramUrl, siteUrl } from "./constants";
-import { formatPrice, hasVariants, priceRange } from "./pricing";
+import { availableVariants, formatPrice, hasVariants, isOrderable, priceRange } from "./pricing";
 import type {
 	Category,
 	CategoryWithProducts,
@@ -166,7 +166,9 @@ export function offerPrices(product: Product): { low: number; high: number | nul
 
 	// Sold-out flavours are left out for the reason `unitPriceRange` leaves them
 	// out: a range a customer cannot buy either end of is worse than no range.
-	const sellable = product.variants.filter((variant) => variant.isAvailable);
+	// `availableVariants` rather than the flavour switch alone, so a combination
+	// whose option is switched off is gone here as it is on the page.
+	const sellable = availableVariants(product);
 	const prices = (sellable.length > 0 ? sellable : product.variants)
 		.map((variant) => variant.unitPriceCents * product.qtyStep)
 		.filter((cents) => cents > 0);
@@ -193,7 +195,9 @@ export function productOffers(product: Product) {
 	const prices = offerPrices(product);
 	if (!prices) return null;
 
-	const availability = product.isAvailable
+	// `isOrderable`, not the product switch: a cake with every flavour switched
+	// off still says available on its own row, and its card says sold out.
+	const availability = isOrderable(product)
 		? "https://schema.org/InStock"
 		: "https://schema.org/OutOfStock";
 
@@ -217,7 +221,7 @@ export function productOffers(product: Product) {
 		};
 	}
 
-	const offerCount = product.variants.filter((variant) => variant.isAvailable).length;
+	const offerCount = availableVariants(product).length;
 
 	return {
 		"@type": "AggregateOffer",
@@ -369,10 +373,10 @@ export function websiteJsonLd() {
  */
 export function cataloguePriceRange(products: readonly Product[]): string | null {
 	const prices = products
-		.filter((product) => !product.priceOnRequest && product.isAvailable)
+		.filter((product) => !product.priceOnRequest && isOrderable(product))
 		.flatMap((product) =>
 			hasVariants(product)
-				? product.variants.map((variant) => variant.unitPriceCents * product.qtyStep)
+				? availableVariants(product).map((variant) => variant.unitPriceCents * product.qtyStep)
 				: [product.unitPriceCents * product.qtyStep],
 		)
 		.filter((cents) => cents > 0);

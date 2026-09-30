@@ -268,6 +268,54 @@ describe("productOffers", () => {
 	it("gives no offers at all where there is no honest price", () => {
 		expect(productOffers(product({ priceOnRequest: true }))).toBeNull();
 	});
+
+	// The product switch and the flavour switches can both say yes while an
+	// option switch says no, and the card and the basket go by the option.
+	it("follows the option switches, not only the product's own", () => {
+		const cake = (carrotOn: boolean, lemonOn: boolean) =>
+			product({
+				optionGroups: [
+					{
+						id: "g",
+						name: "Flavour",
+						sortOrder: 1,
+						options: [
+							{
+								id: "carrot",
+								name: "Carrot",
+								imagePath: null,
+								allergens: [],
+								isAvailable: carrotOn,
+								sortOrder: 1,
+							},
+							{
+								id: "lemon",
+								name: "Lemon",
+								imagePath: null,
+								allergens: [],
+								isAvailable: lemonOn,
+								sortOrder: 2,
+							},
+						],
+					},
+				],
+				variants: [
+					variant({ id: "a", unitPriceCents: 4500, optionIds: ["carrot"] }),
+					variant({ id: "b", unitPriceCents: 5500, optionIds: ["lemon"] }),
+				],
+			});
+
+		expect(productOffers(cake(false, true))).toMatchObject({
+			"@type": "Offer",
+			price: "55.00",
+			availability: "https://schema.org/InStock",
+		});
+		expect(productOffers(cake(false, false))).toMatchObject({
+			availability: "https://schema.org/OutOfStock",
+		});
+		expect(cataloguePriceRange([cake(false, true)])).toBe("$55");
+		expect(cataloguePriceRange([cake(false, false)])).toBeNull();
+	});
 });
 
 describe("productJsonLd", () => {
