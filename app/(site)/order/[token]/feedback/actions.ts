@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { MIN_FORM_FILL_MS } from "@/lib/constants";
+import { canLeaveFeedback } from "@/lib/order-status";
 import { clientIp, getOrderByToken, hashIp } from "@/lib/orders";
 import { recordAttempt } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -53,7 +54,7 @@ export async function submitFeedback(_previous: FormState, formData: FormData): 
 
 	// The page renders the form under the same condition. This is the check that
 	// counts, because the page's is only what a browser was shown.
-	if (order.status !== "collected" && order.status !== "ready") {
+	if (!canLeaveFeedback(order.status)) {
 		return fail("There's nothing to look back on yet. This opens once your order is with you.");
 	}
 

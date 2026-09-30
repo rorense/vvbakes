@@ -1,7 +1,7 @@
 import { Section, Text } from "@react-email/components";
 import { formatDateLong, formatDateLongWithTime } from "@/lib/dates";
 import { firstName } from "@/lib/names";
-import { formatMoney } from "@/lib/pricing";
+import { formatMoney, hasUnpricedWork } from "@/lib/pricing";
 import type { Order, PrivateSettings, SiteSettings } from "@/lib/types";
 import {
 	ActionLink,
@@ -50,8 +50,9 @@ const unsubscribeUrl = (ctx: EmailContext) => `${ctx.siteUrl}/unsubscribe/${ctx.
  * wrong things in one sentence.
  */
 function awaitingPrice(order: Order): boolean {
-	if (order.quoteCents > 0) return false;
-	return order.totalCents === 0 || order.items.some((item) => item.priceOnRequest);
+	// A quote above zero makes the total above zero, so a zero total is only
+	// ever an unquoted one.
+	return hasUnpricedWork(order.items, order.quoteCents) || order.totalCents === 0;
 }
 
 // ---------------------------------------------------------------------------

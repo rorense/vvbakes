@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { orderErrorMessage } from "@/lib/availability";
+import { ORDER_ERROR_FALLBACK, orderErrorMessage } from "@/lib/availability";
 import {
 	INSPIRATION_IMAGE_BUCKET,
 	MAX_INSPIRATION_PHOTOS,
@@ -174,7 +174,7 @@ export async function placeOrder(
 		await discardPhotos(photos.paths);
 		// place_order raises named exceptions; anything else is ours, not theirs.
 		const message = orderErrorMessage(error.message);
-		if (message === "Something went wrong sending your order. Please try again.") {
+		if (message === ORDER_ERROR_FALLBACK) {
 			console.error("[vvbakes] place_order failed", error);
 		}
 		return fail(message);
@@ -184,7 +184,7 @@ export async function placeOrder(
 	if (!placed) {
 		await discardPhotos(photos.paths);
 		console.error("[vvbakes] place_order returned nothing");
-		return fail("Something went wrong sending your order. Please try again.");
+		return fail(ORDER_ERROR_FALLBACK);
 	}
 
 	// --- notify --------------------------------------------------------------

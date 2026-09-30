@@ -18,6 +18,17 @@ const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
 	cancelled: [],
 };
 
+/**
+ * Whether the order is with its customer, so asking how it was makes sense. The
+ * feedback page and the action behind its form both ask this.
+ */
+export function canLeaveFeedback(status: OrderStatus): boolean {
+	return status === "collected" || status === "ready";
+}
+
+/** Still needing her attention: anything that can yet move on. */
+export const OPEN_STATUSES: OrderStatus[] = ["new", "confirmed", "ready"];
+
 export function allowedTransitions(status: OrderStatus): OrderStatus[] {
 	return NEXT_STATUSES[status];
 }

@@ -274,6 +274,9 @@ export function countsFromRows(
 	return counts;
 }
 
+/** What `orderErrorMessage` says for anything it does not recognise. */
+export const ORDER_ERROR_FALLBACK = "Something went wrong sending your order. Please try again.";
+
 /**
  * Turns an exception name raised by `place_order` into something a customer can
  * act on. Anything unrecognised falls back to a neutral message rather than
@@ -311,7 +314,7 @@ export function orderErrorMessage(raw: string): string {
 	for (const [code, message] of Object.entries(known)) {
 		if (raw.includes(code)) return message;
 	}
-	return "Something went wrong sending your order. Please try again.";
+	return ORDER_ERROR_FALLBACK;
 }
 
 /**

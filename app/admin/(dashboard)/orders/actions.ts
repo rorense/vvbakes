@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { TemplateName } from "@/emails/templates";
 import { adminOrder } from "@/lib/admin-queries";
 import { ORDER_SELECT, toOrder } from "@/lib/mappers";
 import { requireAdmin } from "@/lib/auth";
 import { sendOrderEmail } from "@/lib/email";
 import { getPrivateSettings } from "@/lib/orders";
+import { deliveryFeeFor } from "@/lib/pricing";
 import { getSettings } from "@/lib/queries";
 import { allowedTransitions } from "@/lib/order-status";
 import { createClient } from "@/lib/supabase/server";
@@ -24,11 +26,11 @@ const TIMESTAMP_COLUMN: Partial<Record<OrderStatus, string>> = {
 };
 
 /** Which email, if any, a customer gets when an order reaches this status. */
-const EMAIL_FOR_STATUS = {
+const EMAIL_FOR_STATUS: Partial<Record<OrderStatus, TemplateName>> = {
 	confirmed: "order-confirmed",
 	ready: "order-ready",
 	cancelled: "order-cancelled",
-} as const;
+};
 
 export async function setOrderStatus(_previous: State, formData: FormData): Promise<State> {
 	await requireAdmin();
@@ -82,7 +84,7 @@ export async function setOrderStatus(_previous: State, formData: FormData): Prom
 	});
 
 	// Email after the change, and never let it undo the change.
-	const template = EMAIL_FOR_STATUS[status as keyof typeof EMAIL_FOR_STATUS];
+	const template = EMAIL_FOR_STATUS[status];
 	if (template && updatedRow) {
 		const updated = toOrder(updatedRow);
 		const [settings, privateSettings] = await Promise.all([getSettings(), getPrivateSettings()]);
@@ -242,11 +244,7 @@ export async function saveOrderDetails(_previous: State, formData: FormData): Pr
 	// it was quoted even if the shop's fee has changed since, because that is
 	// what the customer was told they would pay.
 	if (details.fulfilment !== order.fulfilment) {
-		const settings = await getSettings();
-		const fee =
-			details.fulfilment === "delivery" && !settings.deliveryFeeOnRequest
-				? settings.deliveryFeeCents
-				: 0;
+		const fee = deliveryFeeFor(await getSettings(), details.fulfilment);
 
 		if (fee !== order.deliveryFeeCents) {
 			update.delivery_fee_cents = fee;
@@ -303,14 +301,7 @@ export async function resendEmail(_previous: State, formData: FormData): Promise
 	const order = await adminOrder(id);
 	if (!order) return { result: actionError("That order no longer exists.") };
 
-	const template =
-		order.status === "confirmed"
-			? "order-confirmed"
-			: order.status === "ready"
-				? "order-ready"
-				: order.status === "cancelled"
-					? "order-cancelled"
-					: "order-received";
+	const template = EMAIL_FOR_STATUS[order.status] ?? "order-received";
 
 	const [settings, privateSettings] = await Promise.all([getSettings(), getPrivateSettings()]);
 	const result = await sendOrderEmail({ template, order, settings, privateSettings });

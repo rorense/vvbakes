@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDateLong } from "@/lib/dates";
 import { firstName } from "@/lib/names";
+import { canLeaveFeedback } from "@/lib/order-status";
 import { feedbackForOrder, getOrderByToken, ratingsForFeedback } from "@/lib/orders";
 import { getSettings } from "@/lib/queries";
 import { Container, Section } from "@/components/ui/Container";
@@ -45,7 +46,7 @@ export default async function OrderFeedbackPage({
 	// The email only goes to orders that are with their customer, but the link is
 	// in an inbox and inboxes get read late and forwarded. Asking someone how
 	// their cake was before they have it would be worse than not asking.
-	if (order.status !== "collected" && order.status !== "ready") {
+	if (!canLeaveFeedback(order.status)) {
 		return (
 			<Shell>
 				<div className="flex flex-col gap-3">

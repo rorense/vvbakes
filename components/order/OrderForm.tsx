@@ -12,7 +12,7 @@ import { cn } from "@/lib/cn";
 import { MAX_ORDER_INSPIRATION_PHOTOS } from "@/lib/constants";
 import { formatDateShort, type IsoDate } from "@/lib/dates";
 import { loadPhotos, sweepPhotos } from "@/lib/photo-store";
-import { extraLabel, formatMoney, minOrderQty } from "@/lib/pricing";
+import { deliveryFeeFor, extraLabel, formatMoney, minOrderQty } from "@/lib/pricing";
 import type {
 	CartBrief,
 	PickableDate,
@@ -185,8 +185,7 @@ export function OrderForm({
 	// database holds the column at 0 to match, so this is belt and braces rather
 	// than the only thing keeping the total honest; `deliveryFeeToCome` is what says so
 	// out loud, next to the number.
-	const deliveryFee =
-		fulfilment === "delivery" && !settings.deliveryFeeOnRequest ? settings.deliveryFeeCents : 0;
+	const deliveryFee = deliveryFeeFor(settings, fulfilment);
 	const deliveryFeeToCome = fulfilment === "delivery" && settings.deliveryFeeOnRequest;
 	const total = subtotalCents + deliveryFee;
 

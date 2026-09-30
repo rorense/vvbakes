@@ -11,12 +11,14 @@ import { hasCustomFlavour } from "./brief";
 import type {
 	CartExtra,
 	Extra,
+	Fulfilment,
 	OrderItem,
 	PriceTier,
 	Product,
 	ProductOption,
 	ProductOptionGroup,
 	ProductVariant,
+	SiteSettings,
 } from "./types";
 
 export interface PricedQuantity {
@@ -537,6 +539,23 @@ export function priceProduct(
 export function afterMinimumOf(product: Product): AfterMinimum | null {
 	if (product.extraUnitPriceCents === null) return null;
 	return { minimum: minOrderQty(product), unitPriceCents: product.extraUnitPriceCents };
+}
+
+/**
+ * What delivery adds to an order: the shop's fee, or nothing for pickup.
+ *
+ * Nothing either while she quotes the fee by hand, because then there is no
+ * figure yet to charge. `place_order` charges `delivery_fee_cents` as it is,
+ * which a check constraint holds at 0 while the fee is on request, so the two
+ * agree; this is belt and braces for the browser and the admin's edits.
+ */
+export function deliveryFeeFor(
+	settings: Pick<SiteSettings, "deliveryFeeCents" | "deliveryFeeOnRequest">,
+	fulfilment: Fulfilment,
+): number {
+	return fulfilment === "delivery" && !settings.deliveryFeeOnRequest
+		? settings.deliveryFeeCents
+		: 0;
 }
 
 // --- what a placed order comes to -------------------------------------------

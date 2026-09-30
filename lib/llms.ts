@@ -18,7 +18,7 @@
  * exactly what a crawler would be given.
  */
 
-import { allergenSentence } from "./allergens";
+import { allergenSentence, allergensFor } from "./allergens";
 import { instagramUrl, siteUrl } from "./constants";
 import {
 	availableExtras,
@@ -30,14 +30,7 @@ import {
 	priceRule,
 } from "./pricing";
 import { categoryDescription, localityLine } from "./seo";
-import {
-	ALLERGENS,
-	type Allergen,
-	type CategoryWithProducts,
-	type Faq,
-	type Product,
-	type SiteSettings,
-} from "./types";
+import type { CategoryWithProducts, Faq, Product, SiteSettings } from "./types";
 
 export interface LlmsTxtInput {
 	settings: SiteSettings;
@@ -209,17 +202,10 @@ function choiceLines(product: Product): string[] {
  * the rule lib/allergens.ts is built around.
  */
 function allergenLine(product: Product): string | null {
-	const declared = new Set<Allergen>(product.allergens);
-	for (const variant of product.variants) {
-		for (const allergen of variant.allergens) declared.add(allergen);
-	}
-	for (const group of product.optionGroups) {
-		for (const option of group.options) {
-			for (const allergen of option.allergens) declared.add(allergen);
-		}
-	}
-
-	const ordered = ALLERGENS.filter((allergen) => declared.has(allergen));
+	const ordered = allergensFor(product, null, [
+		...product.variants,
+		...product.optionGroups.flatMap((group) => group.options),
+	]);
 	if (ordered.length === 0) return null;
 
 	const list = allergenSentence(ordered);

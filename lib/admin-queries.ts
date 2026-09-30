@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { countsFromRows } from "./availability";
 import type { IsoDate } from "./dates";
+import { OPEN_STATUSES } from "./order-status";
 import {
 	FEEDBACK_SELECT,
 	ORDER_SELECT,
@@ -219,8 +220,7 @@ export async function adminOrders(filters: OrderFilters): Promise<OrderPage> {
 
 	if (filters.status && filters.status !== "all") {
 		if (filters.status === "open") {
-			// Everything still needing attention.
-			query = query.in("status", ["new", "confirmed", "ready"]);
+			query = query.in("status", OPEN_STATUSES);
 		} else {
 			query = query.eq("status", filters.status);
 		}
@@ -375,7 +375,7 @@ export const adminDashboard = cache(async (today: IsoDate, weekAhead: IsoDate) =
 			.from("orders")
 			.select("id", { count: "exact", head: true })
 			.lt("pickup_date", today)
-			.in("status", ["new", "confirmed", "ready"]),
+			.in("status", OPEN_STATUSES),
 	]);
 
 	return {
