@@ -13,7 +13,7 @@
  * tests/feedback-schema.test.ts.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createOwner, createTestDb, errorOf, type TestDb } from "./pg";
+import { createCollectedOrder, createOwner, createTestDb, errorOf, type TestDb } from "./pg";
 
 let db: TestDb;
 let ownerId: string;
@@ -27,17 +27,7 @@ afterAll(async () => {
 	await db?.close();
 });
 
-async function makeOrder(reference: string): Promise<string> {
-	const result = await db.query<{ id: string }>(
-		`insert into orders (order_number, reference, pickup_date, status,
-		                     customer_name, customer_email, customer_phone)
-		 values (nextval('order_number_seq'), $1, current_date - 1, 'collected',
-		         'Alex Whitiora', 'alex@example.com', '021 555 0100')
-		 returning id`,
-		[reference],
-	);
-	return result.rows[0]!.id;
-}
+const makeOrder = (reference: string) => createCollectedOrder(db, reference);
 
 async function makeFeedback(reference: string): Promise<string> {
 	const orderId = await makeOrder(reference);

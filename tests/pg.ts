@@ -142,6 +142,22 @@ export async function createOwner(db: TestDb, email = "owner@example.com"): Prom
 }
 
 /** The message of the exception a query raised, or null if it succeeded. */
+/**
+ * A collected order from yesterday, returning its id: the state an order is in
+ * when feedback is asked for, which is what both feedback test files hang off it.
+ */
+export async function createCollectedOrder(db: TestDb, reference: string): Promise<string> {
+	const result = await db.query<{ id: string }>(
+		`insert into orders (order_number, reference, pickup_date, status,
+		                     customer_name, customer_email, customer_phone)
+		 values (nextval('order_number_seq'), $1, current_date - 1, 'collected',
+		         'Alex Whitiora', 'alex@example.com', '021 555 0100')
+		 returning id`,
+		[reference],
+	);
+	return result.rows[0]!.id;
+}
+
 export async function errorOf(fn: () => Promise<unknown>): Promise<string | null> {
 	try {
 		await fn();
