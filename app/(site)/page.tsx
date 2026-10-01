@@ -29,6 +29,7 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { InstagramFeed } from "@/components/site/InstagramFeed";
 import { ProductCard } from "@/components/site/ProductCard";
 import { PublicCalendar } from "@/components/site/PublicCalendar";
+import { ReviewCarousel } from "@/components/site/ReviewCarousel";
 
 /**
  * Revalidated on demand: every admin mutation ends in `revalidateCatalogue()`,
@@ -401,21 +402,7 @@ export default async function HomePage() {
 							<h2 className="font-display text-3xl">What people said after</h2>
 						</div>
 
-						<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-							{reviews.map((review) => (
-								<figure
-									key={review.id}
-									className="border-line bg-paper flex flex-col gap-4 rounded-lg border p-6">
-									<blockquote className="font-display text-lg leading-relaxed">
-										&ldquo;{review.body}&rdquo;
-									</blockquote>
-									<figcaption className="text-cocoa-soft mt-auto text-sm">
-										{review.author}
-										{review.detail ? <span className="block text-xs">{review.detail}</span> : null}
-									</figcaption>
-								</figure>
-							))}
-						</div>
+						<ReviewCarousel reviews={reviews} />
 					</Container>
 				</Section>
 			) : null}
