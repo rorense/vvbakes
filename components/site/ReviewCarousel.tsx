@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { cn } from "@/lib/cn";
 import type { Review } from "@/lib/types";
 
 /** How long each card sits before the row moves on by itself. */
-const AUTO_ADVANCE_MS = 5000;
+const AUTO_ADVANCE_MS = 4000;
 
 /**
  * The kind words, one row that scrolls sideways instead of a grid that grows
@@ -94,18 +95,39 @@ export function ReviewCarousel({ reviews }: { reviews: readonly Review[] }) {
 						onClick={() => step(-1)}
 						aria-label="Previous review"
 						className="border-line hover:bg-paper-deep flex h-10 w-10 items-center justify-center rounded-full border">
-						<span aria-hidden="true">&larr;</span>
+						<Arrow className="rotate-180" />
 					</button>
 					<button
 						type="button"
 						onClick={() => step(1)}
 						aria-label="Next review"
 						className="border-line hover:bg-paper-deep flex h-10 w-10 items-center justify-center rounded-full border">
-						<span aria-hidden="true">&rarr;</span>
+						<Arrow />
 					</button>
 				</div>
 			) : null}
 		</div>
+	);
+}
+
+/**
+ * A drawn arrow, pointing right. Drawn rather than typed because a text arrow
+ * comes from whichever font the phone falls back to, so the two buttons came
+ * out different sizes on some devices.
+ */
+function Arrow({ className }: { className?: string }) {
+	return (
+		<svg
+			aria-hidden="true"
+			viewBox="0 0 16 16"
+			className={cn("h-4 w-4", className)}
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.6"
+			strokeLinecap="round"
+			strokeLinejoin="round">
+			<path d="M2.5 8h11M9 3.5 13.5 8 9 12.5" />
+		</svg>
 	);
 }
 
