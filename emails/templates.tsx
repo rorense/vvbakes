@@ -30,6 +30,15 @@ const statusUrl = (ctx: EmailContext) => `${ctx.siteUrl}/order/${ctx.order.token
 const feedbackUrl = (ctx: EmailContext) => `${statusUrl(ctx)}/feedback`;
 
 /**
+ * The line under every customer email, where the shop has a contact address to
+ * give. Without one the layout's own "Reply to this email" line stands.
+ */
+const questionsNote = (settings: EmailContext["settings"]) =>
+	settings.contactEmail
+		? `Questions? Reply to this email or write to ${settings.contactEmail}.`
+		: undefined;
+
+/**
  * The page that offers to stop these, which is not the same address as the one
  * in the `List-Unsubscribe` header.
  *
@@ -39,12 +48,6 @@ const feedbackUrl = (ctx: EmailContext) => `${statusUrl(ctx)}/feedback`;
  * touched it. The header's address is a POST-only route, which no scanner
  * calls. See lib/unsubscribe.ts.
  */
-/** The line under a customer email, where the shop has a contact address to give. */
-const questionsNote = (settings: EmailContext["settings"]) =>
-	settings.contactEmail
-		? `Questions? Reply to this email or write to ${settings.contactEmail}.`
-		: undefined;
-
 const unsubscribeUrl = (ctx: EmailContext) => `${ctx.siteUrl}/unsubscribe/${ctx.order.token}`;
 
 /**
@@ -285,7 +288,8 @@ function OrderReadyEmail(ctx: EmailContext) {
 				order.fulfilment === "delivery"
 					? "Your order is ready to go"
 					: "Your order is ready to collect"
-			}>
+			}
+			footerNote={questionsNote(settings)}>
 			<Paragraph>
 				Hi {firstName(order.customerName)}, {order.reference} is boxed up and waiting.
 			</Paragraph>
@@ -314,7 +318,8 @@ function OrderCancelledEmail(ctx: EmailContext) {
 		<EmailLayout
 			siteUrl={ctx.siteUrl}
 			preview={`Order ${order.reference} has been cancelled`}
-			heading="Your order has been cancelled">
+			heading="Your order has been cancelled"
+			footerNote={questionsNote(settings)}>
 			<Paragraph>
 				Hi {firstName(order.customerName)}, we&rsquo;ve cancelled {order.reference}, which was
 				booked for {formatDateLong(order.pickupDate)}.
