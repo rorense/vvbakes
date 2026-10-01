@@ -79,7 +79,6 @@ const nextConfig: NextConfig = {
 					},
 				]
 			: [],
-		formats: ["image/webp"],
 		/**
 		 * How long an optimised copy is kept before Next goes back to storage for
 		 * the original. A year, rather than the four hours it defaults to.
@@ -170,7 +169,7 @@ const nextConfig: NextConfig = {
 					// Nothing here asks for a camera, a microphone or a location.
 					{
 						key: "Permissions-Policy",
-						value: "camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()",
+						value: "camera=(), microphone=(), geolocation=(), payment=()",
 					},
 				],
 			},

@@ -4,8 +4,9 @@ import type { Database } from "./database.types";
 import { hasSupabaseConfig, supabaseAnonKey, supabaseUrl } from "./env";
 
 /**
- * Refreshes the Supabase session cookie on every request and turns unauthenticated
- * visitors away from /admin.
+ * Refreshes the Supabase session cookie and turns unauthenticated visitors away
+ * from /admin. proxy.ts only runs it on /admin paths; the `isAdminRoute` check
+ * below is what stops a wider matcher sending every visitor to the login page.
  *
  * This is a convenience, not the security boundary. The real gate is
  * `requireAdmin()` inside the admin layout, plus row level security on every
