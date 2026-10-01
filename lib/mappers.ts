@@ -229,10 +229,7 @@ function toProductVariant(row: VariantColumns): ProductVariant {
 		allergens: toAllergens(row.allergens),
 		isAvailable: row.is_available,
 		sortOrder: row.sort_order,
-		// Defaulted for the minutes between the app deploying and the migration
-		// being applied, when the column is not there and the row comes back
-		// without it. Null is also what almost every combination holds.
-		minPerOrder: row.min_per_order ?? null,
+		minPerOrder: row.min_per_order,
 		optionIds: (row.product_variant_options ?? []).map((link) => link.option_id),
 	};
 }
@@ -298,11 +295,7 @@ export function toProduct(
 		unitLabel: row.unit_label,
 		qtyStep: row.qty_step,
 		minPerOrder: row.min_per_order,
-		// `?? null` rather than taken at face value, for the reason the switches
-		// below are defaulted: for the few minutes between the deploy and the
-		// migration the row comes back without this column, and `undefined` would
-		// walk into `priceForQty` as a rate rather than as "there isn't one".
-		extraUnitPriceCents: row.extra_unit_price_cents ?? null,
+		extraUnitPriceCents: row.extra_unit_price_cents,
 		tiers: (row.product_price_tiers ?? []).map(toPriceTier).sort((a, b) => a.qty - b.qty),
 		// Sorted here because `sort_order` does not survive the mapping. The order
 		// she put these in is the order they read in: sizes counting up, add-ons last.
@@ -316,34 +309,22 @@ export function toProduct(
 		extras: (row.product_extras ?? []).map(toExtra).sort(bySortOrder),
 		imagePath: row.image_path,
 		imageAlt: row.image_alt,
-		// `?? []` for the reason the switches below are defaulted: between the
-		// deploy and its migration the column is not there, and an undefined here
-		// would reach `.length` on the product page as a crash rather than as the
-		// empty strip every product has today.
-		galleryImagePaths: row.gallery_image_paths ?? [],
+		galleryImagePaths: row.gallery_image_paths,
 		isAvailable: row.is_available,
 		isFeatured: row.is_featured,
 		availabilityNote: row.availability_note,
 		allergens: toAllergens(row.allergens),
 		sortOrder: row.sort_order,
-		// Defaulted rather than taken at face value. The app is deployed before
-		// the migration is applied, so for a little while these columns are not
-		// there and the row comes back without them; `undefined` is falsy and
-		// would behave, but `false` is what the type promises.
-		priceOnRequest: row.price_on_request ?? false,
-		wantsBrief: row.wants_brief ?? false,
-		wantsCustomFlavour: row.wants_custom_flavour ?? false,
-		mixVariants: row.mix_variants ?? false,
-		// True rather than false when the column is missing, which is the one of
-		// these that inverts: the note has been asked for on every product since
-		// the shop opened, and the minutes between the deploy and the migration
-		// must not be the thing that stops asking for it.
-		wantsNote: row.wants_note ?? true,
-		noteHint: row.note_hint ?? null,
-		notePlaceholder: row.note_placeholder ?? null,
-		inspirationHint: row.inspiration_hint ?? null,
-		briefNoun: row.brief_noun ?? null,
-		priceGuideNote: row.price_guide_note ?? null,
+		priceOnRequest: row.price_on_request,
+		wantsBrief: row.wants_brief,
+		wantsCustomFlavour: row.wants_custom_flavour,
+		mixVariants: row.mix_variants,
+		wantsNote: row.wants_note,
+		noteHint: row.note_hint,
+		notePlaceholder: row.note_placeholder,
+		inspirationHint: row.inspiration_hint,
+		briefNoun: row.brief_noun,
+		priceGuideNote: row.price_guide_note,
 	};
 }
 
@@ -428,18 +409,16 @@ function toOrderItem(row: OrderItemColumns): OrderItem {
 		// Snapshotted with a sort order of their own so the line reads in the order
 		// the owner arranged the list in, rather than however the rows came back.
 		extras: (row.order_item_extras ?? []).map(toOrderItemExtra).sort(bySortOrder),
-		note: row.note ?? null,
-		inspirationUrl: row.inspiration_url ?? null,
-		inspirationImagePaths: row.inspiration_image_paths ?? [],
-		customFlavour: row.custom_flavour ?? null,
+		note: row.note,
+		inspirationUrl: row.inspiration_url,
+		inspirationImagePaths: row.inspiration_image_paths,
+		customFlavour: row.custom_flavour,
 		// Null whenever the box was ticked, because the two are one answer to one
 		// question and the column has a constraint saying so. `frostingLabel` is
 		// what turns the pair back into a sentence.
-		frosting: row.frosting ?? null,
-		frostingMatchesFlavour: row.frosting_matches_flavour ?? false,
-		// See `toProduct`: absent until the migration lands, and absent forever
-		// on the lines of orders placed before it.
-		priceOnRequest: row.price_on_request ?? false,
+		frosting: row.frosting,
+		frostingMatchesFlavour: row.frosting_matches_flavour,
+		priceOnRequest: row.price_on_request,
 	};
 }
 
@@ -483,11 +462,7 @@ export function toOrder(row: OrderRow & { order_items?: OrderItemColumns[] | nul
 		readyAt: row.ready_at,
 		collectedAt: row.collected_at,
 		cancelledAt: row.cancelled_at,
-		// Read with the same tolerance as `wants_note`: the app is deployed
-		// before the migration is applied, and for those few minutes the row
-		// comes back without the column. Undefined has to read as "not asked",
-		// or the cron would skip every order it cannot see a stamp on.
-		feedbackRequestedAt: row.feedback_requested_at ?? null,
+		feedbackRequestedAt: row.feedback_requested_at,
 		items: (row.order_items ?? [])
 			.map(toOrderItem)
 			// Flavours of one product sit together, in name order, rather than
