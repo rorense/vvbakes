@@ -20,7 +20,6 @@
  * order_events row against a real order id, and this order does not exist.
  */
 import { render } from "@react-email/render";
-import { readFile } from "node:fs/promises";
 import { Resend } from "resend";
 import { SUBJECTS, TEMPLATES, type EmailContext, type TemplateName } from "../emails/templates";
 import { unsubscribeHeaders } from "../lib/unsubscribe";
@@ -32,18 +31,9 @@ if (!to || !to.includes("@")) {
 	process.exit(1);
 }
 
-// tsx does not read .env.local on its own.
-for (const line of (await readFile(".env.local", "utf8")).split("\n")) {
-	const trimmed = line.trim();
-	if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
-	const at = trimmed.indexOf("=");
-	const key = trimmed.slice(0, at).trim();
-	if (process.env[key]) continue;
-	process.env[key] = trimmed
-		.slice(at + 1)
-		.trim()
-		.replace(/^["']|["']$/g, "");
-}
+// tsx does not read .env.local on its own. Node's parser leaves a variable
+// that is already set alone.
+process.loadEnvFile(".env.local");
 
 const apiKey = process.env.RESEND_API_KEY;
 const from = process.env.EMAIL_FROM;

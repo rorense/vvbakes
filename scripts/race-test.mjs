@@ -13,25 +13,19 @@
  * and is refused. This fires both at the same instant and asserts exactly one
  * succeeds.
  */
-import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
 
-async function loadEnv() {
+// Node's own .env parser. Like the one it replaced, it leaves a variable
+// that is already set alone.
+function loadEnv() {
 	try {
-		const raw = await readFile(".env.local", "utf8");
-		for (const line of raw.split("\n")) {
-			const match = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)\s*$/);
-			if (!match) continue;
-			const [, key, rawValue] = match;
-			if (process.env[key]) continue;
-			process.env[key] = rawValue.replace(/^["']|["']$/g, "");
-		}
+		process.loadEnvFile(".env.local");
 	} catch {
 		// Fall back to whatever is already in the environment.
 	}
 }
 
-await loadEnv();
+loadEnv();
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;

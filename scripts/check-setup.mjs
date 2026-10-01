@@ -10,7 +10,6 @@
  *
  * It never prints a key. Only whether one is present and whether it works.
  */
-import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
 import { FUNCTIONS, TABLES } from "./expected-schema.mjs";
 
@@ -40,16 +39,11 @@ function report(ok, label, detail) {
 
 // --- environment ------------------------------------------------------------
 
-async function loadEnv() {
+// Node's own .env parser. Like the one it replaced, it leaves a variable
+// that is already set alone.
+function loadEnv() {
 	try {
-		const raw = await readFile(".env.local", "utf8");
-		for (const line of raw.split("\n")) {
-			const match = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
-			if (!match) continue;
-			const [, key, rawValue] = match;
-			if (process.env[key]) continue;
-			process.env[key] = rawValue.replace(/^["']|["']$/g, "");
-		}
+		process.loadEnvFile(".env.local");
 		return true;
 	} catch {
 		return false;
@@ -58,7 +52,7 @@ async function loadEnv() {
 
 console.log("\nChecking your Supabase setup\n");
 
-const hasEnvFile = await loadEnv();
+const hasEnvFile = loadEnv();
 report(hasEnvFile, ".env.local exists", "Copy .env.example to .env.local and fill it in.");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

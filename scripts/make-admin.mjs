@@ -14,7 +14,6 @@
  *
  * Pass --remove to take access away again.
  */
-import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
 
 const paint = (code, text) => `[${code}m${text}[0m`;
@@ -22,22 +21,17 @@ const pass = (t) => paint(32, t);
 const fail = (t) => paint(31, t);
 const dim = (t) => paint(90, t);
 
-async function loadEnv() {
+// Node's own .env parser. Like the one it replaced, it leaves a variable
+// that is already set alone.
+function loadEnv() {
 	try {
-		const raw = await readFile(".env.local", "utf8");
-		for (const line of raw.split("\n")) {
-			const match = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
-			if (!match) continue;
-			const [, key, rawValue] = match;
-			if (process.env[key]) continue;
-			process.env[key] = rawValue.replace(/^["']|["']$/g, "");
-		}
+		process.loadEnvFile(".env.local");
 	} catch {
 		// Fall back to the ambient environment.
 	}
 }
 
-await loadEnv();
+loadEnv();
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
