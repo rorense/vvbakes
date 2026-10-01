@@ -449,7 +449,7 @@ export function catalogueItemListJsonLd(entries: ReadonlyArray<{ slug: string; n
  * which is the failure mode of every auto-generated category page.
  */
 export function categoryDescription(category: CategoryWithProducts): string {
-	const sellable = category.products.filter((product) => product.isAvailable);
+	const sellable = category.products.filter(isOrderable);
 	const shown = (sellable.length > 0 ? sellable : category.products).slice(0, 3);
 	const names = shown.map((product) => product.name);
 
