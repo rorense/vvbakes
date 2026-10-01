@@ -1,6 +1,5 @@
-import type { Metadata } from "next";
 import { getSettings } from "@/lib/queries";
-import { NotFoundBody } from "@/components/site/NotFoundBody";
+import { NOT_FOUND_METADATA, NotFoundBody } from "@/components/site/NotFoundBody";
 
 /**
  * What a page in this group shows when it calls `notFound()`: a bad order
@@ -17,11 +16,7 @@ import { NotFoundBody } from "@/components/site/NotFoundBody";
  * decided it had nothing to show, and every page that can reach it is
  * `force-dynamic`.
  */
-export const metadata: Metadata = {
-	title: "Page not found",
-	description:
-		"That page has moved or never existed. The menu, the order form and the baking dates are all one click away.",
-};
+export const metadata = NOT_FOUND_METADATA;
 
 export default async function SiteNotFound() {
 	const settings = await getSettings();

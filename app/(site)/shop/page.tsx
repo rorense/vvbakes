@@ -6,10 +6,10 @@ import { getCatalogue, getSettings } from "@/lib/queries";
 import { SITE_CITY, catalogueItemListJsonLd } from "@/lib/seo";
 import { ACCENT_BG } from "@/lib/types";
 import { JsonLd } from "@/components/site/JsonLd";
-import { ButtonLink } from "@/components/ui/Button";
 import { Container, Section } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { ProductCard } from "@/components/site/ProductCard";
+import { OrderPrompt } from "@/components/site/OrderPrompt";
 
 // Same window as the home page, and for the reason written there.
 export const revalidate = 3600;
@@ -147,23 +147,7 @@ export default async function ShopPage() {
 				</section>
 			))}
 
-			<Section
-				tone="paper"
-				size="tight">
-				<Container
-					width="narrow"
-					className="flex flex-col items-center gap-4 text-center">
-					<p className="font-display text-2xl">Ready when you are</p>
-					<p className="text-cocoa-soft text-sm">
-						Put an order together and pick a day. I&rsquo;ll confirm by email.
-					</p>
-					<ButtonLink
-						href="/order"
-						size="lg">
-						Start an order
-					</ButtonLink>
-				</Container>
-			</Section>
+			<OrderPrompt tone="paper" />
 
 			{/* The menu in the order a visitor scrolls it, flattened across the
 			    category bands: positions run 1..n over the whole page rather than

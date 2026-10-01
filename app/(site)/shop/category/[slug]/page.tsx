@@ -7,12 +7,12 @@ import { getCatalogue, getCategoryBySlug, getCategorySlugs, getSettings } from "
 import { SITE_CITY, categoryJsonLd, categoryDescription } from "@/lib/seo";
 import { ACCENT_BG } from "@/lib/types";
 import { cn } from "@/lib/cn";
-import { ButtonLink } from "@/components/ui/Button";
 import { Container, Section } from "@/components/ui/Container";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { BreadcrumbJsonLd, type Crumb } from "@/components/site/BreadcrumbJsonLd";
 import { JsonLd } from "@/components/site/JsonLd";
 import { ProductCard } from "@/components/site/ProductCard";
+import { OrderPrompt } from "@/components/site/OrderPrompt";
 
 // Same window as the rest of the public site, and for the reason written on
 // the home page.
@@ -187,23 +187,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 				</Section>
 			) : null}
 
-			<Section
-				tone="blush"
-				size="tight">
-				<Container
-					width="narrow"
-					className="flex flex-col items-center gap-4 text-center">
-					<p className="font-display text-2xl">Ready when you are</p>
-					<p className="text-cocoa-soft text-sm">
-						Put an order together and pick a day. I&rsquo;ll confirm by email.
-					</p>
-					<ButtonLink
-						href="/order"
-						size="lg">
-						Start an order
-					</ButtonLink>
-				</Container>
-			</Section>
+			<OrderPrompt tone="blush" />
 
 			<BreadcrumbJsonLd crumbs={crumbs} />
 			{/* A CollectionPage wrapping an ItemList of what is actually on it. The

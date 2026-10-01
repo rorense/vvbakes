@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { instagramUrl } from "@/lib/constants";
 import type { SiteSettings } from "@/lib/types";
@@ -5,6 +6,13 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Container, Section } from "@/components/ui/Container";
 import { HairlineList, HairlineRow } from "@/components/ui/HairlineList";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+
+/** What both not-found boundaries put in the head. */
+export const NOT_FOUND_METADATA: Metadata = {
+	title: "Page not found",
+	description:
+		"That page has moved or never existed. The menu, the order form and the baking dates are all one click away.",
+};
 
 /**
  * The 404 itself, with no site chrome around it.

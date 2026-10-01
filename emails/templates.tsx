@@ -39,6 +39,12 @@ const feedbackUrl = (ctx: EmailContext) => `${statusUrl(ctx)}/feedback`;
  * touched it. The header's address is a POST-only route, which no scanner
  * calls. See lib/unsubscribe.ts.
  */
+/** The line under a customer email, where the shop has a contact address to give. */
+const questionsNote = (settings: EmailContext["settings"]) =>
+	settings.contactEmail
+		? `Questions? Reply to this email or write to ${settings.contactEmail}.`
+		: undefined;
+
 const unsubscribeUrl = (ctx: EmailContext) => `${ctx.siteUrl}/unsubscribe/${ctx.order.token}`;
 
 /**
@@ -138,11 +144,7 @@ function OrderReceivedEmail(ctx: EmailContext) {
 			siteUrl={ctx.siteUrl}
 			preview={`We've got your order request ${order.reference}`}
 			heading="Thanks, I've got your order request"
-			footerNote={
-				settings.contactEmail
-					? `Questions? Reply to this email or write to ${settings.contactEmail}.`
-					: undefined
-			}>
+			footerNote={questionsNote(settings)}>
 			<Paragraph>
 				Hi {firstName(order.customerName)}, thank you. This is a request rather than a confirmation.
 				I&rsquo;ll check the day and come back to you shortly.
@@ -205,11 +207,7 @@ function OrderConfirmedEmail(ctx: EmailContext) {
 			siteUrl={ctx.siteUrl}
 			preview={`Order ${order.reference} is confirmed`}
 			heading="Your order is confirmed"
-			footerNote={
-				settings.contactEmail
-					? `Questions? Reply to this email or write to ${settings.contactEmail}.`
-					: undefined
-			}>
+			footerNote={questionsNote(settings)}>
 			<Paragraph>
 				Hi {firstName(order.customerName)}, you&rsquo;re all booked in for{" "}
 				{formatDateLong(order.pickupDate)}.
@@ -348,11 +346,7 @@ function FeedbackRequestEmail(ctx: EmailContext) {
 			siteUrl={ctx.siteUrl}
 			preview={`A quick word about ${order.reference}`}
 			heading="How was it?"
-			footerNote={
-				settings.contactEmail
-					? `Questions? Reply to this email or write to ${settings.contactEmail}.`
-					: undefined
-			}
+			footerNote={questionsNote(settings)}
 			unsubscribeUrl={unsubscribeUrl(ctx)}>
 			<Paragraph>
 				Hi {firstName(order.customerName)}, thank you for your order on{" "}

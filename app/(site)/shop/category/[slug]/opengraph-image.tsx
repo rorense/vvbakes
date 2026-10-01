@@ -11,7 +11,7 @@ import { SITE_CITY } from "@/lib/seo";
  * layout's outright, image included. Until this file existed that left every
  * category link unfurling with no picture at all.
  */
-export const alt = "Bakes from vvbakes in Auckland";
+export const alt = `Bakes from vvbakes in ${SITE_CITY}`;
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 

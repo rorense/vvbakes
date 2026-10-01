@@ -143,6 +143,12 @@ function clamp(text: string, limit = 100): string {
 	return `${kept.replace(/[,.;:]$/, "")}…`;
 }
 
+/** The site's own card: the home page, and the fallback anywhere else. */
+export const SITE_CARD = {
+	title: "Tell me what you’re celebrating. I’ll bake it.",
+	body: "Small-batch cupcakes, cookies and Indonesian-inspired cakes, baked to order.",
+} as const;
+
 export interface ShareCard {
 	/** Small tracked label above the headline. Left out when there is nothing useful to say. */
 	eyebrow?: string | null;

@@ -213,6 +213,19 @@ export function formatDateLongWithTime(date: IsoDate, time: string | null | unde
 	return clock ? `${formatDateLong(date)}, around ${clock}` : formatDateLong(date);
 }
 
+/**
+ * When something happened, in the shop's timezone: "1 Oct 2026", or
+ * "1 Oct 2026, 4:30 pm" with the time. For the admin's record of events,
+ * feedback and opt-outs, where the moment is a timestamp rather than a day.
+ */
+export function formatStamp(iso: string, timeZone: string, withTime = false): string {
+	return new Date(iso).toLocaleString("en-NZ", {
+		timeZone,
+		dateStyle: "medium",
+		...(withTime ? { timeStyle: "short" } : {}),
+	});
+}
+
 /** "September 2026", the admin calendar's heading. */
 export function formatMonth(date: IsoDate): string {
 	const d = toUtcDate(date);

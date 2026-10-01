@@ -10,6 +10,7 @@
  * Under-declaring an allergen is the failure that hurts someone. Everything
  * here is shaped around making that the hard mistake to make.
  */
+import { andList } from "./names";
 import {
 	ALLERGENS,
 	ALLERGEN_LABELS,
@@ -51,7 +52,5 @@ export function allergensFor(
 
 /** "tree nuts", "tree nuts and soy", "tree nuts, soy and sesame". */
 export function allergenSentence(allergens: readonly Allergen[]): string {
-	const names = allergens.map((allergen) => ALLERGEN_LABELS[allergen].toLowerCase());
-	if (names.length < 2) return names.join("");
-	return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+	return andList(allergens.map((allergen) => ALLERGEN_LABELS[allergen].toLowerCase()));
 }

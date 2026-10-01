@@ -14,6 +14,7 @@
  */
 
 import { SITE_NAME, instagramUrl, siteUrl } from "./constants";
+import { andList } from "./names";
 import { availableVariants, formatPrice, hasVariants, isOrderable, priceRange } from "./pricing";
 import type {
 	Category,
@@ -453,8 +454,7 @@ export function categoryDescription(category: CategoryWithProducts): string {
 	const shown = (sellable.length > 0 ? sellable : category.products).slice(0, 3);
 	const names = shown.map((product) => product.name);
 
-	const list =
-		names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+	const list = andList(names);
 
 	const opener = list
 		? `${category.name} baked to order in ${SITE_CITY}: ${list}`

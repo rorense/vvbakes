@@ -1,5 +1,5 @@
 import { productImageUrl } from "@/lib/images";
-import { OG_CONTENT_TYPE, OG_SIZE, shareCard } from "@/lib/og";
+import { OG_CONTENT_TYPE, OG_SIZE, SITE_CARD, shareCard } from "@/lib/og";
 import { priceRule } from "@/lib/pricing";
 import { getCategories, getProductBySlug } from "@/lib/queries";
 
@@ -25,10 +25,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
 	// The page itself is already answering 404; there is no need for the image to
 	// fail as well.
 	if (!product) {
-		return shareCard({
-			title: "Tell me what you’re celebrating. I’ll bake it.",
-			body: "Small-batch cupcakes, cookies and Indonesian-inspired cakes, baked to order.",
-		});
+		return shareCard(SITE_CARD);
 	}
 
 	const categories = await getCategories();

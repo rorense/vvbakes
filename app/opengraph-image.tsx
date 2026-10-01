@@ -1,5 +1,5 @@
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
-import { OG_CONTENT_TYPE, OG_SIZE, shareCard } from "@/lib/og";
+import { OG_CONTENT_TYPE, OG_SIZE, SITE_CARD, shareCard } from "@/lib/og";
 
 /**
  * The card every page falls back to, and the one the home page uses.
@@ -12,8 +12,5 @@ export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
 export default function Image() {
-	return shareCard({
-		title: "Tell me what you’re celebrating. I’ll bake it.",
-		body: "Small-batch cupcakes, cookies and Indonesian-inspired cakes, baked to order.",
-	});
+	return shareCard(SITE_CARD);
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/cn";
+import { formatStamp } from "@/lib/dates";
 import type { FeedbackOptOut } from "@/lib/types";
 import { useToastedTransition } from "@/components/ui/Toast";
 
@@ -64,10 +65,7 @@ function Row({
 	const chip =
 		"rounded-pill border px-2.5 py-1 text-2xs font-medium transition-colors disabled:opacity-50";
 
-	const when = new Date(optOut.createdAt).toLocaleString("en-NZ", {
-		timeZone: timezone,
-		dateStyle: "medium",
-	});
+	const when = formatStamp(optOut.createdAt, timezone);
 
 	return (
 		<li

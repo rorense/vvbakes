@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
-import { formatDateShort } from "@/lib/dates";
+import { formatDateShort, formatStamp } from "@/lib/dates";
 import type { FeedbackWithOrder } from "@/lib/types";
 import { useToastedTransition } from "@/components/ui/Toast";
 
@@ -48,10 +48,7 @@ export function FeedbackRow({
 	const chip =
 		"rounded-pill border px-2.5 py-1 text-2xs font-medium transition-colors disabled:opacity-50";
 
-	const received = new Date(feedback.createdAt).toLocaleString("en-NZ", {
-		timeZone: timezone,
-		dateStyle: "medium",
-	});
+	const received = formatStamp(feedback.createdAt, timezone);
 
 	return (
 		<li

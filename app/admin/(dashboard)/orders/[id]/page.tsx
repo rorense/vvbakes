@@ -12,7 +12,7 @@ import {
 import { dayStanding, type ResolvedDay } from "@/lib/availability";
 import { hasCustomFlavour } from "@/lib/brief";
 import { cn } from "@/lib/cn";
-import { formatDateLong } from "@/lib/dates";
+import { formatDateLong, formatStamp } from "@/lib/dates";
 import { allowedTransitions, STATUS_TONES } from "@/lib/order-status";
 import { siteUrl } from "@/lib/constants";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/types";
@@ -180,11 +180,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 								className="flex items-baseline justify-between gap-4 py-3">
 								<span className="text-sm">{describeEvent(event.type, event.data)}</span>
 								<span className="text-cocoa-soft shrink-0 text-xs">
-									{new Date(event.createdAt).toLocaleString("en-NZ", {
-										timeZone: settings.timezone,
-										dateStyle: "medium",
-										timeStyle: "short",
-									})}
+									{formatStamp(event.createdAt, settings.timezone, true)}
 								</span>
 							</li>
 						))}

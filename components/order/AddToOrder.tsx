@@ -165,6 +165,11 @@ export function AddToOrder({ product }: { product: Product }) {
 	// line, so the extras belong in it. They are priced per unit, which is why
 	// the quantity is passed rather than added on once.
 	const extrasCents = extrasTotalCents(chosen, units);
+	// Each extra as the breakdown under the total names it, with its line price.
+	const extraParts = chosen.map(
+		({ extra, qty: count }) =>
+			`${extraLabel(extra.name, count)} ${formatMoney(extra.priceCents * count * units)}`,
+	);
 
 	// The picker starts at the whole product's minimum, because that is what most
 	// people are buying and landing on it saves them the presses. It does not
@@ -486,21 +491,13 @@ export function AddToOrder({ product }: { product: Product }) {
 			{mixing && !picked ? null : (
 				<p className="text-cocoa-soft text-xs">
 					{mixing
-						? chosen
-								.map(
-									({ extra, qty: count }) =>
-										`${extraLabel(extra.name, count)} ${formatMoney(extra.priceCents * count * units)}`,
-								)
-								.join(" + ")
+						? extraParts.join(" + ")
 						: menu
 							? // The extras are named in the breakdown rather than folded into
 								// the menu note, which explains the menu price and nothing else.
 								[
 									menu.onRequest ? "I'll come back to you with a price" : menu.note,
-									...chosen.map(
-										({ extra, qty: count }) =>
-											`${extraLabel(extra.name, count)} ${formatMoney(extra.priceCents * count * units)}`,
-									),
+									...extraParts,
 								].join(" + ")
 							: "That combination isn't one I make at the moment."}
 				</p>

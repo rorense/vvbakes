@@ -1,7 +1,6 @@
-import type { Metadata } from "next";
 import { getSettings, isDemoMode } from "@/lib/queries";
 import { DemoBanner } from "@/components/site/DemoBanner";
-import { NotFoundBody } from "@/components/site/NotFoundBody";
+import { NOT_FOUND_METADATA, NotFoundBody } from "@/components/site/NotFoundBody";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SkipLink } from "@/components/ui/SkipLink";
@@ -33,11 +32,7 @@ import { SkipLink } from "@/components/ui/SkipLink";
  */
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-	title: "Page not found",
-	description:
-		"That page has moved or never existed. The menu, the order form and the baking dates are all one click away.",
-};
+export const metadata = NOT_FOUND_METADATA;
 
 export default async function NotFound() {
 	const settings = await getSettings();
