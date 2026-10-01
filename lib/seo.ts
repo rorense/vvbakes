@@ -15,7 +15,7 @@
 
 import { SITE_NAME, instagramUrl, siteUrl } from "./constants";
 import { andList } from "./names";
-import { availableVariants, formatPrice, hasVariants, isOrderable, priceRange } from "./pricing";
+import { availableVariants, hasVariants, isOrderable, priceRange, priceSpan } from "./pricing";
 import type {
 	Category,
 	CategoryWithProducts,
@@ -386,7 +386,7 @@ export function cataloguePriceRange(products: readonly Product[]): string | null
 
 	const low = Math.min(...prices);
 	const high = Math.max(...prices);
-	return low === high ? formatPrice(low) : `${formatPrice(low)} - ${formatPrice(high)}`;
+	return priceSpan(low, high);
 }
 
 /**

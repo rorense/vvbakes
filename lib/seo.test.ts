@@ -423,7 +423,7 @@ describe("cataloguePriceRange", () => {
 				product({ unitPriceCents: 300 }),
 				product({ unitPriceCents: 5500, variants: [variant({ unitPriceCents: 5500 })] }),
 			]),
-		).toBe("$3 - $55");
+		).toBe("$3 – $55");
 	});
 
 	it("reads as one price when everything costs the same", () => {
@@ -454,7 +454,7 @@ describe("bakeryJsonLd", () => {
 		bakeryJsonLd({
 			settings: settings({ contactEmail: "hi@example.test" }),
 			ordersOpen: true,
-			priceRangeText: "$3 - $55",
+			priceRangeText: "$3 – $55",
 		});
 
 	it("is a Bakery with a stable id the product pages can point at", () => {

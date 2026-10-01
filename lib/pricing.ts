@@ -832,8 +832,8 @@ function unitPriceBounds(product: Product): { low: number; high: number } {
 	return { low: Math.min(...prices), high: Math.max(...prices) };
 }
 
-/** "$35", or "$34 – $40" where the two ends differ. */
-function priceSpan(low: number, high: number): string {
+/** "$35", or "$34 – $40" where the two ends differ. The one way the shop writes a range. */
+export function priceSpan(low: number, high: number): string {
 	return low === high ? formatPrice(low) : `${formatPrice(low)} – ${formatPrice(high)}`;
 }
 
