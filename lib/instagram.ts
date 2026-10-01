@@ -77,6 +77,16 @@ const PICTURE_EXTENSIONS: Record<PictureType, string> = {
 	"image/webp": "webp",
 };
 
+/**
+ * Posts left out of the grid, by Instagram media id.
+ *
+ * The API does not say which posts are pinned, so a pinned notice that is not a
+ * bake has to be named here. 18118798465941420 is the website launch and how to
+ * order post, pinned 2026-09-28. Dropping an id from the feed also prunes its
+ * row and picture on the next run.
+ */
+const HIDDEN_POSTS = new Set(["18118798465941420"]);
+
 type AdminClient = ReturnType<typeof createAdminClient>;
 
 /** One media item as the API returns it. Only the fields we ask for. */
@@ -227,7 +237,7 @@ export async function syncInstagram(): Promise<InstagramSyncResult> {
 	}
 
 	const knownPaths = new Map((existing ?? []).map((row) => [row.id, row.image_path]));
-	const wanted = media.slice(0, INSTAGRAM_FEED_LIMIT);
+	const wanted = media.filter((item) => !HIDDEN_POSTS.has(item.id)).slice(0, INSTAGRAM_FEED_LIMIT);
 	let stored = 0;
 	let downloaded = 0;
 
