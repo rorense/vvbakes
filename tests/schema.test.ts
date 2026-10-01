@@ -3400,3 +3400,184 @@ describe("more photos than one", () => {
 		expect(message).toMatch(/gallery_image_paths/);
 	});
 });
+
+/**
+ * The owner changing what is on an order, through `edit_order_items`.
+ *
+ * Last in the file because it opens every day wide: the orders here would
+ * otherwise be competing for capacity with everything placed above.
+ */
+describe("changing the lines on an order", () => {
+	let ownerId: string;
+
+	beforeAll(async () => {
+		ownerId = await createOwner(db, "lines-owner@example.com");
+		await openEveryDay(100);
+	});
+
+	type Line = { id: string; product_name: string; qty: number; line_total_cents: number };
+
+	async function linesOf(orderId: string) {
+		const result = await db.query<Line>(
+			`select id, product_name, qty, line_total_cents from order_items
+			 where order_id = $1 order by product_name, line_total_cents desc`,
+			[orderId],
+		);
+		return result.rows;
+	}
+
+	async function totalOf(orderId: string) {
+		const result = await db.query<{ subtotal_cents: number; total_cents: number }>(
+			"select subtotal_cents, total_cents from orders where id = $1",
+			[orderId],
+		);
+		return result.rows[0]!;
+	}
+
+	const edit = (orderId: string, items: unknown[], as: string | null = ownerId) =>
+		db.as("authenticated", as, () =>
+			errorOf(() => db.query("select edit_order_items($1, $2)", [orderId, JSON.stringify(items)])),
+		);
+
+	async function anOrder() {
+		return placeOrder({
+			items: [
+				{ product_id: await productId("cupcakes"), qty: 2 },
+				{ product_id: await productId("cookies"), qty: 1 },
+			],
+			pickupDate: await dateIn(14),
+		});
+	}
+
+	it("reprices the line she changed and leaves the others at what they were ordered at", async () => {
+		const order = await anOrder();
+		const cookies = await productId("cookies");
+		// The menu moves on after the order is placed. The cookie line is not
+		// being changed, so it must go on saying $5.
+		await db.query("update products set unit_price_cents = 900 where id = $1", [cookies]);
+
+		const [cupcakes] = await linesOf(order.id).then((lines) =>
+			lines.filter((line) => line.product_name === "Cupcakes"),
+		);
+		expect(await edit(order.id, [{ id: cupcakes!.id, qty: 4 }])).toBeNull();
+
+		expect(await linesOf(order.id)).toMatchObject([
+			{ product_name: "Cookies", qty: 1, line_total_cents: 500 },
+			{ product_name: "Cupcakes", qty: 4, line_total_cents: 1200 },
+		]);
+		expect(await totalOf(order.id)).toEqual({ subtotal_cents: 1700, total_cents: 1700 });
+
+		const events = await db.query<{ data: Record<string, unknown> }>(
+			"select data from order_events where order_id = $1 and type = 'details_edited'",
+			[order.id],
+		);
+		expect(events.rows[0]!.data).toEqual({
+			items: [{ name: "Cupcakes", from: 2, to: 4 }],
+			total_cents: { from: 1100, to: 1700 },
+		});
+
+		await db.query("update products set unit_price_cents = 500 where id = $1", [cookies]);
+	});
+
+	it("adds a product off the menu and takes one away", async () => {
+		const order = await anOrder();
+		const cookieLine = (await linesOf(order.id)).find((line) => line.product_name === "Cookies")!;
+
+		expect(
+			await edit(order.id, [
+				{ id: cookieLine.id, qty: 0 },
+				{ product_id: await productId("brochi"), qty: 2 },
+			]),
+		).toBeNull();
+
+		expect(await linesOf(order.id)).toMatchObject([
+			{ product_name: "Brochi", qty: 2, line_total_cents: 1000 },
+			{ product_name: "Cupcakes", qty: 2, line_total_cents: 600 },
+		]);
+		expect(await totalOf(order.id)).toEqual({ subtotal_cents: 1600, total_cents: 1600 });
+	});
+
+	it("moves the allowance across every line of a product priced past a minimum", async () => {
+		// Two lines of minis, split by what was typed about them, one box each:
+		// both inside the two-box allowance at $17.50.
+		const minis = await productId("cupcakes-mini-sized");
+		const order = await placeOrder({
+			items: [
+				{ product_id: minis, qty: 1, note: "Pink" },
+				{ product_id: minis, qty: 1, note: "Blue" },
+			],
+			pickupDate: await dateIn(14),
+		});
+		const [first] = await linesOf(order.id);
+
+		expect(await edit(order.id, [{ id: first!.id, qty: 2 }])).toBeNull();
+
+		// Three boxes is $50 however they fall. The line she did not touch is the
+		// one standing past the allowance now, so it drops to $15.
+		const lines = await linesOf(order.id);
+		expect(lines.map((line) => line.line_total_cents)).toEqual([3500, 1500]);
+		expect(await totalOf(order.id)).toEqual({ subtotal_cents: 5000, total_cents: 5000 });
+	});
+
+	it("writes nothing when nothing changed", async () => {
+		const order = await anOrder();
+		const lines = await linesOf(order.id);
+
+		expect(
+			await edit(
+				order.id,
+				lines.map((line) => ({ id: line.id, qty: line.qty })),
+			),
+		).toBeNull();
+
+		const events = await db.query(
+			"select 1 from order_events where order_id = $1 and type = 'details_edited'",
+			[order.id],
+		);
+		expect(events.rows).toHaveLength(0);
+	});
+
+	it("refuses to leave an order with nothing on it, and changes nothing trying", async () => {
+		const order = await anOrder();
+		const lines = await linesOf(order.id);
+
+		expect(
+			await edit(
+				order.id,
+				lines.map((line) => ({ id: line.id, qty: 0 })),
+			),
+		).toContain("EMPTY_ORDER");
+		expect(await linesOf(order.id)).toEqual(lines);
+	});
+
+	it("refuses a quantity off the product's step, and a custom cake with no brief", async () => {
+		const order = await anOrder();
+		const cupcakes = await productId("cupcakes");
+		await db.query("update products set qty_step = 2 where id = $1", [cupcakes]);
+
+		expect(await edit(order.id, [{ product_id: cupcakes, qty: 3 }])).toContain("QTY_INVALID");
+		expect(
+			await edit(order.id, [{ product_id: await productId("custom-cake"), qty: 1 }]),
+		).toContain("PRICE_ON_REQUEST");
+
+		await db.query("update products set qty_step = 1 where id = $1", [cupcakes]);
+	});
+
+	it("refuses a signed-in stranger and an anonymous visitor", async () => {
+		const order = await anOrder();
+		const [line] = await linesOf(order.id);
+		const stranger = await db.query<{ id: string }>(
+			"insert into auth.users (email) values ('lines-stranger@example.com') returning id",
+		);
+
+		expect(await edit(order.id, [{ id: line!.id, qty: 9 }], stranger.rows[0]!.id)).toContain(
+			"NOT_ADMIN",
+		);
+		expect(
+			await db.as("anon", null, () =>
+				errorOf(() => db.query("select edit_order_items($1, '[]'::jsonb)", [order.id])),
+			),
+		).toMatch(/permission denied/i);
+		expect((await linesOf(order.id))[0]!.qty).toBe(line!.qty);
+	});
+});

@@ -6,6 +6,7 @@ import {
 	adminOrderEvents,
 	adminOrderReference,
 	adminOverrides,
+	adminProducts,
 	adminRules,
 	adminSettings,
 } from "@/lib/admin-queries";
@@ -14,11 +15,13 @@ import { hasCustomFlavour } from "@/lib/brief";
 import { cn } from "@/lib/cn";
 import { formatDateLong, formatStamp } from "@/lib/dates";
 import { allowedTransitions, STATUS_TONES } from "@/lib/order-status";
+import { formatMoney } from "@/lib/pricing";
 import { siteUrl } from "@/lib/constants";
-import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/types";
+import { ORDER_STATUS_LABELS, type OrderStatus, type Product } from "@/lib/types";
 import { AdminCard, AdminHeader } from "@/components/admin/AdminShell";
 import { OrderActions } from "@/components/admin/OrderActions";
 import { OrderDetails } from "@/components/admin/OrderDetails";
+import { OrderItemsEditor, type MenuChoice } from "@/components/admin/OrderItemsEditor";
 import { Inspiration } from "@/components/order/Inspiration";
 import { OrderLines } from "@/components/order/OrderLines";
 
@@ -45,10 +48,11 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 	// customer. It exists so that doing it by accident, or leaving an order on a
 	// date she has since blocked, is something she finds out on the order rather
 	// than on the morning.
-	const [rules, overrides, counts] = await Promise.all([
+	const [rules, overrides, counts, products] = await Promise.all([
 		adminRules(),
 		adminOverrides(order.pickupDate, order.pickupDate),
 		adminOrderCounts(order.pickupDate, order.pickupDate),
+		adminProducts(),
 	]);
 
 	// Three different problems, one conclusion: do not assume this customer has
@@ -119,15 +123,25 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 							Nothing off the menu. This is the cake above.
 						</p>
 					) : null}
-					<OrderLines
-						order={order}
-						unpricedLabel="Not priced yet"
-						unpricedNote="That is the menu side only. Set a price for the custom work above and this becomes the total."
-						// Bigger tiles: this is the copy she actually prices the cake
-						// from, so the photos are the work rather than a reminder of it.
-						tile="lg"
-						showQuote
-					/>
+					<OrderItemsEditor
+						orderId={order.id}
+						lines={order.items.map((item) => ({
+							id: item.id,
+							label: lineLabel(item.productName, item.variantName),
+							qty: item.qty,
+						}))}
+						menu={menuChoices(products)}
+						editable={order.status !== "cancelled"}>
+						<OrderLines
+							order={order}
+							unpricedLabel="Not priced yet"
+							unpricedNote="That is the menu side only. Set a price for the custom work above and this becomes the total."
+							// Bigger tiles: this is the copy she actually prices the cake
+							// from, so the photos are the work rather than a reminder of it.
+							tile="lg"
+							showQuote
+						/>
+					</OrderItemsEditor>
 				</AdminCard>
 
 				<OrderDetails
@@ -189,6 +203,33 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 			</div>
 		</>
 	);
+}
+
+/** "Cupcakes (Chocolate)", the way `edit_order_items` names a line in the trail. */
+function lineLabel(productName: string, variantName: string | null): string {
+	return variantName ? `${productName} (${variantName})` : productName;
+}
+
+/**
+ * Everything on the menu that can be added to an order, one entry per flavour.
+ *
+ * Switched-off products and flavours are offered too, and say so: she may well
+ * bake something for one customer that she has taken off the shop. Custom cakes
+ * are not, because a line is only worth adding with the brief that goes with it.
+ */
+function menuChoices(products: Product[]): MenuChoice[] {
+	return products
+		.filter((product) => !product.priceOnRequest)
+		.flatMap((product) =>
+			(product.variants.length > 0 ? product.variants : [null]).map((variant) => ({
+				label:
+					lineLabel(product.name, variant?.name ?? null) +
+					(product.isAvailable && (variant?.isAvailable ?? true) ? "" : " (not on the shop)"),
+				productId: product.id,
+				variantId: variant?.id ?? null,
+				step: product.qtyStep,
+			})),
+		);
 }
 
 /**
@@ -286,6 +327,24 @@ function describeEvent(type: string, data: Record<string, unknown>): string {
 		// and carries both halves; anything unrecognised in there is still printed
 		// under its column name rather than dropped.
 		case "details_edited": {
+			// The lines changing, which carries its own shape: each line with the
+			// quantity before and after, 0 meaning added or taken off.
+			if (Array.isArray(data.items)) {
+				const lines = (data.items as Array<{ name?: unknown; from?: unknown; to?: unknown }>).map(
+					({ name, from, to }) =>
+						from === 0
+							? `added ${String(to)} × ${String(name)}`
+							: to === 0
+								? `took off ${String(name)}`
+								: `${String(name)}, ${String(from)} to ${String(to)}`,
+				);
+				const total = data.total_cents as { from?: unknown; to?: unknown } | undefined;
+				return `Changed the items: ${lines.join("; ")}${
+					total
+						? `. Total ${formatMoney(Number(total.from))} to ${formatMoney(Number(total.to))}`
+						: ""
+				}`;
+			}
 			const changes = (data.changes ?? {}) as Record<string, unknown>;
 			const described = Object.entries(changes).map(([column, change]) =>
 				describeChange(column, change),

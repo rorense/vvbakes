@@ -85,6 +85,9 @@ export const FUNCTIONS = [
 			p_ip_hash: null,
 		},
 	],
+	// Refused before it reads anything: the probe is not the owner, and an order
+	// id of zeros names no order even if it were.
+	["edit_order_items", { p_order_id: "00000000-0000-0000-0000-000000000000", p_items: [] }],
 	["reorder_products", { p_ids: [] }],
 	["reorder_categories", { p_ids: [] }],
 	["sweep_rate_limits", {}],

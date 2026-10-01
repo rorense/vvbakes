@@ -11,7 +11,7 @@ import { deliveryFeeFor } from "@/lib/pricing";
 import { getSettings } from "@/lib/queries";
 import { allowedTransitions } from "@/lib/order-status";
 import { createClient } from "@/lib/supabase/server";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database, Json } from "@/lib/supabase/database.types";
 import type { FormState } from "@/lib/action-state";
 import { actionError, actionOk, type OrderStatus } from "@/lib/types";
 import { fieldErrorsOf, orderDetailsSchema, quoteSchema } from "@/lib/validation";
@@ -167,7 +167,8 @@ type Change = { from: string | number | null; to: string | number | null };
  *   something they just said. "Send the latest email again", already on this
  *   page, is how they are told when they need to be.
  * - **Touch the lines or the money.** Quantities and prices are the order's
- *   history and re-pricing them is a different job; the one exception is the
+ *   history and re-pricing them is a different job, `saveOrderItems` below;
+ *   the one exception is the
  *   delivery fee, which is not a price anyone chose but a consequence of
  *   pickup-or-delivery, so it moves when that does.
  */
@@ -271,6 +272,56 @@ export async function saveOrderDetails(_previous: State, formData: FormData): Pr
 
 	revalidatePath("/admin/orders");
 	revalidatePath(`/admin/orders/${order.id}`);
+	revalidatePath("/admin");
+	return { result: actionOk() };
+}
+
+/**
+ * What `edit_order_items` raises, said to her. Matched with `includes` in this
+ * order, the way `orderErrorMessage` matches `place_order`'s.
+ */
+const ITEM_ERRORS: Record<string, string> = {
+	QTY_INVALID:
+		"One of those quantities can't be sold. Check it is a whole number the product comes in.",
+	EMPTY_ORDER: "That would leave nothing on the order. If it is off, cancel it instead.",
+	PRICE_ON_REQUEST: "A custom cake needs its brief and photos, so it can't be added here.",
+	VARIANT_REQUIRED: "Pick a flavour for the line you're adding.",
+	VARIANT_NOT_FOUND: "That flavour is no longer on the menu.",
+	PRODUCT_NOT_FOUND:
+		"One of those products is no longer on the menu, so it can't be priced. Its line can still be taken off.",
+	LINE_NOT_FOUND: "This order changed somewhere else. Reload the page and try again.",
+};
+
+/**
+ * Changes what is on an order: a quantity, a line taken off, a line added.
+ *
+ * Everything that matters happens in `edit_order_items`, in one transaction:
+ * which lines are priced again, the extras following their line, the total and
+ * the trail. This only hands it the changes and says what went wrong. Like the
+ * details correction, it emails nobody.
+ */
+export async function saveOrderItems(_previous: State, formData: FormData): Promise<State> {
+	await requireAdmin();
+
+	const id = String(formData.get("id") ?? "");
+	let items: Json;
+	try {
+		items = JSON.parse(String(formData.get("items") ?? "[]")) as Json;
+	} catch {
+		return { result: actionError("That couldn't be saved. Please try again.") };
+	}
+
+	const supabase = await createClient();
+	const { error } = await supabase.rpc("edit_order_items", { p_order_id: id, p_items: items });
+
+	if (error) {
+		const known = Object.entries(ITEM_ERRORS).find(([code]) => error.message.includes(code));
+		if (!known) console.error("[vvbakes] could not change order items", error);
+		return { result: actionError(known?.[1] ?? "That couldn't be saved. Please try again.") };
+	}
+
+	revalidatePath("/admin/orders");
+	revalidatePath(`/admin/orders/${id}`);
 	revalidatePath("/admin");
 	return { result: actionOk() };
 }

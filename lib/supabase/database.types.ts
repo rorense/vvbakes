@@ -691,6 +691,10 @@ export type Database = {
 				Args: Record<string, never>;
 				Returns: Array<{ product_id: string; rating_count: number; rating_average: string }>;
 			};
+			edit_order_items: {
+				Args: { p_order_id: string; p_items: Json };
+				Returns: undefined;
+			};
 			reorder_products: {
 				Args: { p_ids: string[] };
 				Returns: undefined;
