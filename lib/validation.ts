@@ -180,6 +180,19 @@ const orderItemSchema = z.object({
 	qty: z.number().int().min(1).max(200),
 });
 
+/**
+ * The order's own columns' lengths, shared by the checkout and the owner's
+ * correction form so the two cannot drift: a name the checkout takes and the
+ * correction refuses would be one she could not retype after fixing the date.
+ */
+const ORDER_MAX = { name: 80, email: 120, phone: 30, address: 300, notes: 1000 } as const;
+
+const customerEmail = z
+	.string()
+	.trim()
+	.max(ORDER_MAX.email)
+	.pipe(z.email("That email address doesn't look right"));
+
 export const orderInputSchema = z
 	.object({
 		// At least one: the custom cake is a product now, so there is no longer
@@ -192,15 +205,11 @@ export const orderInputSchema = z
 		// on and nothing here refuses an order over it.
 		pickupTime: clockTime,
 		fulfilment: z.enum(["pickup", "delivery"]),
-		customerName: z.string().trim().min(2, "Please tell us your name").max(80),
-		customerEmail: z
-			.string()
-			.trim()
-			.max(120)
-			.pipe(z.email("That email address doesn't look right")),
-		customerPhone: z.string().trim().min(6, "Please add a phone number").max(30),
-		deliveryAddress: z.string().trim().max(300).optional(),
-		notes: z.string().trim().max(1000).optional(),
+		customerName: z.string().trim().min(2, "Please tell us your name").max(ORDER_MAX.name),
+		customerEmail,
+		customerPhone: z.string().trim().min(6, "Please add a phone number").max(ORDER_MAX.phone),
+		deliveryAddress: z.string().trim().max(ORDER_MAX.address).optional(),
+		notes: z.string().trim().max(ORDER_MAX.notes).optional(),
 	})
 	.refine(
 		(value) => value.fulfilment !== "delivery" || (value.deliveryAddress ?? "").trim().length > 0,
@@ -217,9 +226,8 @@ export const orderInputSchema = z
  * with the messages written for the person doing the correcting rather than for
  * the customer who made the mistake.
  *
- * The lengths are `orderInputSchema`'s on purpose and have to stay its: they are
- * the columns' lengths, and a name the checkout takes and this refuses would be
- * a name she could not retype after fixing the date beside it.
+ * The lengths are `orderInputSchema`'s, through `ORDER_MAX`, so they cannot
+ * drift apart.
  *
  * What it deliberately does not check is lead time, the booking window or the
  * day's capacity. Those exist to stop a customer booking a day that cannot be
@@ -234,13 +242,13 @@ export const orderDetailsSchema = z
 		pickupDate: isoDate,
 		pickupTime: clockTime,
 		fulfilment: z.enum(["pickup", "delivery"]),
-		customerName: z.string().trim().min(2, "An order needs a name on it").max(80),
-		customerEmail: z
+		customerName: z.string().trim().min(2, "An order needs a name on it").max(ORDER_MAX.name),
+		customerEmail,
+		customerPhone: z
 			.string()
 			.trim()
-			.max(120)
-			.pipe(z.email("That email address doesn't look right")),
-		customerPhone: z.string().trim().min(6, "An order needs a phone number on it").max(30),
+			.min(6, "An order needs a phone number on it")
+			.max(ORDER_MAX.phone),
 		// Blank clears the field rather than storing an empty string, so an order
 		// moved back to pickup leaves no address trailing behind it. Written out
 		// rather than taken from `optionalText`, whose `catch` would turn an
@@ -248,12 +256,12 @@ export const orderDetailsSchema = z
 		deliveryAddress: z
 			.string()
 			.trim()
-			.max(300, "That address is longer than the box holds")
+			.max(ORDER_MAX.address, "That address is longer than the box holds")
 			.transform((value) => (value === "" ? null : value)),
 		notes: z
 			.string()
 			.trim()
-			.max(1000, "That is longer than the box holds")
+			.max(ORDER_MAX.notes, "That is longer than the box holds")
 			.transform((value) => (value === "" ? null : value)),
 	})
 	.refine((value) => value.fulfilment !== "delivery" || value.deliveryAddress !== null, {
