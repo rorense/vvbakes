@@ -14,14 +14,15 @@ import { dayStanding, type ResolvedDay } from "@/lib/availability";
 import { hasCustomFlavour } from "@/lib/brief";
 import { cn } from "@/lib/cn";
 import { formatDateLong, formatStamp } from "@/lib/dates";
+import { lineLabel, menuChoices } from "@/lib/menu-choices";
 import { allowedTransitions, STATUS_TONES } from "@/lib/order-status";
 import { formatMoney } from "@/lib/pricing";
 import { siteUrl } from "@/lib/constants";
-import { ORDER_STATUS_LABELS, type OrderStatus, type Product } from "@/lib/types";
+import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/types";
 import { AdminCard, AdminHeader } from "@/components/admin/AdminShell";
 import { OrderActions } from "@/components/admin/OrderActions";
 import { OrderDetails } from "@/components/admin/OrderDetails";
-import { OrderItemsEditor, type MenuChoice } from "@/components/admin/OrderItemsEditor";
+import { OrderItemsEditor } from "@/components/admin/OrderItemsEditor";
 import { Inspiration } from "@/components/order/Inspiration";
 import { OrderLines } from "@/components/order/OrderLines";
 
@@ -205,33 +206,6 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 	);
 }
 
-/** "Cupcakes (Chocolate)", the way `edit_order_items` names a line in the trail. */
-function lineLabel(productName: string, variantName: string | null): string {
-	return variantName ? `${productName} (${variantName})` : productName;
-}
-
-/**
- * Everything on the menu that can be added to an order, one entry per flavour.
- *
- * Switched-off products and flavours are offered too, and say so: she may well
- * bake something for one customer that she has taken off the shop. Custom cakes
- * are not, because a line is only worth adding with the brief that goes with it.
- */
-function menuChoices(products: Product[]): MenuChoice[] {
-	return products
-		.filter((product) => !product.priceOnRequest)
-		.flatMap((product) =>
-			(product.variants.length > 0 ? product.variants : [null]).map((variant) => ({
-				label:
-					lineLabel(product.name, variant?.name ?? null) +
-					(product.isAvailable && (variant?.isAvailable ?? true) ? "" : " (not on the shop)"),
-				productId: product.id,
-				variantId: variant?.id ?? null,
-				step: product.qtyStep,
-			})),
-		);
-}
-
 /**
  * What is wrong with the day this order sits on, in one sentence, or null.
  *
@@ -318,7 +292,7 @@ function shorten(value: unknown): string {
 function describeEvent(type: string, data: Record<string, unknown>): string {
 	switch (type) {
 		case "created":
-			return "Order placed";
+			return data.by === "owner" ? "Order put in by you" : "Order placed";
 		case "status_changed":
 			return `Moved from ${String(data.from)} to ${String(data.to)}${
 				data.reason ? `: ${String(data.reason)}` : ""

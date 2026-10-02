@@ -6,6 +6,7 @@ import { STATUS_TONES } from "@/lib/order-status";
 import { formatMoney } from "@/lib/pricing";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/types";
 import { AdminHeader, EmptyState } from "@/components/admin/AdminShell";
+import { ButtonLink } from "@/components/ui/Button";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Orders" };
@@ -92,6 +93,7 @@ export default async function AdminOrdersPage({
 							? `${orders.length} ${orders.length === 1 ? "order" : "orders"} shown`
 							: `Orders ${firstShown}–${lastShown}`
 				}
+				action={<ButtonLink href="/admin/orders/new">New order</ButtonLink>}
 			/>
 
 			<div className="mb-6 flex flex-col gap-4">

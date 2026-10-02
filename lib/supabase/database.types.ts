@@ -695,6 +695,20 @@ export type Database = {
 				Args: { p_order_id: string; p_items: Json };
 				Returns: undefined;
 			};
+			admin_create_order: {
+				Args: {
+					p_items: Json;
+					p_pickup_date: string;
+					p_pickup_time: string | null;
+					p_fulfilment: FulfilmentEnum;
+					p_customer_name: string;
+					p_customer_email: string;
+					p_customer_phone: string;
+					p_delivery_address: string | null;
+					p_notes: string | null;
+				};
+				Returns: string;
+			};
 			reorder_products: {
 				Args: { p_ids: string[] };
 				Returns: undefined;

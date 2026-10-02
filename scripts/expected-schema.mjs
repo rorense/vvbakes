@@ -88,6 +88,21 @@ export const FUNCTIONS = [
 	// Refused before it reads anything: the probe is not the owner, and an order
 	// id of zeros names no order even if it were.
 	["edit_order_items", { p_order_id: "00000000-0000-0000-0000-000000000000", p_items: [] }],
+	// Refused before it writes anything: the probe is not the owner.
+	[
+		"admin_create_order",
+		{
+			p_items: [],
+			p_pickup_date: "2020-01-01",
+			p_pickup_time: null,
+			p_fulfilment: "pickup",
+			p_customer_name: "check",
+			p_customer_email: "check@example.com",
+			p_customer_phone: "0",
+			p_delivery_address: null,
+			p_notes: null,
+		},
+	],
 	["reorder_products", { p_ids: [] }],
 	["reorder_categories", { p_ids: [] }],
 	["sweep_rate_limits", {}],

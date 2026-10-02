@@ -74,7 +74,8 @@ export function OrderItemsEditor({
 	);
 }
 
-type Added = MenuChoice & { key: number; qty: string };
+/** A line being added, with its quantity as typed. */
+export type Added = MenuChoice & { key: number; qty: string };
 
 function ItemsForm({
 	orderId,
@@ -89,14 +90,12 @@ function ItemsForm({
 }) {
 	const [state, action, pending] = useActionState(saveOrderItems, EMPTY_FORM_STATE);
 	const error = errorFrom(state);
-	const listId = useId();
 
 	// Quantities as typed, so a box can be emptied on the way to a new number.
 	const [qtys, setQtys] = useState<Record<string, string>>(() =>
 		Object.fromEntries(lines.map((line) => [line.id, String(line.qty)])),
 	);
 	const [added, setAdded] = useState<Added[]>([]);
-	const [search, setSearch] = useState("");
 
 	useToastOnResult(state, "The order is updated.");
 
@@ -108,29 +107,13 @@ function ItemsForm({
 		if (state.result?.ok) onDone();
 	}
 
-	// Picking from the list fills the box with the choice's exact label, which
-	// is what adds it. Typing a label out in full does the same.
-	function onSearch(value: string) {
-		const choice = menu.find((item) => item.label === value);
-		if (!choice) {
-			setSearch(value);
-			return;
-		}
-		setAdded((current) => [...current, { ...choice, key: Date.now(), qty: String(choice.step) }]);
-		setSearch("");
-	}
-
 	// Only what changed. Unchanged lines are left out, so the trail records
 	// exactly what she did and nothing she merely looked at.
 	const items = [
 		...lines
 			.filter((line) => qtys[line.id] !== String(line.qty))
 			.map((line) => ({ id: line.id, qty: Number(qtys[line.id] || 0) })),
-		...added.map((item) => ({
-			product_id: item.productId,
-			variant_id: item.variantId,
-			qty: Number(item.qty || 0),
-		})),
+		...addedItems(added),
 	];
 
 	return (
@@ -183,60 +166,16 @@ function ItemsForm({
 						</HairlineRow>
 					);
 				})}
-				{added.map((item) => (
-					<HairlineRow
-						key={item.key}
-						align="center">
-						<span className="text-sm">
-							{item.label} <span className="text-cocoa-soft text-xs">(new)</span>
-						</span>
-						<span className="flex shrink-0 items-center gap-3">
-							<QtyBox
-								label={`How many ${item.label}`}
-								value={item.qty}
-								step={item.step}
-								onChange={(value) =>
-									setAdded((current) =>
-										current.map((other) =>
-											other.key === item.key ? { ...other, qty: value } : other,
-										),
-									)
-								}
-							/>
-							<RowButton
-								onClick={() =>
-									setAdded((current) => current.filter((other) => other.key !== item.key))
-								}>
-								Remove
-							</RowButton>
-						</span>
-					</HairlineRow>
-				))}
+				<AddedRows
+					added={added}
+					onChange={setAdded}
+				/>
 			</HairlineList>
 
-			<div>
-				<label
-					htmlFor={`${listId}-search`}
-					className="mb-2 block text-sm font-medium">
-					Add something
-				</label>
-				<Input
-					id={`${listId}-search`}
-					list={listId}
-					value={search}
-					onChange={(event) => onSearch(event.target.value)}
-					placeholder="Search the menu"
-					autoComplete="off"
-				/>
-				<datalist id={listId}>
-					{menu.map((item) => (
-						<option
-							key={item.label}
-							value={item.label}
-						/>
-					))}
-				</datalist>
-			</div>
+			<MenuSearch
+				menu={menu}
+				onChange={setAdded}
+			/>
 
 			<div className="flex flex-wrap items-center gap-3">
 				<Button
@@ -249,6 +188,108 @@ function ItemsForm({
 
 			{error ? <FormError>{error}</FormError> : null}
 		</form>
+	);
+}
+
+/** What `edit_order_items` and `admin_create_order` are sent for the lines being added. */
+export function addedItems(added: Added[]) {
+	return added.map((item) => ({
+		product_id: item.productId,
+		variant_id: item.variantId,
+		qty: Number(item.qty || 0),
+	}));
+}
+
+/** The lines being added, as rows of the list they sit in. */
+export function AddedRows({
+	added,
+	onChange: setAdded,
+}: {
+	added: Added[];
+	onChange: React.Dispatch<React.SetStateAction<Added[]>>;
+}) {
+	return (
+		<>
+			{added.map((item) => (
+				<HairlineRow
+					key={item.key}
+					align="center">
+					<span className="text-sm">
+						{item.label} <span className="text-cocoa-soft text-xs">(new)</span>
+					</span>
+					<span className="flex shrink-0 items-center gap-3">
+						<QtyBox
+							label={`How many ${item.label}`}
+							value={item.qty}
+							step={item.step}
+							onChange={(value) =>
+								setAdded((current) =>
+									current.map((other) =>
+										other.key === item.key ? { ...other, qty: value } : other,
+									),
+								)
+							}
+						/>
+						<RowButton
+							onClick={() =>
+								setAdded((current) => current.filter((other) => other.key !== item.key))
+							}>
+							Remove
+						</RowButton>
+					</span>
+				</HairlineRow>
+			))}
+		</>
+	);
+}
+
+/** The menu search that adds a line. */
+export function MenuSearch({
+	menu,
+	onChange,
+}: {
+	menu: MenuChoice[];
+	onChange: React.Dispatch<React.SetStateAction<Added[]>>;
+}) {
+	const listId = useId();
+	const [search, setSearch] = useState("");
+
+	// Picking from the list fills the box with the choice's exact label, which
+	// is what adds it. Typing a label out in full does the same.
+	function onSearch(value: string) {
+		const choice = menu.find((item) => item.label === value);
+		if (!choice) {
+			setSearch(value);
+			return;
+		}
+		onChange((current) => [...current, { ...choice, key: Date.now(), qty: String(choice.step) }]);
+		setSearch("");
+	}
+
+	return (
+		<div>
+			<label
+				htmlFor={`${listId}-search`}
+				className="mb-2 block text-sm font-medium">
+				Add something
+			</label>
+			<Input
+				id={`${listId}-search`}
+				list={listId}
+				value={search}
+				onChange={(event) => onSearch(event.target.value)}
+				placeholder="Search the menu"
+				autoComplete="off"
+			/>
+			<datalist id={listId}>
+				{menu.map((item) => (
+					<option
+						key={item.label}
+						value={item.label}
+					/>
+				))}
+			</datalist>
+		</div>
 	);
 }
 

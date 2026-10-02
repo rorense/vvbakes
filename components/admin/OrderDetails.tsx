@@ -168,7 +168,6 @@ function DetailsForm({
 	const [state, action, pending] = useActionState(saveOrderDetails, EMPTY_FORM_STATE);
 	const errors = fieldErrorsFrom(state);
 	const error = errorFrom(state);
-	const [fulfilment, setFulfilment] = useState<Fulfilment>(values.fulfilment);
 
 	useToastOnResult(state, "Those details are saved.");
 
@@ -197,157 +196,11 @@ function DetailsForm({
 				the latest email again from the card above.
 			</p>
 
-			<div className="grid gap-5 sm:grid-cols-2">
-				<Field
-					label={fulfilment === "delivery" ? "Delivery date" : "Pickup date"}
-					required
-					error={errors.pickupDate}>
-					{(props) => (
-						<Input
-							{...props}
-							name="pickupDate"
-							type="date"
-							defaultValue={values.pickupDate}
-							invalid={Boolean(errors.pickupDate)}
-						/>
-					)}
-				</Field>
-
-				<Field
-					label={fulfilment === "delivery" ? "Delivery time" : "Pickup time"}
-					hint="Blank means they did not say."
-					error={errors.pickupTime}>
-					{(props) => (
-						<Input
-							{...props}
-							name="pickupTime"
-							type="time"
-							// The column carries seconds; a time input will not take them.
-							defaultValue={values.pickupTime?.slice(0, 5) ?? ""}
-						/>
-					)}
-				</Field>
-
-				<Field
-					label="Name"
-					required
-					error={errors.customerName}
-					className="sm:col-span-2">
-					{(props) => (
-						<Input
-							{...props}
-							name="customerName"
-							defaultValue={values.customerName}
-							invalid={Boolean(errors.customerName)}
-						/>
-					)}
-				</Field>
-
-				<Field
-					label="Email"
-					required
-					hint="Where every email about this order goes."
-					error={errors.customerEmail}>
-					{(props) => (
-						<Input
-							{...props}
-							name="customerEmail"
-							type="email"
-							inputMode="email"
-							defaultValue={values.customerEmail}
-							invalid={Boolean(errors.customerEmail)}
-						/>
-					)}
-				</Field>
-
-				<Field
-					label="Phone"
-					required
-					error={errors.customerPhone}>
-					{(props) => (
-						<Input
-							{...props}
-							name="customerPhone"
-							type="tel"
-							inputMode="tel"
-							defaultValue={values.customerPhone}
-							invalid={Boolean(errors.customerPhone)}
-						/>
-					)}
-				</Field>
-
-				{/* Offered when the shop offers delivery, and also when this order is
-				    already one: an order taken as a delivery before she switched it
-				    off must not lose the only control that could switch it back. */}
-				{deliveryEnabled || values.fulfilment === "delivery" ? (
-					<Field
-						label="Pickup or delivery"
-						required
-						className="sm:col-span-2">
-						{(props) => (
-							<Select
-								{...props}
-								name="fulfilment"
-								value={fulfilment}
-								onChange={(event) => setFulfilment(event.target.value as Fulfilment)}
-								className="sm:max-w-xs">
-								<option value="pickup">Pick up</option>
-								<option value="delivery">Delivery</option>
-							</Select>
-						)}
-					</Field>
-				) : (
-					<input
-						type="hidden"
-						name="fulfilment"
-						value={fulfilment}
-					/>
-				)}
-
-				{fulfilment === "delivery" ? (
-					<Field
-						label="Delivery address"
-						required
-						error={errors.deliveryAddress}
-						className="sm:col-span-2">
-						{(props) => (
-							<Textarea
-								{...props}
-								name="deliveryAddress"
-								rows={3}
-								defaultValue={values.deliveryAddress ?? ""}
-								placeholder="Street, suburb, city"
-								invalid={Boolean(errors.deliveryAddress)}
-							/>
-						)}
-					</Field>
-				) : (
-					// Cleared rather than left out. A field the form does not submit
-					// reads as an empty string at the other end anyway, and saying so
-					// here is what makes "moved back to pickup" leave no address behind.
-					<input
-						type="hidden"
-						name="deliveryAddress"
-						value=""
-					/>
-				)}
-
-				<Field
-					label="Allergies and notes"
-					hint="What the customer told you. Your own private notes have a card of their own."
-					error={errors.notes}
-					className="sm:col-span-2">
-					{(props) => (
-						<Textarea
-							{...props}
-							name="notes"
-							rows={3}
-							defaultValue={values.notes ?? ""}
-							invalid={Boolean(errors.notes)}
-						/>
-					)}
-				</Field>
-			</div>
+			<DetailsFields
+				values={values}
+				errors={errors}
+				deliveryEnabled={deliveryEnabled}
+			/>
 
 			<div className="flex flex-wrap items-center gap-3">
 				<Button
@@ -365,5 +218,176 @@ function DetailsForm({
 
 			{error ? <FormError>{error}</FormError> : null}
 		</form>
+	);
+}
+
+/**
+ * The fields themselves, shared with the new order form. `fulfilment` is the
+ * one piece of state, because the address box only means anything under a
+ * delivery.
+ */
+export function DetailsFields({
+	values,
+	errors,
+	deliveryEnabled,
+}: {
+	values: OrderDetailsValues;
+	errors: Record<string, string>;
+	deliveryEnabled: boolean;
+}) {
+	const [fulfilment, setFulfilment] = useState<Fulfilment>(values.fulfilment);
+
+	return (
+		<div className="grid gap-5 sm:grid-cols-2">
+			<Field
+				label={fulfilment === "delivery" ? "Delivery date" : "Pickup date"}
+				required
+				error={errors.pickupDate}>
+				{(props) => (
+					<Input
+						{...props}
+						name="pickupDate"
+						type="date"
+						defaultValue={values.pickupDate}
+						invalid={Boolean(errors.pickupDate)}
+					/>
+				)}
+			</Field>
+
+			<Field
+				label={fulfilment === "delivery" ? "Delivery time" : "Pickup time"}
+				hint="Blank means they did not say."
+				error={errors.pickupTime}>
+				{(props) => (
+					<Input
+						{...props}
+						name="pickupTime"
+						type="time"
+						// The column carries seconds; a time input will not take them.
+						defaultValue={values.pickupTime?.slice(0, 5) ?? ""}
+					/>
+				)}
+			</Field>
+
+			<Field
+				label="Name"
+				required
+				error={errors.customerName}
+				className="sm:col-span-2">
+				{(props) => (
+					<Input
+						{...props}
+						name="customerName"
+						defaultValue={values.customerName}
+						invalid={Boolean(errors.customerName)}
+					/>
+				)}
+			</Field>
+
+			<Field
+				label="Email"
+				required
+				hint="Where every email about this order goes."
+				error={errors.customerEmail}>
+				{(props) => (
+					<Input
+						{...props}
+						name="customerEmail"
+						type="email"
+						inputMode="email"
+						defaultValue={values.customerEmail}
+						invalid={Boolean(errors.customerEmail)}
+					/>
+				)}
+			</Field>
+
+			<Field
+				label="Phone"
+				required
+				error={errors.customerPhone}>
+				{(props) => (
+					<Input
+						{...props}
+						name="customerPhone"
+						type="tel"
+						inputMode="tel"
+						defaultValue={values.customerPhone}
+						invalid={Boolean(errors.customerPhone)}
+					/>
+				)}
+			</Field>
+
+			{/* Offered when the shop offers delivery, and also when this order is
+				    already one: an order taken as a delivery before she switched it
+				    off must not lose the only control that could switch it back. */}
+			{deliveryEnabled || values.fulfilment === "delivery" ? (
+				<Field
+					label="Pickup or delivery"
+					required
+					className="sm:col-span-2">
+					{(props) => (
+						<Select
+							{...props}
+							name="fulfilment"
+							value={fulfilment}
+							onChange={(event) => setFulfilment(event.target.value as Fulfilment)}
+							className="sm:max-w-xs">
+							<option value="pickup">Pick up</option>
+							<option value="delivery">Delivery</option>
+						</Select>
+					)}
+				</Field>
+			) : (
+				<input
+					type="hidden"
+					name="fulfilment"
+					value={fulfilment}
+				/>
+			)}
+
+			{fulfilment === "delivery" ? (
+				<Field
+					label="Delivery address"
+					required
+					error={errors.deliveryAddress}
+					className="sm:col-span-2">
+					{(props) => (
+						<Textarea
+							{...props}
+							name="deliveryAddress"
+							rows={3}
+							defaultValue={values.deliveryAddress ?? ""}
+							placeholder="Street, suburb, city"
+							invalid={Boolean(errors.deliveryAddress)}
+						/>
+					)}
+				</Field>
+			) : (
+				// Cleared rather than left out. A field the form does not submit
+				// reads as an empty string at the other end anyway, and saying so
+				// here is what makes "moved back to pickup" leave no address behind.
+				<input
+					type="hidden"
+					name="deliveryAddress"
+					value=""
+				/>
+			)}
+
+			<Field
+				label="Allergies and notes"
+				hint="What the customer told you. Your own private notes have a card of their own."
+				error={errors.notes}
+				className="sm:col-span-2">
+				{(props) => (
+					<Textarea
+						{...props}
+						name="notes"
+						rows={3}
+						defaultValue={values.notes ?? ""}
+						invalid={Boolean(errors.notes)}
+					/>
+				)}
+			</Field>
+		</div>
 	);
 }

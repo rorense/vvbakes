@@ -236,38 +236,46 @@ export const orderInputSchema = z
  * on. The order page tells her when a date is shut or oversubscribed and leaves
  * the decision where it belongs.
  */
-export const orderDetailsSchema = z
-	.object({
-		id: z.string().uuid(),
-		pickupDate: isoDate,
-		pickupTime: clockTime,
-		fulfilment: z.enum(["pickup", "delivery"]),
-		customerName: z.string().trim().min(2, "An order needs a name on it").max(ORDER_MAX.name),
-		customerEmail,
-		customerPhone: z
-			.string()
-			.trim()
-			.min(6, "An order needs a phone number on it")
-			.max(ORDER_MAX.phone),
-		// Blank clears the field rather than storing an empty string, so an order
-		// moved back to pickup leaves no address trailing behind it. Written out
-		// rather than taken from `optionalText`, whose `catch` would turn an
-		// address one character too long into no address at all.
-		deliveryAddress: z
-			.string()
-			.trim()
-			.max(ORDER_MAX.address, "That address is longer than the box holds")
-			.transform((value) => (value === "" ? null : value)),
-		notes: z
-			.string()
-			.trim()
-			.max(ORDER_MAX.notes, "That is longer than the box holds")
-			.transform((value) => (value === "" ? null : value)),
-	})
-	.refine((value) => value.fulfilment !== "delivery" || value.deliveryAddress !== null, {
-		message: "A delivery needs an address",
-		path: ["deliveryAddress"],
-	});
+const orderDetailsFields = z.object({
+	pickupDate: isoDate,
+	pickupTime: clockTime,
+	fulfilment: z.enum(["pickup", "delivery"]),
+	customerName: z.string().trim().min(2, "An order needs a name on it").max(ORDER_MAX.name),
+	customerEmail,
+	customerPhone: z
+		.string()
+		.trim()
+		.min(6, "An order needs a phone number on it")
+		.max(ORDER_MAX.phone),
+	// Blank clears the field rather than storing an empty string, so an order
+	// moved back to pickup leaves no address trailing behind it. Written out
+	// rather than taken from `optionalText`, whose `catch` would turn an
+	// address one character too long into no address at all.
+	deliveryAddress: z
+		.string()
+		.trim()
+		.max(ORDER_MAX.address, "That address is longer than the box holds")
+		.transform((value) => (value === "" ? null : value)),
+	notes: z
+		.string()
+		.trim()
+		.max(ORDER_MAX.notes, "That is longer than the box holds")
+		.transform((value) => (value === "" ? null : value)),
+});
+
+const deliveryNeedsAddress = (value: { fulfilment: string; deliveryAddress: string | null }) =>
+	value.fulfilment !== "delivery" || value.deliveryAddress !== null;
+const NEEDS_ADDRESS = { message: "A delivery needs an address", path: ["deliveryAddress"] };
+
+export const orderDetailsSchema = orderDetailsFields
+	.extend({ id: z.string().uuid() })
+	.refine(deliveryNeedsAddress, NEEDS_ADDRESS);
+
+/**
+ * An order she puts in by hand: the same fields as a correction, with no order
+ * to correct yet. The lines travel separately and are checked by the database.
+ */
+export const newOrderSchema = orderDetailsFields.refine(deliveryNeedsAddress, NEEDS_ADDRESS);
 
 // --- feedback ---------------------------------------------------------------
 

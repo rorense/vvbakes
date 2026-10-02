@@ -3581,3 +3581,82 @@ describe("changing the lines on an order", () => {
 		expect((await linesOf(order.id))[0]!.qty).toBe(line!.qty);
 	});
 });
+
+/** The owner putting an order in by hand, through `admin_create_order`. */
+describe("an order put in by the owner", () => {
+	let ownerId: string;
+
+	beforeAll(async () => {
+		ownerId = await createOwner(db, "manual-owner@example.com");
+	});
+
+	const create = (items: unknown[], as: string | null = ownerId, pickupDate = "2024-01-07") =>
+		db.as("authenticated", as, async () => {
+			let id: string | null = null;
+			const error = await errorOf(async () => {
+				const result = await db.query<{ id: string }>(
+					"select admin_create_order($1, $2, null, 'pickup', 'Sam', ' Sam@Example.com', '021 555 0100', null, null) as id",
+					[JSON.stringify(items), pickupDate],
+				);
+				id = result.rows[0]!.id;
+			});
+			return { id: id as string | null, error };
+		});
+
+	it("prices the lines off the menu, on a day no customer could have booked", async () => {
+		// A Sunday two years ago, which place_order would refuse three ways over.
+		const { id, error } = await create([
+			{ product_id: await productId("cupcakes"), qty: 2 },
+			{ product_id: await productId("cookies"), qty: 1 },
+		]);
+		expect(error).toBeNull();
+
+		const order = await db.query<{ status: string; customer_email: string; total_cents: number }>(
+			"select status, customer_email, total_cents from orders where id = $1",
+			[id],
+		);
+		expect(order.rows[0]).toEqual({
+			status: "new",
+			customer_email: "sam@example.com",
+			total_cents: 1100,
+		});
+
+		const events = await db.query<{ type: string; data: Record<string, unknown> }>(
+			"select type, data from order_events where order_id = $1",
+			[id],
+		);
+		expect(events.rows).toEqual([
+			{ type: "created", data: expect.objectContaining({ by: "owner" }) },
+		]);
+	});
+
+	it("refuses an order with nothing on it, and leaves no order behind", async () => {
+		const before = await db.query<{ n: number }>("select count(*)::int as n from orders");
+		expect((await create([])).error).toContain("EMPTY_ORDER");
+		expect(
+			(await create([{ product_id: await productId("custom-cake"), qty: 1 }])).error,
+		).toContain("PRICE_ON_REQUEST");
+		const after = await db.query<{ n: number }>("select count(*)::int as n from orders");
+		expect(after.rows[0]!.n).toBe(before.rows[0]!.n);
+	});
+
+	it("refuses a signed-in stranger and an anonymous visitor", async () => {
+		const stranger = await db.query<{ id: string }>(
+			"insert into auth.users (email) values ('manual-stranger@example.com') returning id",
+		);
+		const cupcakes = await productId("cupcakes");
+
+		expect(
+			(await create([{ product_id: cupcakes, qty: 1 }], stranger.rows[0]!.id)).error,
+		).toContain("NOT_ADMIN");
+		expect(
+			await db.as("anon", null, () =>
+				errorOf(() =>
+					db.query(
+						"select admin_create_order('[]', '2024-01-07', null, 'pickup', 'a', 'a@b.co', '1', null, null)",
+					),
+				),
+			),
+		).toMatch(/permission denied/i);
+	});
+});

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { TemplateName } from "@/emails/templates";
 import { adminOrder } from "@/lib/admin-queries";
 import { ORDER_SELECT, toOrder } from "@/lib/mappers";
@@ -14,7 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import type { FormState } from "@/lib/action-state";
 import { actionError, actionOk, type OrderStatus } from "@/lib/types";
-import { fieldErrorsOf, orderDetailsSchema, quoteSchema } from "@/lib/validation";
+import { fieldErrorsOf, newOrderSchema, orderDetailsSchema, quoteSchema } from "@/lib/validation";
 
 type State = FormState;
 
@@ -177,14 +178,7 @@ export async function saveOrderDetails(_previous: State, formData: FormData): Pr
 
 	const parsed = orderDetailsSchema.safeParse({
 		id: formData.get("id") ?? "",
-		pickupDate: String(formData.get("pickupDate") ?? ""),
-		pickupTime: String(formData.get("pickupTime") ?? ""),
-		fulfilment: String(formData.get("fulfilment") ?? "pickup"),
-		customerName: String(formData.get("customerName") ?? ""),
-		customerEmail: String(formData.get("customerEmail") ?? ""),
-		customerPhone: String(formData.get("customerPhone") ?? ""),
-		deliveryAddress: String(formData.get("deliveryAddress") ?? ""),
-		notes: String(formData.get("notes") ?? ""),
+		...detailsFrom(formData),
 	});
 
 	if (!parsed.success) {
@@ -276,6 +270,20 @@ export async function saveOrderDetails(_previous: State, formData: FormData): Pr
 	return { result: actionOk() };
 }
 
+/** The customer fields the details form and the new order form both send. */
+function detailsFrom(formData: FormData) {
+	return {
+		pickupDate: String(formData.get("pickupDate") ?? ""),
+		pickupTime: String(formData.get("pickupTime") ?? ""),
+		fulfilment: String(formData.get("fulfilment") ?? "pickup"),
+		customerName: String(formData.get("customerName") ?? ""),
+		customerEmail: String(formData.get("customerEmail") ?? ""),
+		customerPhone: String(formData.get("customerPhone") ?? ""),
+		deliveryAddress: String(formData.get("deliveryAddress") ?? ""),
+		notes: String(formData.get("notes") ?? ""),
+	};
+}
+
 /**
  * What `edit_order_items` raises, said to her. Matched with `includes` in this
  * order, the way `orderErrorMessage` matches `place_order`'s.
@@ -291,6 +299,13 @@ const ITEM_ERRORS: Record<string, string> = {
 		"One of those products is no longer on the menu, so it can't be priced. Its line can still be taken off.",
 	LINE_NOT_FOUND: "This order changed somewhere else. Reload the page and try again.",
 };
+
+/** An `edit_order_items` or `admin_create_order` error, said to her. */
+function itemError(error: { message: string }, what: string): string {
+	const known = Object.entries(ITEM_ERRORS).find(([code]) => error.message.includes(code));
+	if (!known) console.error(`[vvbakes] could not ${what}`, error);
+	return known?.[1] ?? "That couldn't be saved. Please try again.";
+}
 
 /**
  * Changes what is on an order: a quantity, a line taken off, a line added.
@@ -314,16 +329,71 @@ export async function saveOrderItems(_previous: State, formData: FormData): Prom
 	const supabase = await createClient();
 	const { error } = await supabase.rpc("edit_order_items", { p_order_id: id, p_items: items });
 
-	if (error) {
-		const known = Object.entries(ITEM_ERRORS).find(([code]) => error.message.includes(code));
-		if (!known) console.error("[vvbakes] could not change order items", error);
-		return { result: actionError(known?.[1] ?? "That couldn't be saved. Please try again.") };
-	}
+	if (error) return { result: actionError(itemError(error, "change order items")) };
 
 	revalidatePath("/admin/orders");
 	revalidatePath(`/admin/orders/${id}`);
 	revalidatePath("/admin");
 	return { result: actionOk() };
+}
+
+/**
+ * Puts in an order she took somewhere other than the shop: by text, by message,
+ * across the counter.
+ *
+ * `admin_create_order` writes it and prices the lines the way "Change items"
+ * prices a line added to any order, in one transaction. Like the corrections,
+ * it checks no calendar and emails nobody; the order page's "Send the latest
+ * email again" is how the customer hears, if she wants them to.
+ */
+export async function createOrder(_previous: State, formData: FormData): Promise<State> {
+	await requireAdmin();
+
+	const parsed = newOrderSchema.safeParse(detailsFrom(formData));
+	if (!parsed.success) {
+		return {
+			result: actionError(
+				"Please check the highlighted fields and try again.",
+				fieldErrorsOf(parsed.error),
+			),
+		};
+	}
+
+	let items: Json;
+	try {
+		items = JSON.parse(String(formData.get("items") ?? "[]")) as Json;
+	} catch {
+		return { result: actionError("That couldn't be saved. Please try again.") };
+	}
+	if (!Array.isArray(items) || items.length === 0) {
+		return { result: actionError("Add something off the menu first.") };
+	}
+
+	const details = parsed.data;
+	const supabase = await createClient();
+	const { data: id, error } = await supabase.rpc("admin_create_order", {
+		p_items: items,
+		p_pickup_date: details.pickupDate,
+		p_pickup_time: details.pickupTime,
+		p_fulfilment: details.fulfilment,
+		p_customer_name: details.customerName,
+		p_customer_email: details.customerEmail,
+		p_customer_phone: details.customerPhone,
+		p_delivery_address: details.deliveryAddress,
+		p_notes: details.notes,
+	});
+
+	if (error || !id) {
+		return {
+			result: actionError(
+				error ? itemError(error, "create an order") : "That couldn't be saved. Please try again.",
+			),
+		};
+	}
+
+	revalidatePath("/admin/orders");
+	revalidatePath("/admin");
+	redirect(`/admin/orders/${id}`);
 }
 
 export async function saveInternalNotes(_previous: State, formData: FormData): Promise<State> {
