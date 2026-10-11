@@ -19,12 +19,20 @@ import styles from "./menu.module.css";
  * customer only once their order is confirmed; this page is the deliberate
  * exception, not a second source of truth.
  */
-const MENU_ITEMS: ReadonlyArray<{ name: string; prices: readonly string[] }> = [
-	{ name: "Cupcakes", prices: ["$3 each", "4 for $12"] },
-	{ name: "Cookies", prices: ["$5 / pack"] },
-	{ name: "Brochi", prices: ["$5 / slice"] },
-	{ name: "Wingko", prices: ["$5 / slice"] },
-	{ name: "Pandan Chiffon Cake", prices: ["$3 / slice"] },
+const MENU_ITEMS: ReadonlyArray<{
+	name: string;
+	note?: string;
+	flavours?: readonly string[];
+	prices: readonly string[];
+}> = [
+	{
+		name: "Cookies",
+		flavours: ["Triple Chocolate", "Classic Chocolate Chip", "Matcha White Chocolate"],
+		prices: ["2 for $5"],
+	},
+	{ name: "Chiffon Cake", note: "non-dairy", flavours: ["Pandan", "Mocha"], prices: ["$3"] },
+	{ name: "Brochi", note: "non-dairy, gluten-free", flavours: ["Ube", "Pandan"], prices: ["$5"] },
+	{ name: "Biscoff Brownie", note: "non-dairy", prices: ["$5"] },
 ];
 
 /**
@@ -77,7 +85,13 @@ export default async function MenuPage() {
 						<li
 							key={item.name}
 							className={styles.menuItem}>
-							<h3>{item.name}</h3>
+							<div>
+								<h3>{item.name}</h3>
+								{item.note ? <p className={styles.note}>{item.note}</p> : null}
+								{item.flavours ? (
+									<p className={styles.flavours}>{item.flavours.join(" · ")}</p>
+								) : null}
+							</div>
 							{item.prices.length > 1 ? (
 								<div className={styles.prices}>
 									{item.prices.map((price) => (
