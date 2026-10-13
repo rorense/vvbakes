@@ -17,6 +17,10 @@ export const metadata: Metadata = {
 	description:
 		"When an order becomes an order, when to pay, what happens if a plan changes, and what is baked in this kitchen.",
 	alternates: { canonical: "/terms" },
+	// Kept out of search at Ryan's request. Still linked from the footer and the
+	// order form, so `follow` stays on. Not in robots.txt either: a disallowed
+	// page never gets crawled, so Google would never see this noindex.
+	robots: { index: false, follow: true },
 };
 
 /**

@@ -56,9 +56,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			changeFrequency: "weekly" as const,
 			priority: 0.7,
 		})),
-		// Listed so they can be found on their own, ranked last on purpose: nobody
-		// is looking for the bakery by searching for its privacy policy.
-		{ url: `${base}/terms`, changeFrequency: "yearly", priority: 0.2 },
+		// Listed so it can be found on its own, ranked last on purpose: nobody is
+		// looking for the bakery by searching for its privacy policy. /terms is
+		// absent because it is noindex, and a sitemap naming it would contradict that.
 		{ url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.2 },
 	];
 }
